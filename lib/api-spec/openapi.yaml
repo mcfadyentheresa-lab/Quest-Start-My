@@ -674,6 +674,9 @@ components:
         weeklyPlan:
           $ref: "#/components/schemas/WeeklyPlan"
           nullable: true
+        planningStreak:
+          type: integer
+          description: Number of consecutive weeks with a weekly plan saved
       required:
         - todayDate
         - totalTasksToday
@@ -683,6 +686,7 @@ components:
         - blockedCount
         - pendingCount
         - activePillars
+        - planningStreak
 
     WeekSummary:
       type: object

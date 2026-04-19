@@ -222,6 +222,8 @@ export interface DashboardSummary {
   pendingCount: number;
   activePillars: Pillar[];
   weeklyPlan?: WeeklyPlan | null;
+  /** Number of consecutive weeks with a weekly plan saved */
+  planningStreak: number;
 }
 
 export type WeekSummaryPillarActivityItem = {

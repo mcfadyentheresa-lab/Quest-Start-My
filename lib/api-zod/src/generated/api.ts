@@ -301,6 +301,9 @@ export const GetDashboardSummaryResponse = zod.object({
       whatContinues: zod.string().nullish(),
     })
     .nullish(),
+  planningStreak: zod
+    .number()
+    .describe("Number of consecutive weeks with a weekly plan saved"),
 });
 
 /**

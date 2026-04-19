@@ -6,6 +6,7 @@ import {
   useUpdateWeeklyPlan,
   useListPillars,
   useUpdatePillar,
+  useGetDashboardSummary,
   getListWeeklyPlansQueryKey,
   getListPillarsQueryKey,
   getGetDashboardSummaryQueryKey,
@@ -16,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { PriorityBadge } from "@/components/priority-badge";
-import { Plus, Trash2, Check, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Trash2, Check, Loader2, ChevronDown, ChevronUp, Flame } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -45,6 +46,7 @@ export default function WeeklyPage() {
     { query: { queryKey: getListWeeklyPlansQueryKey({ weekOf }) } }
   );
   const { data: pillars, isLoading: pillarsLoading } = useListPillars();
+  const { data: dashboardSummary } = useGetDashboardSummary();
 
   const createPlan = useCreateWeeklyPlan();
   const updatePlan = useUpdateWeeklyPlan();
@@ -148,9 +150,19 @@ export default function WeeklyPage() {
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="font-serif text-2xl font-medium text-foreground">This week</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">{formatWeek(weekOf)}</p>
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-start justify-between">
+        <div>
+          <h1 className="font-serif text-2xl font-medium text-foreground">This week</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{formatWeek(weekOf)}</p>
+        </div>
+        {dashboardSummary && dashboardSummary.planningStreak > 0 && (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-700">
+            <Flame className="h-4 w-4 text-amber-500" />
+            <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+              {dashboardSummary.planningStreak} {dashboardSummary.planningStreak === 1 ? "week" : "weeks"}
+            </span>
+          </div>
+        )}
       </motion.div>
 
       {/* Active pillars */}

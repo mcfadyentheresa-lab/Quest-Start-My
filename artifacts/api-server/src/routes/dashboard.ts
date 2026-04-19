@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, gte, lte, lt, desc } from "drizzle-orm";
+import { eq, and, gte, lte, lt, desc, asc } from "drizzle-orm";
 import { db, tasksTable, pillarsTable, weeklyPlansTable } from "@workspace/db";
 import {
   GetDashboardSummaryResponse,
@@ -23,14 +23,28 @@ function getWeekEnd(weekStart: string): string {
   return d.toISOString().slice(0, 10);
 }
 
+function computePlanningStreak(allPlans: { weekOf: string }[], currentWeekOf: string): number {
+  const planWeeks = new Set(allPlans.map(p => p.weekOf));
+  let streak = 0;
+  let weekCursor = currentWeekOf;
+  while (planWeeks.has(weekCursor)) {
+    streak++;
+    const d = new Date(weekCursor + "T00:00:00");
+    d.setDate(d.getDate() - 7);
+    weekCursor = d.toISOString().slice(0, 10);
+  }
+  return streak;
+}
+
 router.get("/dashboard/summary", async (req, res): Promise<void> => {
   const today = new Date().toISOString().slice(0, 10);
   const weekOf = getWeekStart();
 
-  const [todayTasks, allPillars, weeklyPlans] = await Promise.all([
+  const [todayTasks, allPillars, weeklyPlans, allWeeklyPlans] = await Promise.all([
     db.select().from(tasksTable).where(eq(tasksTable.date, today)),
     db.select().from(pillarsTable).orderBy(pillarsTable.id),
     db.select().from(weeklyPlansTable).where(eq(weeklyPlansTable.weekOf, weekOf)),
+    db.select({ weekOf: weeklyPlansTable.weekOf }).from(weeklyPlansTable).orderBy(asc(weeklyPlansTable.weekOf)),
   ]);
 
   const doneCount = todayTasks.filter(t => t.status === "done").length;
@@ -41,6 +55,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
 
   const activePillars = allPillars.filter(p => p.isActiveThisWeek);
   const weeklyPlan = weeklyPlans[0] ?? null;
+  const planningStreak = computePlanningStreak(allWeeklyPlans, weekOf);
 
   const serializePillar = (p: typeof allPillars[0]) => ({
     ...p,
@@ -63,6 +78,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     pendingCount,
     activePillars: activePillars.map(serializePillar),
     weeklyPlan: serializePlan(weeklyPlan),
+    planningStreak,
   }));
 });
 

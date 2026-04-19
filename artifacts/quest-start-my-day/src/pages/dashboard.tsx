@@ -15,7 +15,7 @@ import { PriorityBadge, PriorityLegend } from "@/components/priority-badge";
 import { AddTaskDialog } from "@/components/add-task-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Plus, Sprout, ArrowRight, CheckCircle2, ExternalLink } from "lucide-react";
+import { Plus, Sprout, ArrowRight, CheckCircle2, ExternalLink, CalendarDays } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch, useLocation } from "wouter";
@@ -119,6 +119,32 @@ export default function Dashboard() {
       <section>
         <PriorityLegend />
       </section>
+
+      {/* Weekly plan nudge - show when no plan or plan lacks businessFocus/creativeFocus */}
+      {!summaryLoading && summary && (!summary.weeklyPlan || (!summary.weeklyPlan.businessFocus && !summary.weeklyPlan.creativeFocus)) && (
+        <motion.section
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 }}
+          className="rounded-2xl border border-dashed border-primary/40 bg-primary/5 px-5 py-4 flex items-center justify-between gap-3"
+        >
+          <div className="flex items-center gap-3">
+            <CalendarDays className="h-5 w-5 text-primary flex-shrink-0" />
+            <p className="text-sm font-medium text-foreground">
+              Start your week with intention
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="rounded-xl gap-1.5 text-primary text-xs font-semibold shrink-0"
+            onClick={() => navigate("/weekly")}
+          >
+            Plan now
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </motion.section>
+      )}
 
       {/* Active pillars */}
       {summary?.activePillars && summary.activePillars.length > 0 && (
