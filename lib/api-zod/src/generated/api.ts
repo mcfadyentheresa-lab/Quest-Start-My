@@ -609,7 +609,16 @@ export const UpdateMonthlyReviewParams = zod.object({
   id: zod.coerce.number(),
 });
 
+export const updateMonthlyReviewBodyMonthOfRegExp = new RegExp(
+  "^\\d{4}-\\d{2}$",
+);
+
 export const UpdateMonthlyReviewBody = zod.object({
+  monthOf: zod
+    .string()
+    .regex(updateMonthlyReviewBodyMonthOfRegExp)
+    .optional()
+    .describe("Month in YYYY-MM format (can be corrected after creation)"),
   whatMoved: zod.string().nullish(),
   pillarsAdvanced: zod.string().nullish(),
   milestonesCompleted: zod.string().nullish(),

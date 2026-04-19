@@ -472,6 +472,11 @@ export interface CreateMonthlyReviewBody {
 }
 
 export interface UpdateMonthlyReviewBody {
+  /**
+   * Month in YYYY-MM format (can be corrected after creation)
+   * @pattern ^\d{4}-\d{2}$
+   */
+  monthOf?: string;
   whatMoved?: string | null;
   pillarsAdvanced?: string | null;
   milestonesCompleted?: string | null;

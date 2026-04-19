@@ -1245,6 +1245,10 @@ components:
     UpdateMonthlyReviewBody:
       type: object
       properties:
+        monthOf:
+          type: string
+          pattern: '^\d{4}-\d{2}$'
+          description: Month in YYYY-MM format (can be corrected after creation)
         whatMoved:
           type: string
           nullable: true

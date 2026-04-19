@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, ne } from "drizzle-orm";
 import { db, monthlyReviewsTable } from "@workspace/db";
 import {
   ListMonthlyReviewsResponse,
@@ -72,7 +72,20 @@ router.patch("/monthly/:id", async (req, res): Promise<void> => {
   }
   const body = bodyParsed.data;
 
+  // Check for monthOf conflict before updating (excludes current record)
+  if ("monthOf" in body && body.monthOf !== undefined) {
+    const conflict = await db.select({ id: monthlyReviewsTable.id })
+      .from(monthlyReviewsTable)
+      .where(and(eq(monthlyReviewsTable.monthOf, body.monthOf), ne(monthlyReviewsTable.id, id)))
+      .limit(1);
+    if (conflict.length > 0) {
+      res.status(409).json({ error: "A review for this month already exists", monthOf: body.monthOf });
+      return;
+    }
+  }
+
   const updateFields: Partial<typeof monthlyReviewsTable.$inferInsert> = {};
+  if ("monthOf" in body && body.monthOf !== undefined) updateFields.monthOf = body.monthOf;
   if ("whatMoved" in body) updateFields.whatMoved = body.whatMoved ?? null;
   if ("pillarsAdvanced" in body) updateFields.pillarsAdvanced = body.pillarsAdvanced ?? null;
   if ("milestonesCompleted" in body) updateFields.milestonesCompleted = body.milestonesCompleted ?? null;
