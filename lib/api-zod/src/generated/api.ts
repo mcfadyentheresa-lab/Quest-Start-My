@@ -34,7 +34,7 @@ export const ListPillarsResponseItem = zod.object({
   blockers: zod.string().nullish(),
   lastUpdated: zod.string().nullish(),
   featureTag: zod
-    .string()
+    .enum(["personal", "shared", "sellable"])
     .nullish()
     .describe("Optional product\/feature label for productization tracking"),
 });
@@ -73,7 +73,7 @@ export const UpdatePillarBody = zod.object({
   laterFocus: zod.string().nullish(),
   blockers: zod.string().nullish(),
   lastUpdated: zod.string().nullish(),
-  featureTag: zod.string().nullish(),
+  featureTag: zod.enum(["personal", "shared", "sellable"]).nullish(),
 });
 
 export const UpdatePillarResponse = zod.object({
@@ -93,7 +93,7 @@ export const UpdatePillarResponse = zod.object({
   blockers: zod.string().nullish(),
   lastUpdated: zod.string().nullish(),
   featureTag: zod
-    .string()
+    .enum(["personal", "shared", "sellable"])
     .nullish()
     .describe("Optional product\/feature label for productization tracking"),
 });
@@ -381,7 +381,7 @@ export const GetDashboardSummaryResponse = zod.object({
       blockers: zod.string().nullish(),
       lastUpdated: zod.string().nullish(),
       featureTag: zod
-        .string()
+        .enum(["personal", "shared", "sellable"])
         .nullish()
         .describe(
           "Optional product\/feature label for productization tracking",
@@ -560,9 +560,16 @@ export const GetFrictionSignalsResponse = zod.array(
 /**
  * @summary List monthly reviews, newest first
  */
+export const listMonthlyReviewsResponseMonthOfRegExp = new RegExp(
+  "^\\d{4}-\\d{2}$",
+);
+
 export const ListMonthlyReviewsResponseItem = zod.object({
   id: zod.number(),
-  monthOf: zod.string().describe("Month in YYYY-MM format"),
+  monthOf: zod
+    .string()
+    .regex(listMonthlyReviewsResponseMonthOfRegExp)
+    .describe("Month in YYYY-MM format"),
   whatMoved: zod.string().nullish(),
   pillarsAdvanced: zod.string().nullish(),
   milestonesCompleted: zod.string().nullish(),
@@ -578,8 +585,15 @@ export const ListMonthlyReviewsResponse = zod.array(
 /**
  * @summary Create a monthly review (409 if monthOf already exists)
  */
+export const createMonthlyReviewBodyMonthOfRegExp = new RegExp(
+  "^\\d{4}-\\d{2}$",
+);
+
 export const CreateMonthlyReviewBody = zod.object({
-  monthOf: zod.string().describe("Month in YYYY-MM format"),
+  monthOf: zod
+    .string()
+    .regex(createMonthlyReviewBodyMonthOfRegExp)
+    .describe("Month in YYYY-MM format"),
   whatMoved: zod.string().nullish(),
   pillarsAdvanced: zod.string().nullish(),
   milestonesCompleted: zod.string().nullish(),
@@ -604,9 +618,16 @@ export const UpdateMonthlyReviewBody = zod.object({
   topPrioritiesNextMonth: zod.array(zod.string()).nullish(),
 });
 
+export const updateMonthlyReviewResponseMonthOfRegExp = new RegExp(
+  "^\\d{4}-\\d{2}$",
+);
+
 export const UpdateMonthlyReviewResponse = zod.object({
   id: zod.number(),
-  monthOf: zod.string().describe("Month in YYYY-MM format"),
+  monthOf: zod
+    .string()
+    .regex(updateMonthlyReviewResponseMonthOfRegExp)
+    .describe("Month in YYYY-MM format"),
   whatMoved: zod.string().nullish(),
   pillarsAdvanced: zod.string().nullish(),
   milestonesCompleted: zod.string().nullish(),

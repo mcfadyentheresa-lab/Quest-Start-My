@@ -143,6 +143,19 @@ export const PillarPriority = {
   P4: "P4",
 } as const;
 
+/**
+ * Optional product/feature label for productization tracking
+ */
+export type PillarFeatureTag =
+  | (typeof PillarFeatureTag)[keyof typeof PillarFeatureTag]
+  | null;
+
+export const PillarFeatureTag = {
+  personal: "personal",
+  shared: "shared",
+  sellable: "sellable",
+} as const;
+
 export interface Pillar {
   id: number;
   name: string;
@@ -160,7 +173,7 @@ export interface Pillar {
   blockers?: string | null;
   lastUpdated?: string | null;
   /** Optional product/feature label for productization tracking */
-  featureTag?: string | null;
+  featureTag?: PillarFeatureTag;
 }
 
 export type CreatePillarBodyPriority =
@@ -192,6 +205,16 @@ export const UpdatePillarBodyPriority = {
   P4: "P4",
 } as const;
 
+export type UpdatePillarBodyFeatureTag =
+  | (typeof UpdatePillarBodyFeatureTag)[keyof typeof UpdatePillarBodyFeatureTag]
+  | null;
+
+export const UpdatePillarBodyFeatureTag = {
+  personal: "personal",
+  shared: "shared",
+  sellable: "sellable",
+} as const;
+
 export interface UpdatePillarBody {
   name?: string;
   priority?: UpdatePillarBodyPriority;
@@ -206,7 +229,7 @@ export interface UpdatePillarBody {
   laterFocus?: string | null;
   blockers?: string | null;
   lastUpdated?: string | null;
-  featureTag?: string | null;
+  featureTag?: UpdatePillarBodyFeatureTag;
 }
 
 export type TaskCategory = (typeof TaskCategory)[keyof typeof TaskCategory];
@@ -420,7 +443,10 @@ export interface ReentryInfo {
 
 export interface MonthlyReview {
   id: number;
-  /** Month in YYYY-MM format */
+  /**
+   * Month in YYYY-MM format
+   * @pattern ^\d{4}-\d{2}$
+   */
   monthOf: string;
   whatMoved?: string | null;
   pillarsAdvanced?: string | null;
@@ -432,7 +458,10 @@ export interface MonthlyReview {
 }
 
 export interface CreateMonthlyReviewBody {
-  /** Month in YYYY-MM format */
+  /**
+   * Month in YYYY-MM format
+   * @pattern ^\d{4}-\d{2}$
+   */
   monthOf: string;
   whatMoved?: string | null;
   pillarsAdvanced?: string | null;

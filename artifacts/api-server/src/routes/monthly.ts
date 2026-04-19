@@ -25,7 +25,12 @@ router.get("/monthly", async (req, res): Promise<void> => {
 });
 
 router.post("/monthly", async (req, res): Promise<void> => {
-  const body = CreateMonthlyReviewBody.parse(req.body);
+  const parsed = CreateMonthlyReviewBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const body = parsed.data;
 
   // Check for duplicate monthOf (UNIQUE constraint — return 409 instead of DB error)
   const existing = await db.select({ id: monthlyReviewsTable.id })
@@ -60,7 +65,12 @@ router.patch("/monthly/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const body = UpdateMonthlyReviewBody.parse(req.body);
+  const bodyParsed = UpdateMonthlyReviewBody.safeParse(req.body);
+  if (!bodyParsed.success) {
+    res.status(400).json({ error: bodyParsed.error.message });
+    return;
+  }
+  const body = bodyParsed.data;
 
   const updateFields: Partial<typeof monthlyReviewsTable.$inferInsert> = {};
   if ("whatMoved" in body) updateFields.whatMoved = body.whatMoved ?? null;
