@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Pencil, ChevronDown, ChevronUp, Settings } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 
@@ -170,27 +171,20 @@ const portfolioStatusStyles: Record<PortfolioStatus, string> = {
   Parked: "text-muted-foreground bg-muted/50",
 };
 
-const STATUS_CYCLE: PortfolioStatus[] = ["Active", "Warm", "Parked"];
-
-function nextStatus(current: string | null | undefined): PortfolioStatus {
-  const idx = STATUS_CYCLE.indexOf((current ?? "Active") as PortfolioStatus);
-  return STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length]!;
-}
-
 function PortfolioStatusBadge({
   status,
-  onClick,
+  onStatusSelect,
   loading,
 }: {
   status: string | null | undefined;
-  onClick?: () => void;
+  onStatusSelect?: (s: PortfolioStatus) => void;
   loading?: boolean;
 }) {
+  const [open, setOpen] = useState(false);
   const s = (status ?? "Active") as PortfolioStatus;
   const style = portfolioStatusStyles[s] ?? portfolioStatusStyles.Active;
-  const next = nextStatus(s);
 
-  if (!onClick) {
+  if (!onStatusSelect) {
     return (
       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${style}`}>
         {s}
@@ -199,15 +193,33 @@ function PortfolioStatusBadge({
   }
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={loading}
-      title={`Tap to set → ${next}`}
-      className={`text-xs font-medium px-2 py-0.5 rounded-full transition-opacity hover:opacity-70 active:scale-95 cursor-pointer disabled:opacity-50 ${style}`}
-    >
-      {s}
-    </button>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={loading}
+          className={`text-xs font-medium px-2 py-0.5 rounded-full transition-opacity hover:opacity-70 active:scale-95 cursor-pointer disabled:opacity-50 ${style}`}
+        >
+          {s}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-36 p-1 rounded-xl" align="start" side="bottom">
+        {PORTFOLIO_STATUSES.map(option => {
+          const optStyle = portfolioStatusStyles[option];
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() => { setOpen(false); if (option !== s) onStatusSelect(option); }}
+              className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs font-medium hover:bg-muted transition-colors"
+            >
+              <span className={`px-1.5 py-0.5 rounded-full ${optStyle}`}>{option}</span>
+              {option === s && <Check className="h-3 w-3 ml-auto text-muted-foreground" />}
+            </button>
+          );
+        })}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -252,7 +264,7 @@ function PillarCard({ pillar, onEdit, onStatusChange, editLoading, statusLoading
                 <PriorityBadge priority={pillar.priority} />
                 <PortfolioStatusBadge
                   status={pillar.portfolioStatus}
-                  onClick={() => onStatusChange(pillar.id, nextStatus(pillar.portfolioStatus))}
+                  onStatusSelect={(s) => onStatusChange(pillar.id, s)}
                   loading={statusLoading}
                 />
               </div>
