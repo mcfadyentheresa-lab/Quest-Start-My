@@ -6,6 +6,7 @@ import {
   useCreateMonthlyReview,
   useUpdateMonthlyReview,
   getListMonthlyReviewsQueryKey,
+  type MonthlyReview,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -46,6 +47,20 @@ function formatMonth(monthOf: string): string {
   return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
+function reviewToFormValues(review: MonthlyReview): ReviewFormData {
+  const [p1 = "", p2 = "", p3 = ""] = review.topPrioritiesNextMonth ?? [];
+  return {
+    whatMoved: review.whatMoved ?? "",
+    pillarsAdvanced: review.pillarsAdvanced ?? "",
+    milestonesCompleted: review.milestonesCompleted ?? "",
+    whatDelayed: review.whatDelayed ?? "",
+    whatToPause: review.whatToPause ?? "",
+    priority1: p1,
+    priority2: p2,
+    priority3: p3,
+  };
+}
+
 export default function ReviewPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -74,17 +89,7 @@ export default function ReviewPage() {
 
   useEffect(() => {
     if (existingReview) {
-      const [p1 = "", p2 = "", p3 = ""] = existingReview.topPrioritiesNextMonth ?? [];
-      reset({
-        whatMoved: existingReview.whatMoved ?? "",
-        pillarsAdvanced: existingReview.pillarsAdvanced ?? "",
-        milestonesCompleted: existingReview.milestonesCompleted ?? "",
-        whatDelayed: existingReview.whatDelayed ?? "",
-        whatToPause: existingReview.whatToPause ?? "",
-        priority1: p1,
-        priority2: p2,
-        priority3: p3,
-      });
+      reset(reviewToFormValues(existingReview));
     } else {
       reset({
         whatMoved: "",
@@ -114,7 +119,11 @@ export default function ReviewPage() {
       updateReview.mutate(
         { id: existingReview.id, data: payload },
         {
-          onSuccess: () => toast({ title: "Review updated" }),
+          onSuccess: (saved) => {
+            queryClient.invalidateQueries({ queryKey: getListMonthlyReviewsQueryKey() });
+            reset(reviewToFormValues(saved));
+            toast({ title: "Review updated" });
+          },
           onError: () => toast({ title: "Failed to save", variant: "destructive" }),
         }
       );
@@ -122,8 +131,9 @@ export default function ReviewPage() {
       createReview.mutate(
         { data: { monthOf: selectedMonth, ...payload } },
         {
-          onSuccess: () => {
+          onSuccess: (saved) => {
             queryClient.invalidateQueries({ queryKey: getListMonthlyReviewsQueryKey() });
+            reset(reviewToFormValues(saved));
             toast({ title: "Review saved" });
           },
           onError: () => toast({ title: "Failed to save", variant: "destructive" }),
