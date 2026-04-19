@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   useListPillars,
@@ -23,7 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check, Trash2, GripVertical, AlertCircle } from "lucide-react";
+import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check, Trash2, GripVertical, AlertCircle, Volume2, VolumeX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useForm } from "react-hook-form";
@@ -946,6 +946,15 @@ const P_LEGEND = [
   { level: "P4", label: "Parked / inactive", color: "bg-muted text-muted-foreground" },
 ];
 
+const FOCUS_DURATION_OPTIONS = [5, 10, 15, 25] as const;
+
+function readLocalBool(key: string, fallback: boolean): boolean {
+  try { const v = localStorage.getItem(key); return v === null ? fallback : v === "true"; } catch { return fallback; }
+}
+function readLocalInt(key: string, fallback: number): number {
+  try { const v = localStorage.getItem(key); if (!v) return fallback; const n = parseInt(v, 10); return isNaN(n) ? fallback : n; } catch { return fallback; }
+}
+
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -953,6 +962,22 @@ export default function SettingsPage() {
   const createPillar = useCreatePillar();
   const updatePillar = useUpdatePillar();
   const [addOpen, setAddOpen] = useState(false);
+
+  const [soundEnabled, setSoundEnabledState] = useState(() => readLocalBool("quest_sound_enabled", true));
+  const [defaultDuration, setDefaultDurationState] = useState(() => readLocalInt("quest_timer_duration_minutes", 25));
+
+  const toggleSound = useCallback(() => {
+    setSoundEnabledState(prev => {
+      const next = !prev;
+      try { localStorage.setItem("quest_sound_enabled", String(next)); } catch { }
+      return next;
+    });
+  }, []);
+
+  const setDuration = useCallback((d: number) => {
+    setDefaultDurationState(d);
+    try { localStorage.setItem("quest_timer_duration_minutes", String(d)); } catch { }
+  }, []);
 
   const handleCreate = (data: PillarFormData) => {
     createPillar.mutate(
@@ -1129,6 +1154,72 @@ export default function SettingsPage() {
           ))}
         </div>
       )}
+
+      {/* Focus reminders preferences */}
+      <motion.section
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl bg-card border border-card-border p-5 space-y-4"
+      >
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-0.5">Focus reminders</p>
+          <p className="text-xs text-muted-foreground">Optional timed focus blocks with a gentle nudge when time is up.</p>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-foreground">Sound reminders</p>
+            <p className="text-xs text-muted-foreground">Play a soft chime when your focus block ends</p>
+          </div>
+          <button
+            onClick={toggleSound}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+              soundEnabled ? "bg-violet-600" : "bg-muted"
+            }`}
+            role="switch"
+            aria-checked={soundEnabled}
+            aria-label="Toggle sound reminders"
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                soundEnabled ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
+
+        <div>
+          <p className="text-sm font-medium text-foreground mb-2">Default focus duration</p>
+          <div className="flex gap-2 flex-wrap">
+            {FOCUS_DURATION_OPTIONS.map(d => (
+              <button
+                key={d}
+                onClick={() => setDuration(d)}
+                className={`text-sm px-4 py-1.5 rounded-full border transition-colors font-medium ${
+                  defaultDuration === d
+                    ? "bg-violet-100 border-violet-400 text-violet-700 dark:bg-violet-900/40 dark:border-violet-500 dark:text-violet-300"
+                    : "border-border text-muted-foreground hover:border-violet-300 hover:text-violet-600"
+                }`}
+              >
+                {d} min
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 pt-1">
+          {soundEnabled ? (
+            <Volume2 className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+          ) : (
+            <VolumeX className="h-3.5 w-3.5 text-muted-foreground" />
+          )}
+          <p className="text-xs text-muted-foreground">
+            {soundEnabled
+              ? `Sound on · ${defaultDuration}-min default · Browser must allow audio after first interaction`
+              : `Sound off · ${defaultDuration}-min default · Visual reminder only`}
+          </p>
+        </div>
+      </motion.section>
     </div>
   );
 }

@@ -77,6 +77,14 @@ A personal daily command center — mobile-first web app for morning planning.
 - "Resume this task" button replaces "Undo" for stepped_back tasks.
 - Fixed API server import error: GetPillarCompletionHistoryQueryParams alias.
 
+**Phase 7 features (Focus Transition Nudge — added):**
+- `src/hooks/use-focus-timer.ts`: self-contained timer hook — countdown, pause/resume, snooze, Web Audio API chime (3-tone sine-wave), sound preference + audio-unlock flow all in one hook. localStorage keys: `quest_sound_enabled`, `quest_timer_duration_minutes`
+- `src/components/focus-nudge-dialog.tsx`: end-of-timer modal — keyboard accessible (Escape closes, first button auto-focused), shows current & next task name, buttons: Start next task / Snooze 5 min / Snooze 15 min / Need more time (+15 min) / sound mute toggle
+- `src/components/focus-timer-widget.tsx`: compact countdown widget (SVG progress ring, MM:SS, task name, pause/resume/cancel/mute) shown inline above the task list while timer is running
+- Dashboard: "Focus block" control panel above task list (duration chips: 5/10/15/25 min, "Start" button for first pending task); timer widget replaces it while running; nudge dialog appears on completion; "Start next task" marks current task done then shows next pending task
+- Settings: "Focus reminders" section at bottom — sound on/off toggle (role=switch, keyboard focusable) + default duration chips; both persist to localStorage and are read by the hook on next load
+- No API changes, no DB changes; all additive; all existing task/timer behavior unchanged
+
 **Phase 6 features (Home/Cleaning micro-task module — added):**
 - Home Reset module at `/home` — completely separate from the main work task stream
 - `taskSource` nullable text column added to tasks table (additive only, no existing data touched)

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   useGetDashboardSummary,
@@ -13,12 +14,17 @@ import { TaskCard } from "@/components/task-card";
 import { ProgressSummary } from "@/components/progress-summary";
 import { PriorityBadge, PriorityLegend } from "@/components/priority-badge";
 import { AddTaskDialog } from "@/components/add-task-dialog";
+import { FocusTimerWidget } from "@/components/focus-timer-widget";
+import { FocusNudgeDialog } from "@/components/focus-nudge-dialog";
+import { useFocusTimer } from "@/hooks/use-focus-timer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Plus, Sprout, ArrowRight, CheckCircle2, ExternalLink, CalendarDays } from "lucide-react";
+import { Plus, Sprout, ArrowRight, CheckCircle2, ExternalLink, CalendarDays, Timer } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch, useLocation } from "wouter";
+
+const FOCUS_DURATIONS = [5, 10, 15, 25] as const;
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -47,6 +53,9 @@ export default function Dashboard() {
   const setDateParam = (date: string) => navigate(`/?date=${date}`);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  const timer = useFocusTimer();
+  const [selectedFocusDuration, setSelectedFocusDuration] = useState<number>(() => timer.defaultDuration);
 
   const { data: summary, isLoading: summaryLoading } = useGetDashboardSummary();
   const { data: tasks, isLoading: tasksLoading } = useListTasks(
@@ -95,6 +104,43 @@ export default function Dashboard() {
     setTimeout(() => {
       document.getElementById("tasks-section")?.scrollIntoView({ behavior: "smooth" });
     }, 200);
+  };
+
+  const pendingTasksToday = tasks?.filter(t => t.status === "pending" && t.date === today) ?? [];
+
+  const focusedTask = pendingTasksToday.find(t => t.id === timer.taskId) ?? pendingTasksToday[0] ?? null;
+  const nextPendingTask = focusedTask
+    ? pendingTasksToday.find(t => t.id !== focusedTask.id)
+    : null;
+
+  const handleStartFocusBlock = (task: typeof pendingTasksToday[0]) => {
+    timer.startTimer({ taskTitle: task.title, taskId: task.id, durationMins: selectedFocusDuration });
+    timer.unlockAudio();
+  };
+
+  const handleNudgeStartNext = () => {
+    const currentId = timer.taskId;
+    timer.dismissNudge();
+    if (currentId !== null) {
+      const currentTask = tasks?.find(t => t.id === currentId);
+      if (currentTask && currentTask.status === "pending") {
+        updateTask.mutate(
+          { id: currentId, data: { status: "done" } },
+          {
+            onSuccess: () => {
+              queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date: today }) });
+              queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+              queryClient.invalidateQueries({ queryKey: getGetReentryTaskQueryKey() });
+              if (nextPendingTask) {
+                toast({ title: "Starting next task", description: nextPendingTask.title });
+              } else {
+                toast({ title: "Task marked done", description: "All clear — no more tasks!" });
+              }
+            },
+          }
+        );
+      }
+    }
   };
 
   const handleMarkReentryDone = () => {
@@ -360,6 +406,20 @@ export default function Dashboard() {
         </motion.div>
       )}
 
+      {/* Focus nudge dialog — rendered at page level so it overlays everything */}
+      <FocusNudgeDialog
+        open={timer.isNudging}
+        taskTitle={timer.taskTitle}
+        nextTaskTitle={nextPendingTask?.title ?? null}
+        soundEnabled={timer.soundEnabled}
+        onStartNext={handleNudgeStartNext}
+        onSnooze5={() => timer.snooze(5)}
+        onSnooze15={() => timer.snooze(15)}
+        onNeedMoreTime={() => timer.needMoreTime(15)}
+        onDismiss={timer.dismissNudge}
+        onToggleSound={() => timer.setSoundEnabled(!timer.soundEnabled)}
+      />
+
       {/* Tasks section */}
       <section id="tasks-section">
         <div className="flex items-center justify-between mb-3">
@@ -375,6 +435,71 @@ export default function Dashboard() {
             </AddTaskDialog>
           )}
         </div>
+
+        {/* Focus block controls */}
+        {!isViewingHistory && !timer.isRunning && !timer.isNudging && pendingTasksToday.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-3 rounded-2xl border border-violet-200 bg-violet-50/60 dark:border-violet-800 dark:bg-violet-900/10 px-4 py-3"
+          >
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Timer className="h-4 w-4 text-violet-600 dark:text-violet-400 flex-shrink-0" />
+                <span className="text-sm font-medium text-foreground">Focus block</span>
+                <span className="text-xs text-muted-foreground hidden sm:inline">on: {focusedTask?.title ?? "first task"}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {FOCUS_DURATIONS.map(d => (
+                  <button
+                    key={d}
+                    onClick={() => setSelectedFocusDuration(d)}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors font-medium ${
+                      selectedFocusDuration === d
+                        ? "bg-violet-100 border-violet-400 text-violet-700 dark:bg-violet-900/40 dark:border-violet-500 dark:text-violet-300"
+                        : "border-border text-muted-foreground hover:border-violet-300 hover:text-violet-600"
+                    }`}
+                  >
+                    {d}m
+                  </button>
+                ))}
+                <Button
+                  size="sm"
+                  className="rounded-xl bg-violet-600 text-white hover:bg-violet-700 ml-1 text-xs font-medium px-3"
+                  onClick={() => focusedTask && handleStartFocusBlock(focusedTask)}
+                  disabled={!focusedTask}
+                >
+                  Start
+                </Button>
+              </div>
+            </div>
+            {focusedTask && (
+              <p className="text-xs text-muted-foreground mt-1.5 sm:hidden truncate">
+                on: {focusedTask.title}
+              </p>
+            )}
+          </motion.div>
+        )}
+
+        {/* Active timer widget */}
+        {!isViewingHistory && (timer.isRunning || (!timer.isNudging && timer.remaining > 0)) && (
+          <div className="mb-3">
+            <FocusTimerWidget
+              isRunning={timer.isRunning}
+              isVisible={timer.isRunning || timer.remaining > 0}
+              remaining={timer.remaining}
+              totalSeconds={timer.totalSeconds}
+              taskTitle={timer.taskTitle}
+              soundEnabled={timer.soundEnabled}
+              audioUnlocked={timer.audioUnlocked}
+              onPause={timer.pauseTimer}
+              onResume={timer.resumeTimer}
+              onCancel={timer.cancelTimer}
+              onToggleSound={() => timer.setSoundEnabled(!timer.soundEnabled)}
+              onUnlockAudio={timer.unlockAudio}
+            />
+          </div>
+        )}
 
         {tasksLoading ? (
           <div className="space-y-3">
