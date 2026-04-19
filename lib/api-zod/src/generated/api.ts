@@ -674,6 +674,21 @@ export const GetFrictionSignalsResponseItem = zod.object({
     .date()
     .nullish()
     .describe("Most recent relevant date for this signal (YYYY-MM-DD)"),
+  passDates: zod
+    .array(zod.string())
+    .optional()
+    .describe(
+      "Sorted list of dates the task was passed, in YYYY-MM-DD format (for repeated_pass signals)",
+    ),
+  blockEntries: zod
+    .array(
+      zod.object({
+        date: zod.string().describe("Date in YYYY-MM-DD format"),
+        taskTitle: zod.string(),
+      }),
+    )
+    .optional()
+    .describe("Recent blocked log entries (for repeated_block signals)"),
 });
 export const GetFrictionSignalsResponse = zod.array(
   GetFrictionSignalsResponseItem,

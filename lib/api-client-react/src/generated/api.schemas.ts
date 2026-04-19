@@ -601,6 +601,12 @@ export const FrictionSignalType = {
   low_completion_ratio: "low_completion_ratio",
 } as const;
 
+export interface FrictionBlockEntry {
+  /** Date in YYYY-MM-DD format */
+  date: string;
+  taskTitle: string;
+}
+
 export interface FrictionSignal {
   type: FrictionSignalType;
   pillarId?: number | null;
@@ -612,6 +618,10 @@ export interface FrictionSignal {
   detail: string;
   /** Most recent relevant date for this signal (YYYY-MM-DD) */
   lastSeenDate?: string | null;
+  /** Sorted list of dates the task was passed, in YYYY-MM-DD format (for repeated_pass signals) */
+  passDates?: string[];
+  /** Recent blocked log entries (for repeated_block signals) */
+  blockEntries?: FrictionBlockEntry[];
 }
 
 export type ListMilestonesParams = {

@@ -1496,6 +1496,28 @@ components:
           format: date
           nullable: true
           description: Most recent relevant date for this signal (YYYY-MM-DD)
+        passDates:
+          type: array
+          items:
+            type: string
+          description: "Sorted list of dates the task was passed, in YYYY-MM-DD format (for repeated_pass signals)"
+        blockEntries:
+          type: array
+          items:
+            $ref: "#/components/schemas/FrictionBlockEntry"
+          description: Recent blocked log entries (for repeated_block signals)
       required:
         - type
         - detail
+
+    FrictionBlockEntry:
+      type: object
+      properties:
+        date:
+          type: string
+          description: Date in YYYY-MM-DD format
+        taskTitle:
+          type: string
+      required:
+        - date
+        - taskTitle

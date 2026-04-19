@@ -91,6 +91,8 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
     milestoneTitle: string | null;
     detail: string;
     lastSeenDate: string | null;
+    passDates?: string[];
+    blockEntries?: { date: string; taskTitle: string }[];
   }[] = [];
 
   // ─────────────────────────────────────────────────────────────────
@@ -121,6 +123,7 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
     if (dates.size >= 2) {
       const pillarId = taskPillarMap.get(taskId) ?? null;
       const pillar = pillarId ? pillarMap.get(pillarId) : null;
+      const sortedDates = Array.from(dates).sort();
       signals.push({
         type: "repeated_pass",
         pillarId: pillarId ?? null,
@@ -131,11 +134,13 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
         milestoneTitle: null,
         detail: `"${taskTitle}" has been passed (deferred) on ${dates.size} separate days — consider tackling it directly or dropping it.`,
         lastSeenDate: maxDate,
+        passDates: sortedDates,
       });
     }
   }
   for (const [taskTitle, { dates, maxDate }] of passedByTitleNullId.entries()) {
     if (dates.size >= 2) {
+      const sortedDates = Array.from(dates).sort();
       signals.push({
         type: "repeated_pass",
         pillarId: null,
@@ -146,6 +151,7 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
         milestoneTitle: null,
         detail: `"${taskTitle}" has been passed (deferred) on ${dates.size} separate days — consider tackling it directly or dropping it.`,
         lastSeenDate: maxDate,
+        passDates: sortedDates,
       });
     }
   }
@@ -154,19 +160,24 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
   // repeated_block: a pillar's last 2+ progress_logs entries are all
   // blocked. Checks most-recent entries across all time (no window).
   // ─────────────────────────────────────────────────────────────────
-  const logsByPillar = new Map<number, { statuses: string[]; mostRecentDate: string | null }>(); // pillarId -> statuses/date, newest first
+  const logsByPillar = new Map<number, { statuses: string[]; entries: { date: string; taskTitle: string }[]; mostRecentDate: string | null }>(); // pillarId -> statuses/entries/date, newest first
   for (const log of allLogs) {
     const pillarId = log.taskId ? (taskPillarMap.get(log.taskId) ?? null) : null;
     if (pillarId !== null) {
-      if (!logsByPillar.has(pillarId)) logsByPillar.set(pillarId, { statuses: [], mostRecentDate: null });
+      if (!logsByPillar.has(pillarId)) logsByPillar.set(pillarId, { statuses: [], entries: [], mostRecentDate: null });
       const entry = logsByPillar.get(pillarId)!;
       entry.statuses.push(log.status);
+      entry.entries.push({ date: log.date, taskTitle: log.taskTitle });
       if (entry.mostRecentDate === null) entry.mostRecentDate = log.date;
     }
   }
-  for (const [pillarId, { statuses, mostRecentDate }] of logsByPillar.entries()) {
+  for (const [pillarId, { statuses, entries, mostRecentDate }] of logsByPillar.entries()) {
     if (statuses.length >= 2 && statuses.slice(0, 2).every(s => s === "blocked")) {
       const pillar = pillarMap.get(pillarId);
+      const blockedEntries = entries.filter(e => {
+        const idx = entries.indexOf(e);
+        return statuses[idx] === "blocked";
+      }).slice(0, 10);
       signals.push({
         type: "repeated_block",
         pillarId,
@@ -177,6 +188,7 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
         milestoneTitle: null,
         detail: `The last 2 logged activities in "${pillar?.name ?? "this pillar"}" are all blocked — something may need resolving before continuing.`,
         lastSeenDate: mostRecentDate,
+        blockEntries: blockedEntries,
       });
     }
   }

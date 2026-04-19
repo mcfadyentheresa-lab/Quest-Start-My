@@ -11,12 +11,21 @@ import {
   useGetFrictionSignals,
   getGetOutcomeMetricsQueryOptions,
 } from "@workspace/api-client-react";
+import type { FrictionSignal } from "@workspace/api-client-react";
 import { CategoryBadge } from "@/components/category-badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+} from "@/components/ui/drawer";
 import {
   CheckCircle2, SkipForward, Pause, AlertCircle, History, TrendingUp, Layers, Clock,
   Activity, AlertTriangle, Info, ArrowDown, Target, BarChart2, Zap,
   ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Repeat2, Ban, Timer, MinusCircle, ShieldCheck,
+  CalendarDays, X,
 } from "lucide-react";
 
 function formatDate(dateStr: string) {
@@ -260,6 +269,7 @@ export default function HistoryPage() {
     } catch {}
     return null;
   });
+  const [selectedFrictionSignal, setSelectedFrictionSignal] = useState<FrictionSignal | null>(null);
 
   useEffect(() => {
     try {
@@ -362,6 +372,7 @@ export default function HistoryPage() {
   const portfolioBalance = pillarHealth?.portfolioBalance;
 
   return (
+    <>
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="font-serif text-2xl font-medium text-foreground">History</h1>
@@ -970,12 +981,14 @@ export default function HistoryPage() {
               const config = frictionTypeConfig[signal.type] ?? { icon: AlertCircle, label: signal.type, iconClass: "text-muted-foreground" };
               const IconComponent = config.icon;
               return (
-                <motion.div
+                <motion.button
                   key={i}
+                  type="button"
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.04 }}
-                  className="rounded-2xl bg-card border border-card-border p-4 space-y-2"
+                  onClick={() => setSelectedFrictionSignal(signal)}
+                  className="w-full text-left rounded-2xl bg-card border border-card-border p-4 space-y-2 hover:bg-muted/50 active:scale-[0.99] transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-2">
                     <IconComponent className={`h-4 w-4 flex-shrink-0 ${config.iconClass}`} />
@@ -993,12 +1006,15 @@ export default function HistoryPage() {
                     </p>
                   )}
                   <p className="text-xs text-foreground/70 leading-relaxed">{signal.detail}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {signal.lastSeenDate
-                      ? `Last seen: ${formatShortDate(signal.lastSeenDate)}`
-                      : "Last seen: never"}
-                  </p>
-                </motion.div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      {signal.lastSeenDate
+                        ? `Last seen: ${formatShortDate(signal.lastSeenDate)}`
+                        : "Last seen: never"}
+                    </p>
+                    <span className="text-xs text-primary font-medium">See detail →</span>
+                  </div>
+                </motion.button>
               );
             })}
             </>
@@ -1008,5 +1024,142 @@ export default function HistoryPage() {
         </div>
       )}
     </div>
+
+    {/* Friction signal detail drawer */}
+    <Drawer
+      open={selectedFrictionSignal !== null}
+      onOpenChange={open => { if (!open) setSelectedFrictionSignal(null); }}
+    >
+      <DrawerContent className="max-h-[80vh]">
+        {selectedFrictionSignal && (() => {
+          const signal = selectedFrictionSignal;
+          const config = frictionTypeConfig[signal.type] ?? { icon: AlertCircle, label: signal.type, iconClass: "text-muted-foreground", timeWindow: "" };
+          const IconComp = config.icon;
+          return (
+            <div className="flex flex-col overflow-hidden">
+              <DrawerHeader className="flex-shrink-0 pb-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <IconComp className={`h-5 w-5 flex-shrink-0 ${config.iconClass}`} />
+                    <DrawerTitle className="text-base">
+                      {signal.taskTitle ?? signal.milestoneTitle ?? config.label}
+                    </DrawerTitle>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFrictionSignal(null)}
+                    className="flex-shrink-0 rounded-lg p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    aria-label="Close"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                  <span className={`text-xs font-semibold uppercase tracking-widest ${config.iconClass}`}>{config.label}</span>
+                  {signal.pillarName && (
+                    <span className="text-xs text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full">
+                      {signal.pillarName}
+                    </span>
+                  )}
+                </div>
+                <DrawerDescription className="text-xs text-foreground/70 leading-relaxed mt-2 text-left">
+                  {signal.detail}
+                </DrawerDescription>
+              </DrawerHeader>
+
+              <div className="overflow-y-auto px-4 pb-6 space-y-4 flex-1">
+                {/* repeated_pass: show pass date history */}
+                {signal.type === "repeated_pass" && signal.passDates && signal.passDates.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <CalendarDays className="h-3.5 w-3.5 text-amber-500" />
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Pass history</p>
+                    </div>
+                    <div className="rounded-xl border border-card-border divide-y divide-border overflow-hidden">
+                      {[...signal.passDates].reverse().map((date, idx) => (
+                        <div key={idx} className="flex items-center justify-between px-3 py-2.5">
+                          <span className="text-sm text-foreground">{formatDate(date)}</span>
+                          <span className="text-xs text-amber-500 font-medium bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">Passed</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground px-1">
+                      Passed on {signal.passDates.length} separate day{signal.passDates.length !== 1 ? "s" : ""}. Consider breaking it into a smaller step or dropping it.
+                    </p>
+                  </div>
+                )}
+
+                {/* repeated_block: show blocked entry history */}
+                {signal.type === "repeated_block" && signal.blockEntries && signal.blockEntries.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <Ban className="h-3.5 w-3.5 text-rose-500" />
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Recent blocked entries</p>
+                    </div>
+                    <div className="rounded-xl border border-card-border divide-y divide-border overflow-hidden">
+                      {signal.blockEntries.map((entry, idx) => (
+                        <div key={idx} className="px-3 py-2.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm text-foreground truncate">{entry.taskTitle}</span>
+                            <span className="text-xs text-rose-500 font-medium bg-rose-50 dark:bg-rose-900/20 px-2 py-0.5 rounded-full flex-shrink-0">Blocked</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">{formatDate(entry.date)}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground px-1">
+                      Showing {signal.blockEntries.length} most recent blocked log{signal.blockEntries.length !== 1 ? "s" : ""} in this pillar.
+                    </p>
+                  </div>
+                )}
+
+                {/* stalled_milestone: show last activity context */}
+                {signal.type === "stalled_milestone" && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <Timer className="h-3.5 w-3.5 text-sky-500" />
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Activity status</p>
+                    </div>
+                    <div className="rounded-xl border border-card-border bg-muted/30 px-4 py-3 space-y-1">
+                      <p className="text-sm font-medium text-foreground">{signal.milestoneTitle}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {signal.lastSeenDate
+                          ? `Last task activity: ${formatDate(signal.lastSeenDate)}`
+                          : "No task activity recorded yet"}
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground px-1">
+                      Add a linked task or mark this milestone complete to clear the signal.
+                    </p>
+                  </div>
+                )}
+
+                {/* low_completion_ratio: no extra dates, just summary guidance */}
+                {signal.type === "low_completion_ratio" && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <MinusCircle className="h-3.5 w-3.5 text-violet-500" />
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">What to try</p>
+                    </div>
+                    <div className="rounded-xl border border-card-border bg-muted/30 px-4 py-3 space-y-2">
+                      <p className="text-xs text-foreground/80 leading-relaxed">Break tasks into smaller, completable pieces so more land in "done" each day.</p>
+                      <p className="text-xs text-foreground/80 leading-relaxed">Prioritise ruthlessly — if a task keeps getting passed or pushed, consider dropping it.</p>
+                      <p className="text-xs text-foreground/80 leading-relaxed">Look at whether this pillar is overloaded vs. others this month.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Window info */}
+                <div className="rounded-xl bg-muted/40 px-3 py-2.5 flex items-center gap-2">
+                  <Info className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  <p className="text-xs text-muted-foreground">Time window: {config.timeWindow}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </DrawerContent>
+    </Drawer>
+    </>
   );
 }
