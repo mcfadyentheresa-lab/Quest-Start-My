@@ -1,0 +1,173 @@
+Implement a new Quest feature: Focus Transition Nudge
+
+Goal:
+Help the user avoid staying stuck on one task too long by giving a gentle end-of-task or end-of-focus-block reminder.
+
+Desired behavior:
+When a focus block or task timer ends, Quest should:
+1. Play a very small, soft notification sound
+2. Show a lightweight modal or prompt
+3. Let the user choose one of the following:
+   - Start next task
+   - Snooze 5 minutes
+   - Snooze 15 minutes
+   - Need more time
+
+The intent is not to be annoying.
+This should feel like a calm nudge to either move on or consciously extend the current task.
+
+Important UX principles:
+- Sound must be subtle and brief, not loud or alarming
+- Do not repeatedly nag the user
+- Provide a visible mute / sound-off option
+- Provide snooze options directly in the prompt
+- Keep the modal small and actionable
+- Make the feature optional in settings
+- Do not automatically force-switch the task without confirmation
+
+Accessibility / browser requirements:
+- Browsers often block audio until there has been a user gesture
+- Build this in a compliant way:
+  - add a one-time “Enable sound reminders” interaction if needed
+  - gracefully fall back to visual-only reminders if audio is unavailable
+- Sound should be under 3 seconds
+- Include a clear mute toggle / sound preference
+- Ensure the prompt is keyboard accessible
+- Ensure modal buttons are focusable and clearly labeled. [web:1198][web:1199][web:1187][web:1205]
+
+Scope:
+- Add the reminder sound behavior
+- Add the end-of-block modal/prompt
+- Add snooze logic
+- Add a user preference for sound on/off
+- Preserve all existing task, timer, and planning functionality
+- Make only safe, additive changes
+- Do not rewrite the app
+
+Behavior details:
+
+A. Trigger timing
+Trigger the nudge when:
+- the active task timer ends, or
+- the current focus block ends,
+depending on how Quest currently handles timing
+
+Do not trigger if:
+- there is no active task
+- the user has disabled reminders
+- the app is already showing an unresolved transition prompt
+
+B. Notification sound
+Implement a soft, short chime.
+Use either:
+- a tiny local audio file, or
+- a lightweight Web Audio API tone sequence if cleaner
+
+Requirements:
+- very short
+- low intensity
+- no looping
+- should play once only per trigger
+- if browser blocks sound, still show the prompt without error
+
+C. Transition prompt/modal
+When the timer ends, show a compact modal/dialog with:
+- current task name
+- optional next task name if available
+- short message such as:
+  “Time to switch tasks?”
+  or
+  “This block is complete. Move on or give yourself more time.”
+
+Buttons:
+- Start next task
+- Snooze 5 min
+- Snooze 15 min
+- Need more time
+
+Optional:
+- small close/dismiss option if needed
+- “Don’t play sound” checkbox or shortcut if easy to support
+
+D. Button behavior
+Start next task:
+- marks current block as ended according to existing Quest logic
+- moves user to the next planned/queued task if Quest already supports that
+- if no next task exists, dismiss prompt and return to normal state
+
+Snooze 5 min:
+- dismiss prompt
+- schedule another reminder in 5 minutes
+- do not change current task status yet
+
+Snooze 15 min:
+- dismiss prompt
+- schedule another reminder in 15 minutes
+- do not change current task status yet
+
+Need more time:
+- keep the current task active
+- extend the current block in a sensible way
+- recommended default extension: 10 or 15 minutes
+- do not aggressively reschedule other tasks unless the current app already supports that logic
+
+E. Settings / preference
+Add a simple preference in Quest settings or user preferences:
+- Sound reminders: On / Off
+
+If Quest already has settings storage, use that.
+If not, use the lightest existing preference pattern in the app.
+Do not overengineer this.
+
+Optional secondary preference if easy:
+- Default snooze duration
+
+F. Audio enable flow
+Because browser audio often requires user interaction:
+- detect whether audio is allowed
+- if not yet enabled, show a small non-intrusive setup message like:
+  “Enable sound reminders”
+- only after a user click should audio be initialized/resumed
+- if the user never enables sound, visual reminders should still work
+
+G. Non-intrusive design
+The feature should support focus, not interrupt it.
+Use:
+- subtle visuals
+- clean spacing
+- no giant warning dialog
+- no flashing UI
+- no repeated sound spam
+
+H. Safety / implementation constraints
+- Preserve all existing Quest behavior
+- Do not break task timers
+- Do not break daily planning logic
+- Do not change data structures unless necessary
+- If data changes are required, keep them minimal and backward compatible
+- Prefer additive UI state over risky refactors
+
+Files likely involved:
+- the active task/timer component
+- Quest task flow / next-task logic
+- settings/preferences UI
+- any timer hook or focus-session state manager
+- app-level modal/dialog components if already present
+
+Validation requirements:
+Before finishing, verify:
+1. Reminder prompt appears when a timed task/focus block ends
+2. Sound plays only if enabled and browser permits it
+3. App still works correctly if sound is blocked or disabled
+4. Snooze 5 and Snooze 15 both reschedule properly
+5. Need more time keeps the user on the same task
+6. Start next task behaves safely even if there is no next task
+7. Modal is keyboard accessible
+8. No existing task/timer behavior is broken
+
+Output:
+- Implement the feature
+- Summarize how the reminder trigger works
+- Summarize how audio enable/mute works
+- List files changed
+- Note any assumptions about Quest’s existing timer / next-task logic
