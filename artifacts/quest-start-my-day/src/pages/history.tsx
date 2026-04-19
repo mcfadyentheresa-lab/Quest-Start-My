@@ -52,11 +52,11 @@ const portfolioStatusColors: Record<string, string> = {
   Parked: "text-muted-foreground bg-muted/50",
 };
 
-const frictionTypeConfig: Record<string, { icon: React.ElementType; label: string; iconClass: string }> = {
-  repeated_pass: { icon: Repeat2, label: "Repeated pass", iconClass: "text-amber-500" },
-  repeated_block: { icon: Ban, label: "Repeated block", iconClass: "text-rose-500" },
-  stalled_milestone: { icon: Timer, label: "Stalled milestone", iconClass: "text-sky-500" },
-  low_completion_ratio: { icon: MinusCircle, label: "Low completion", iconClass: "text-violet-500" },
+const frictionTypeConfig: Record<string, { icon: React.ElementType; label: string; iconClass: string; timeWindow: string }> = {
+  repeated_pass: { icon: Repeat2, label: "Repeated pass", iconClass: "text-amber-500", timeWindow: "All time" },
+  repeated_block: { icon: Ban, label: "Repeated block", iconClass: "text-rose-500", timeWindow: "All time" },
+  stalled_milestone: { icon: Timer, label: "Stalled milestone", iconClass: "text-sky-500", timeWindow: "14 days before week end" },
+  low_completion_ratio: { icon: MinusCircle, label: "Low completion", iconClass: "text-violet-500", timeWindow: "Calendar month of selected week" },
 };
 
 type Tab = "log" | "week" | "health" | "outcomes" | "friction";
@@ -856,6 +856,9 @@ export default function HistoryPage() {
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
+          <p className="text-xs text-muted-foreground px-1 -mt-1">
+            The selected week shifts the month and 14-day windows used by some signals. Repeated pass and repeated block always look at all-time history.
+          </p>
 
           {frictionLoading ? (
           <div className="space-y-3">
@@ -891,6 +894,7 @@ export default function HistoryPage() {
                       </span>
                     )}
                   </div>
+                  <p className="text-[10px] text-muted-foreground/60 leading-none">Window: {config.timeWindow}</p>
                   {(signal.taskTitle || signal.milestoneTitle) && (
                     <p className="text-sm font-medium text-foreground">
                       {signal.taskTitle ?? signal.milestoneTitle}
