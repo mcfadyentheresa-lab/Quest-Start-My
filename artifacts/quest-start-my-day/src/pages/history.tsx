@@ -266,6 +266,14 @@ export default function HistoryPage() {
   const { data: outcomes, isLoading: outcomesLoading } = useGetOutcomeMetrics({ weekOf: selectedWeek });
   const { data: friction, isLoading: frictionLoading } = useGetFrictionSignals({ weekOf: selectedWeek });
 
+  useEffect(() => {
+    if (!frictionTypeFilter || !friction) return;
+    const hasType = friction.some(s => s.type === frictionTypeFilter);
+    if (!hasType) {
+      setFrictionTypeFilter(null);
+    }
+  }, [friction, frictionTypeFilter]);
+
   const pastWeeks = useMemo(() => getPastWeeks(12), []);
   const isWeekInDropdown = pastWeeks.includes(selectedWeek);
 
