@@ -1,0 +1,232 @@
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import {
+  useListWeeklyPlans,
+  useCreateWeeklyPlan,
+  useUpdateWeeklyPlan,
+  useListPillars,
+  useUpdatePillar,
+  getListWeeklyPlansQueryKey,
+  getListPillarsQueryKey,
+  getGetDashboardSummaryQueryKey,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { PriorityBadge } from "@/components/priority-badge";
+import { Plus, Trash2, Check, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function getWeekStart(): string {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  return d.toISOString().slice(0, 10);
+}
+
+function formatWeek(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  const end = new Date(d);
+  end.setDate(end.getDate() + 6);
+  return `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+}
+
+export default function WeeklyPage() {
+  const weekOf = getWeekStart();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: weeklyPlans, isLoading: plansLoading } = useListWeeklyPlans(
+    { weekOf },
+    { query: { queryKey: getListWeeklyPlansQueryKey({ weekOf }) } }
+  );
+  const { data: pillars, isLoading: pillarsLoading } = useListPillars();
+
+  const createPlan = useCreateWeeklyPlan();
+  const updatePlan = useUpdateWeeklyPlan();
+  const updatePillar = useUpdatePillar();
+
+  const existingPlan = weeklyPlans?.[0];
+
+  const [priorities, setPriorities] = useState<string[]>([""]);
+  const [healthFocus, setHealthFocus] = useState("");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (existingPlan) {
+      setPriorities(existingPlan.priorities.length > 0 ? existingPlan.priorities : [""]);
+      setHealthFocus(existingPlan.healthFocus ?? "");
+      setNotes(existingPlan.notes ?? "");
+    }
+  }, [existingPlan]);
+
+  const save = async () => {
+    const cleanPriorities = priorities.filter(p => p.trim());
+    setSaving(true);
+    try {
+      if (existingPlan) {
+        await updatePlan.mutateAsync({
+          id: existingPlan.id,
+          data: { priorities: cleanPriorities, healthFocus: healthFocus || undefined, notes: notes || undefined },
+        });
+      } else {
+        await createPlan.mutateAsync({
+          data: {
+            weekOf,
+            priorities: cleanPriorities,
+            healthFocus: healthFocus || undefined,
+            notes: notes || undefined,
+            activePillarIds: pillars?.filter(p => p.isActiveThisWeek).map(p => p.id) ?? [],
+          },
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: getListWeeklyPlansQueryKey({ weekOf }) });
+      queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+      toast({ title: "Weekly plan saved" });
+    } catch {
+      toast({ title: "Failed to save", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const togglePillarActive = async (pillarId: number, currentlyActive: boolean) => {
+    await updatePillar.mutateAsync(
+      { id: pillarId, data: { isActiveThisWeek: !currentlyActive } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListPillarsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+        },
+      }
+    );
+  };
+
+  if (plansLoading || pillarsLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48 rounded-xl" />
+        <Skeleton className="h-32 rounded-2xl" />
+        <Skeleton className="h-24 rounded-2xl" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+        <h1 className="font-serif text-2xl font-medium text-foreground">This week</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{formatWeek(weekOf)}</p>
+      </motion.div>
+
+      {/* Active pillars */}
+      <section>
+        <h2 className="font-serif text-base font-medium text-foreground mb-3">Active pillars</h2>
+        <div className="space-y-2">
+          {pillars?.map(pillar => (
+            <div
+              key={pillar.id}
+              className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
+                pillar.isActiveThisWeek
+                  ? "bg-card border-primary/30"
+                  : "bg-muted/30 border-border opacity-60"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                {pillar.color && (
+                  <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: pillar.color }} />
+                )}
+                <div>
+                  <span className="text-sm font-medium text-foreground">{pillar.name}</span>
+                  {pillar.description && <p className="text-xs text-muted-foreground mt-0.5">{pillar.description}</p>}
+                </div>
+                <PriorityBadge priority={pillar.priority} />
+              </div>
+              <button
+                onClick={() => togglePillarActive(pillar.id, pillar.isActiveThisWeek)}
+                className={`h-9 w-9 rounded-full flex items-center justify-center border-2 transition-all ${
+                  pillar.isActiveThisWeek
+                    ? "bg-primary border-primary text-primary-foreground"
+                    : "bg-transparent border-border text-muted-foreground"
+                }`}
+              >
+                {pillar.isActiveThisWeek && <Check className="h-4 w-4" />}
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Weekly priorities */}
+      <section className="rounded-2xl bg-card border border-card-border p-5 space-y-4">
+        <h2 className="font-serif text-base font-medium text-foreground">Weekly priorities</h2>
+        <div className="space-y-2">
+          {priorities.map((p, i) => (
+            <div key={i} className="flex gap-2">
+              <Input
+                value={p}
+                onChange={e => {
+                  const next = [...priorities];
+                  next[i] = e.target.value;
+                  setPriorities(next);
+                }}
+                placeholder={`Priority ${i + 1}`}
+                className="rounded-xl flex-1"
+              />
+              {priorities.length > 1 && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-xl text-muted-foreground"
+                  onClick={() => setPriorities(priorities.filter((_, j) => j !== i))}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-xl gap-1.5 text-xs"
+            onClick={() => setPriorities([...priorities, ""])}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add priority
+          </Button>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Health focus this week</Label>
+          <Input
+            value={healthFocus}
+            onChange={e => setHealthFocus(e.target.value)}
+            placeholder="e.g. Morning walks, 8h sleep..."
+            className="rounded-xl"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Notes</Label>
+          <Textarea
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder="Anything else to keep in mind this week..."
+            className="rounded-xl resize-none"
+            rows={3}
+          />
+        </div>
+
+        <Button className="w-full rounded-xl" onClick={save} disabled={saving}>
+          {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+          Save weekly plan
+        </Button>
+      </section>
+    </div>
+  );
+}

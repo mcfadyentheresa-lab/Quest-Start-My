@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Quest Start My Day"
+version = "1.0.0"
+id = "artifacts/quest-start-my-day"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21837
+
+[services.development]
+run = "pnpm --filter @workspace/quest-start-my-day run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/quest-start-my-day", "run", "build" ]
+publicDir = "artifacts/quest-start-my-day/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21837"
+BASE_PATH = "/"

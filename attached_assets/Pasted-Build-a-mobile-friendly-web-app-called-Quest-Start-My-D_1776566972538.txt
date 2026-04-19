@@ -1,0 +1,100 @@
+Build a mobile-friendly web app called “Quest Start My Day.” This is a personal daily command center for planning and execution. It should feel elegant, calm, warm, and supportive — not like a generic corporate task manager. Use warm neutral colors, serif headings, clean spacing, and a polished dashboard style.
+Main purpose
+I need one place to open first every morning so I can see:
+•	my major pillar projects,
+•	my weekly priorities,
+•	and only a few assigned tasks for today.
+I get overwhelmed if I see the whole big picture at once, so this app should reduce cognitive load and guide me into action.
+Product structure
+The app should include these project pillars:
+•	Aster & Spruce Connect — P1
+•	Quest Workday — P1
+•	Circadian App — P2
+•	AI Assistant Helper — P3
+Core MVP screens and features
+Build Phase 1 as a real usable product, not just a static mockup.
+1. Start My Day dashboard
+Show:
+•	greeting / start-of-day section
+•	today’s date
+•	visible pillar projects
+•	weekly focus summary
+•	daily task assignments
+•	progress summary
+2. Daily task section
+Assign 3 main daily tasks:
+•	one business task
+•	one creative/build task
+•	one wellness/reset task
+Each task card must include:
+•	task title
+•	“Why this matters”
+•	“Done looks like”
+•	optional “Suggested next step”
+Each task should have these buttons:
+•	Done
+•	Push one more step
+•	Pass for now
+•	Blocked
+3. Weekly planning section
+Include:
+•	weekly priorities
+•	weekly health focus
+•	active priorities only
+•	ability to mark which pillars are active this week
+4. Progress tracking
+Include a visible progress area showing:
+•	completed tasks count
+•	pushed tasks count
+•	passed tasks count
+•	blocked tasks count
+Also create a simple progress log/history view so I can see what was assigned and what happened.
+5. Priority structure
+Include P1, P2, P3, P4 labels and a legend.
+Persistence requirements
+This is very important:
+Do NOT build this as a temporary front-end-only prototype.
+I want my data to persist between sessions and app updates. Use persistent storage so that:
+•	daily tasks
+•	weekly priorities
+•	pillar project settings
+•	task status
+•	progress logs
+do not get wiped out if I refresh the app or continue development.
+Use a real database-backed approach for structured data. Prefer PostgreSQL / Replit SQL database with environment variables, not hardcoded values.[replit +2]
+Do not rely only on in-memory state for important data. Persistent data storage is required.[youtube +1]
+Safety for future development
+Build this so future changes are less likely to wipe existing data.
+Use proper schema migrations for database changes.
+Do not use risky auto-sync behavior that could destroy data.
+Treat database changes carefully and safely.[reddit +2]
+Technical preferences
+•	Build as a web app, not a document or static brochure page.
+•	Mobile-friendly first, but good on desktop too.
+•	Clean front-end with simple, maintainable architecture.
+•	Keep Phase 1 lean and focused.
+•	Do not overbuild advanced automation yet.
+•	Use editable starter/demo content that I can later customize.
+Nice-to-have if easy
+•	dark mode toggle
+•	home dashboard cards
+•	elegant progress visuals
+•	sticky “Start My Day” area
+•	polished but simple interactions
+Important design direction
+This should feel like:
+•	supportive
+•	clear
+•	motivating
+•	feminine but not overly cute
+•	elegant and grounded
+•	not cluttered
+•	not sterile SaaS
+Build order
+Please build in phases:
+1.	set up app structure and database
+2.	create the Start My Day dashboard
+3.	add persistent task + weekly priority data
+4.	add progress tracking and log
+5.	polish the UI
+Before making large architectural choices, explain the plan briefly in plain English.

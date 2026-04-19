@@ -3,20 +3,29 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: API specification for Quest Start My Day
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: pillars
+    description: Project pillar operations
+  - name: tasks
+    description: Daily task operations
+  - name: weekly
+    description: Weekly planning operations
+  - name: progress
+    description: Progress log operations
+  - name: dashboard
+    description: Dashboard summary operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +33,253 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /pillars:
+    get:
+      operationId: listPillars
+      tags: [pillars]
+      summary: List all project pillars
+      responses:
+        "200":
+          description: List of pillars
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pillar"
+    post:
+      operationId: createPillar
+      tags: [pillars]
+      summary: Create a new pillar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePillarBody"
+      responses:
+        "201":
+          description: Created pillar
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pillar"
+
+  /pillars/{id}:
+    patch:
+      operationId: updatePillar
+      tags: [pillars]
+      summary: Update a pillar
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePillarBody"
+      responses:
+        "200":
+          description: Updated pillar
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pillar"
+
+  /tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List daily tasks
+      parameters:
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+            description: Date in YYYY-MM-DD format, defaults to today
+      responses:
+        "200":
+          description: List of daily tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a daily task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskBody"
+      responses:
+        "201":
+          description: Created task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /tasks/{id}:
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update a task (status, content)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskBody"
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+    delete:
+      operationId: deleteTask
+      tags: [tasks]
+      summary: Delete a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /weekly:
+    get:
+      operationId: listWeeklyPlans
+      tags: [weekly]
+      summary: List weekly plans
+      parameters:
+        - name: weekOf
+          in: query
+          required: false
+          schema:
+            type: string
+            description: Week start date YYYY-MM-DD, defaults to current week
+      responses:
+        "200":
+          description: List of weekly plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WeeklyPlan"
+    post:
+      operationId: createWeeklyPlan
+      tags: [weekly]
+      summary: Create a weekly plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWeeklyPlanBody"
+      responses:
+        "201":
+          description: Created weekly plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklyPlan"
+
+  /weekly/{id}:
+    patch:
+      operationId: updateWeeklyPlan
+      tags: [weekly]
+      summary: Update a weekly plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWeeklyPlanBody"
+      responses:
+        "200":
+          description: Updated weekly plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklyPlan"
+
+  /progress:
+    get:
+      operationId: listProgressLogs
+      tags: [progress]
+      summary: List progress log entries
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: List of progress log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProgressLog"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get today's dashboard summary
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/week-summary:
+    get:
+      operationId: getWeekSummary
+      tags: [dashboard]
+      summary: Get this week's task completion summary
+      responses:
+        "200":
+          description: Weekly summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeekSummary"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +290,313 @@ components:
       required:
         - status
 
+    Pillar:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        priority:
+          type: string
+          enum: [P1, P2, P3, P4]
+        description:
+          type: string
+          nullable: true
+        isActiveThisWeek:
+          type: boolean
+        color:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - priority
+        - isActiveThisWeek
+        - createdAt
+
+    CreatePillarBody:
+      type: object
+      properties:
+        name:
+          type: string
+        priority:
+          type: string
+          enum: [P1, P2, P3, P4]
+        description:
+          type: string
+          nullable: true
+        isActiveThisWeek:
+          type: boolean
+        color:
+          type: string
+          nullable: true
+      required:
+        - name
+        - priority
+        - isActiveThisWeek
+
+    UpdatePillarBody:
+      type: object
+      properties:
+        name:
+          type: string
+        priority:
+          type: string
+          enum: [P1, P2, P3, P4]
+        description:
+          type: string
+          nullable: true
+        isActiveThisWeek:
+          type: boolean
+        color:
+          type: string
+          nullable: true
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        category:
+          type: string
+          enum: [business, creative, wellness]
+        whyItMatters:
+          type: string
+          nullable: true
+        doneLooksLike:
+          type: string
+          nullable: true
+        suggestedNextStep:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, done, pushed, passed, blocked]
+        pillarId:
+          type: integer
+          nullable: true
+        date:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - title
+        - category
+        - status
+        - date
+        - createdAt
+
+    CreateTaskBody:
+      type: object
+      properties:
+        title:
+          type: string
+        category:
+          type: string
+          enum: [business, creative, wellness]
+        whyItMatters:
+          type: string
+          nullable: true
+        doneLooksLike:
+          type: string
+          nullable: true
+        suggestedNextStep:
+          type: string
+          nullable: true
+        pillarId:
+          type: integer
+          nullable: true
+        date:
+          type: string
+      required:
+        - title
+        - category
+        - date
+
+    UpdateTaskBody:
+      type: object
+      properties:
+        title:
+          type: string
+        category:
+          type: string
+          enum: [business, creative, wellness]
+        whyItMatters:
+          type: string
+          nullable: true
+        doneLooksLike:
+          type: string
+          nullable: true
+        suggestedNextStep:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, done, pushed, passed, blocked]
+        pillarId:
+          type: integer
+          nullable: true
+
+    WeeklyPlan:
+      type: object
+      properties:
+        id:
+          type: integer
+        weekOf:
+          type: string
+        priorities:
+          type: array
+          items:
+            type: string
+        healthFocus:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        activePillarIds:
+          type: array
+          items:
+            type: integer
+        createdAt:
+          type: string
+      required:
+        - id
+        - weekOf
+        - priorities
+        - activePillarIds
+        - createdAt
+
+    CreateWeeklyPlanBody:
+      type: object
+      properties:
+        weekOf:
+          type: string
+        priorities:
+          type: array
+          items:
+            type: string
+        healthFocus:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        activePillarIds:
+          type: array
+          items:
+            type: integer
+      required:
+        - weekOf
+        - priorities
+        - activePillarIds
+
+    UpdateWeeklyPlanBody:
+      type: object
+      properties:
+        priorities:
+          type: array
+          items:
+            type: string
+        healthFocus:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        activePillarIds:
+          type: array
+          items:
+            type: integer
+
+    ProgressLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        taskId:
+          type: integer
+          nullable: true
+        taskTitle:
+          type: string
+        category:
+          type: string
+        status:
+          type: string
+        date:
+          type: string
+        loggedAt:
+          type: string
+      required:
+        - id
+        - taskTitle
+        - category
+        - status
+        - date
+        - loggedAt
+
+    DashboardSummary:
+      type: object
+      properties:
+        todayDate:
+          type: string
+        totalTasksToday:
+          type: integer
+        doneCount:
+          type: integer
+        pushedCount:
+          type: integer
+        passedCount:
+          type: integer
+        blockedCount:
+          type: integer
+        pendingCount:
+          type: integer
+        activePillars:
+          type: array
+          items:
+            $ref: "#/components/schemas/Pillar"
+        weeklyPlan:
+          $ref: "#/components/schemas/WeeklyPlan"
+          nullable: true
+      required:
+        - todayDate
+        - totalTasksToday
+        - doneCount
+        - pushedCount
+        - passedCount
+        - blockedCount
+        - pendingCount
+        - activePillars
+
+    WeekSummary:
+      type: object
+      properties:
+        weekOf:
+          type: string
+        totalTasks:
+          type: integer
+        doneCount:
+          type: integer
+        pushedCount:
+          type: integer
+        passedCount:
+          type: integer
+        blockedCount:
+          type: integer
+        completionRate:
+          type: number
+      required:
+        - weekOf
+        - totalTasks
+        - doneCount
+        - pushedCount
+        - passedCount
+        - blockedCount
+        - completionRate
