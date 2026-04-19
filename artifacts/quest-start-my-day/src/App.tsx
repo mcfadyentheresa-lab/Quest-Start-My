@@ -7,6 +7,7 @@ import Layout from "@/components/layout";
 import Dashboard from "@/pages/dashboard";
 import WeeklyPage from "@/pages/weekly";
 import HistoryPage from "@/pages/history";
+import ReviewPage from "@/pages/review";
 import SettingsPage from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 
@@ -26,6 +27,7 @@ function Router() {
         <Route path="/" component={Dashboard} />
         <Route path="/weekly" component={WeeklyPage} />
         <Route path="/history" component={HistoryPage} />
+        <Route path="/review" component={ReviewPage} />
         <Route path="/settings" component={SettingsPage} />
         <Route component={NotFound} />
       </Switch>

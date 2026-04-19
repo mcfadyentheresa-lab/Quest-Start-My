@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useTheme } from "next-themes";
-import { Sun, Moon, LayoutDashboard, Calendar, History, Settings } from "lucide-react";
+import { Sun, Moon, LayoutDashboard, Calendar, History, Settings, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
   { href: "/", label: "Today", icon: LayoutDashboard },
   { href: "/weekly", label: "This Week", icon: Calendar },
   { href: "/history", label: "History", icon: History },
+  { href: "/review", label: "Month", icon: BookOpen },
   { href: "/settings", label: "Pillars", icon: Settings },
 ];
 
@@ -53,7 +54,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             return (
               <Link key={href} href={href}>
                 <button
-                  className={`flex flex-col items-center gap-1 px-4 py-1.5 rounded-xl transition-colors ${
+                  className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-colors ${
                     isActive
                       ? "text-primary"
                       : "text-muted-foreground hover:text-foreground"

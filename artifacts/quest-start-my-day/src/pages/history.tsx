@@ -6,12 +6,15 @@ import {
   useGetWeekSummary,
   useGetPillarHealth,
   useGetDashboardSummary,
+  useGetOutcomeMetrics,
+  useGetFrictionSignals,
 } from "@workspace/api-client-react";
 import { CategoryBadge } from "@/components/category-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   CheckCircle2, SkipForward, Pause, AlertCircle, History, TrendingUp, Layers, Clock,
-  Activity, AlertTriangle, Info, ArrowDown, Target,
+  Activity, AlertTriangle, Info, ArrowDown, Target, BarChart2, Zap,
+  ChevronDown, ChevronUp, Repeat2, Ban, Timer, MinusCircle, ShieldCheck,
 } from "lucide-react";
 
 function formatDate(dateStr: string) {
@@ -39,7 +42,94 @@ const portfolioStatusColors: Record<string, string> = {
   Parked: "text-muted-foreground bg-muted/50",
 };
 
-type Tab = "log" | "week" | "health";
+const frictionTypeConfig: Record<string, { icon: React.ElementType; label: string; iconClass: string }> = {
+  repeated_pass: { icon: Repeat2, label: "Repeated pass", iconClass: "text-amber-500" },
+  repeated_block: { icon: Ban, label: "Repeated block", iconClass: "text-rose-500" },
+  stalled_milestone: { icon: Timer, label: "Stalled milestone", iconClass: "text-sky-500" },
+  low_completion_ratio: { icon: MinusCircle, label: "Low completion", iconClass: "text-violet-500" },
+};
+
+type Tab = "log" | "week" | "health" | "outcomes" | "friction";
+
+function CollapsibleSection({
+  title,
+  summary,
+  children,
+}: {
+  title: string;
+  summary: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-2xl bg-card border border-card-border overflow-hidden">
+      <div className="px-4 py-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</p>
+          <button
+            type="button"
+            onClick={() => setOpen(o => !o)}
+            className="flex items-center gap-1 text-xs text-primary font-medium"
+          >
+            {open ? "Hide" : "Show detail"}
+            {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+        </div>
+        <div className="mt-2">{summary}</div>
+      </div>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          className="border-t border-border px-4 pb-4 pt-3 space-y-2"
+        >
+          {children}
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+function ProportionBar({
+  segments,
+}: {
+  segments: { label: string; value: number; color: string; textColor: string; warning?: boolean }[];
+}) {
+  const total = segments.reduce((s, seg) => s + seg.value, 0);
+  return (
+    <div className="space-y-2">
+      <div className="flex h-4 rounded-full overflow-hidden gap-0.5">
+        {segments.map(seg => (
+          <div
+            key={seg.label}
+            className={`${seg.color} transition-all`}
+            style={{ width: `${total > 0 ? (seg.value / total) * 100 : 100 / segments.length}%` }}
+            title={`${seg.label}: ${Math.round(total > 0 ? (seg.value / total) * 100 : 0)}%`}
+          />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-3">
+        {segments.map(seg => {
+          const pct = total > 0 ? Math.round((seg.value / total) * 100) : 0;
+          return (
+            <div key={seg.label} className="flex items-center gap-1.5">
+              <span className={`inline-block h-2 w-2 rounded-full ${seg.color}`} />
+              <span className={`text-xs font-medium ${seg.textColor}`}>{seg.label}</span>
+              <span className="text-xs text-muted-foreground">{pct}%</span>
+              {seg.warning && (
+                <span className="flex items-center gap-0.5 text-xs text-amber-600 dark:text-amber-400 font-medium">
+                  <AlertTriangle className="h-3 w-3" />
+                  Higher than expected
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function HistoryPage() {
   const [tab, setTab] = useState<Tab>("log");
@@ -51,6 +141,8 @@ export default function HistoryPage() {
   const { data: weekSummary, isLoading: weekLoading } = useGetWeekSummary();
   const { data: pillarHealth, isLoading: healthLoading } = useGetPillarHealth();
   const { data: dashSummary } = useGetDashboardSummary();
+  const { data: outcomes, isLoading: outcomesLoading } = useGetOutcomeMetrics();
+  const { data: friction, isLoading: frictionLoading } = useGetFrictionSignals();
 
   const grouped = (logs ?? []).reduce<Record<string, typeof logs>>((acc, log) => {
     if (!log) return acc;
@@ -65,7 +157,11 @@ export default function HistoryPage() {
     { id: "log" as Tab, icon: History, label: "Activity" },
     { id: "week" as Tab, icon: TrendingUp, label: "This week" },
     { id: "health" as Tab, icon: Activity, label: "Pillar health" },
+    { id: "outcomes" as Tab, icon: BarChart2, label: "Outcomes" },
+    { id: "friction" as Tab, icon: Zap, label: "Friction" },
   ];
+
+  const portfolioBalance = pillarHealth?.portfolioBalance;
 
   return (
     <div className="space-y-6">
@@ -75,20 +171,19 @@ export default function HistoryPage() {
       </motion.div>
 
       {/* Tab switcher */}
-      <div className="flex rounded-xl bg-muted p-1 gap-1">
+      <div className="flex rounded-xl bg-muted p-1 gap-0.5 overflow-x-auto">
         {tabs.map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+            className={`flex-1 flex items-center justify-center gap-1 py-2 px-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap min-w-0 ${
               tab === t.id
                 ? "bg-card text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <t.icon className="h-3.5 w-3.5 flex-shrink-0" />
-            <span className="hidden sm:inline">{t.label}</span>
-            <span className="sm:hidden">{t.label.split(" ")[0]}</span>
+            <span className="truncate">{t.label}</span>
           </button>
         ))}
       </div>
@@ -342,6 +437,197 @@ export default function HistoryPage() {
                   </div>
                 )}
               </motion.div>
+              );
+            })}
+          </div>
+        )
+      )}
+
+      {tab === "outcomes" && (
+        outcomesLoading ? (
+          <div className="space-y-3">
+            <Skeleton className="h-24 rounded-2xl" />
+            <Skeleton className="h-36 rounded-2xl" />
+            <Skeleton className="h-28 rounded-2xl" />
+          </div>
+        ) : !outcomes ? null : (
+          <div className="space-y-4">
+            {/* Milestone stat cards */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-card border border-card-border p-4">
+                <p className="text-2xl font-serif font-medium text-emerald-600 dark:text-emerald-400">
+                  {outcomes.milestonesCompletedThisWeek}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">Milestones done this week</p>
+              </div>
+              <div className="rounded-2xl bg-card border border-card-border p-4">
+                <p className="text-2xl font-serif font-medium text-primary">
+                  {outcomes.milestonesCompletedThisMonth}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">Milestones done this month</p>
+              </div>
+              {outcomes.averageActiveMilestoneDays != null && (
+                <div className="rounded-2xl bg-card border border-card-border p-4 col-span-2">
+                  <p className="text-2xl font-serif font-medium text-foreground">
+                    {Math.round(outcomes.averageActiveMilestoneDays)}
+                    <span className="text-base font-sans font-normal text-muted-foreground ml-1">days avg</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Average time active milestones stay open</p>
+                </div>
+              )}
+            </div>
+
+            {/* Pillar completion rates */}
+            {outcomes.pillarMetrics.length > 0 && (
+              <CollapsibleSection
+                title="Completion by pillar"
+                summary={
+                  <p className="text-sm text-foreground/80">
+                    {outcomes.pillarMetrics.length} pillar{outcomes.pillarMetrics.length !== 1 ? "s" : ""} tracked —
+                    avg {Math.round(outcomes.pillarMetrics.reduce((s, p) => s + p.completionRate, 0) / outcomes.pillarMetrics.length * 100)}% completion
+                  </p>
+                }
+              >
+                {outcomes.pillarMetrics.map(pm => (
+                  <div key={pm.pillarId} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground truncate max-w-[60%]">{pm.pillarName}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {pm.doneCount}/{pm.totalCount} done
+                        {pm.blockedCount > 0 && ` · ${pm.blockedCount} blocked`}
+                      </span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-emerald-500 transition-all"
+                        style={{ width: `${pm.completionRate * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-right text-xs text-muted-foreground">{Math.round(pm.completionRate * 100)}%</p>
+                  </div>
+                ))}
+              </CollapsibleSection>
+            )}
+
+            {/* P1 vs Warm/Parked effort ratio */}
+            <CollapsibleSection
+              title="P1 vs Warm/Parked effort"
+              summary={
+                outcomes.p1VsWarmParkedRatio != null ? (
+                  <div className="space-y-2">
+                    <ProportionBar
+                      segments={[
+                        { label: "P1 done", value: outcomes.p1CompletedThisWeek, color: "bg-rose-400", textColor: "text-rose-600 dark:text-rose-400" },
+                        { label: "Warm/Parked done", value: outcomes.warmParkedCompletedThisWeek, color: "bg-amber-300", textColor: "text-amber-600 dark:text-amber-400" },
+                      ]}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Ratio: {outcomes.p1VsWarmParkedRatio.toFixed(1)}:1 (P1 vs Warm/Parked)
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Not enough data — complete tasks from P1 and Warm/Parked pillars to see the ratio.</p>
+                )
+              }
+            >
+              <div className="space-y-1.5 text-xs text-foreground/80">
+                <p><span className="font-medium text-rose-600 dark:text-rose-400">{outcomes.p1CompletedThisWeek}</span> tasks done from P1 pillars this week</p>
+                <p><span className="font-medium text-amber-600 dark:text-amber-400">{outcomes.warmParkedCompletedThisWeek}</span> tasks done from Warm or Parked pillars this week</p>
+                <p className="text-muted-foreground pt-1">A ratio above 2:1 means P1 work is getting proportional focus.</p>
+              </div>
+            </CollapsibleSection>
+
+            {/* Portfolio balance */}
+            {portfolioBalance && (
+              <CollapsibleSection
+                title="Portfolio balance"
+                summary={
+                  <ProportionBar
+                    segments={[
+                      {
+                        label: "Active",
+                        value: portfolioBalance.activeShare,
+                        color: "bg-emerald-500",
+                        textColor: "text-emerald-700 dark:text-emerald-400",
+                      },
+                      {
+                        label: "Warm",
+                        value: portfolioBalance.warmShare,
+                        color: "bg-amber-400",
+                        textColor: "text-amber-700 dark:text-amber-400",
+                        warning: portfolioBalance.warmShare > 30,
+                      },
+                      {
+                        label: "Parked",
+                        value: portfolioBalance.parkedShare,
+                        color: "bg-slate-300 dark:bg-slate-600",
+                        textColor: "text-muted-foreground",
+                        warning: portfolioBalance.parkedShare > 30,
+                      },
+                    ]}
+                  />
+                }
+              >
+                <p className="text-xs text-muted-foreground">
+                  Portfolio balance measures what share of completed tasks came from each status tier this week.
+                  A healthy portfolio has most effort going into Active pillars.
+                </p>
+                {(portfolioBalance.warmShare > 30 || portfolioBalance.parkedShare > 30) && (
+                  <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 px-3 py-2 mt-1">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      Consider whether the effort going into Warm or Parked pillars is intentional — it may be pulling focus from your top priorities.
+                    </p>
+                  </div>
+                )}
+              </CollapsibleSection>
+            )}
+          </div>
+        )
+      )}
+
+      {tab === "friction" && (
+        frictionLoading ? (
+          <div className="space-y-3">
+            <Skeleton className="h-20 rounded-2xl" />
+            <Skeleton className="h-20 rounded-2xl" />
+          </div>
+        ) : !friction || friction.length === 0 ? (
+          <div className="text-center py-16 rounded-2xl bg-card border border-dashed border-border">
+            <ShieldCheck className="h-8 w-8 text-emerald-500 mx-auto mb-3" />
+            <p className="text-sm font-medium text-foreground">All clear</p>
+            <p className="text-xs text-muted-foreground mt-1">No friction patterns detected — things look healthy</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground px-1">{friction.length} pattern{friction.length !== 1 ? "s" : ""} worth a look</p>
+            {friction.map((signal, i) => {
+              const config = frictionTypeConfig[signal.type] ?? { icon: AlertCircle, label: signal.type, iconClass: "text-muted-foreground" };
+              const IconComponent = config.icon;
+              return (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04 }}
+                  className="rounded-2xl bg-card border border-card-border p-4 space-y-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <IconComponent className={`h-4 w-4 flex-shrink-0 ${config.iconClass}`} />
+                    <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{config.label}</span>
+                    {signal.pillarName && (
+                      <span className="ml-auto text-xs text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full truncate max-w-[40%]">
+                        {signal.pillarName}
+                      </span>
+                    )}
+                  </div>
+                  {(signal.taskTitle || signal.milestoneTitle) && (
+                    <p className="text-sm font-medium text-foreground">
+                      {signal.taskTitle ?? signal.milestoneTitle}
+                    </p>
+                  )}
+                  <p className="text-xs text-foreground/70 leading-relaxed">{signal.detail}</p>
+                </motion.div>
               );
             })}
           </div>

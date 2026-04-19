@@ -22,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check, Trash2, GripVertical } from "lucide-react";
+import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check, Trash2, GripVertical, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useForm } from "react-hook-form";
@@ -67,6 +67,7 @@ interface PillarFormData {
   description: string;
   color: string;
   portfolioStatus: string;
+  featureTag: string;
   currentStage: string;
   whyItMatters: string;
   nowFocus: string;
@@ -102,6 +103,7 @@ function PillarForm({
       description: "",
       color: COLORS[0],
       portfolioStatus: "Active",
+      featureTag: "",
       currentStage: "",
       whyItMatters: "",
       nowFocus: "",
@@ -114,6 +116,7 @@ function PillarForm({
   const priority = watch("priority");
   const color = watch("color");
   const portfolioStatus = watch("portfolioStatus");
+  const featureTag = watch("featureTag");
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2 max-h-[70vh] overflow-y-auto pr-1">
@@ -150,6 +153,21 @@ function PillarForm({
             </SelectContent>
           </Select>
         </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Feature focus</Label>
+        <Select value={featureTag || "none"} onValueChange={v => setValue("featureTag", v === "none" ? "" : v)}>
+          <SelectTrigger className="rounded-xl">
+            <SelectValue placeholder="None" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">None</SelectItem>
+            <SelectItem value="personal">Personal</SelectItem>
+            <SelectItem value="shared">Shared</SelectItem>
+            <SelectItem value="sellable">Sellable</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-1.5">
@@ -404,23 +422,37 @@ function SortableMilestoneRow({
           <GripVertical className="h-4 w-4" />
         </button>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-0.5">
-            <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${milestoneStatusStyles[m.status as MilestoneStatus] ?? milestoneStatusStyles.planned}`}>
-              {m.status}
-            </span>
-            {m.priority && (
-              <span className="text-xs text-muted-foreground font-medium">{m.priority}</span>
-            )}
-            {m.targetDate && (
-              <span className="text-xs text-muted-foreground">→ {m.targetDate}</span>
-            )}
-          </div>
-          <p className={`text-sm font-medium text-foreground ${m.status === "complete" ? "line-through text-muted-foreground" : ""}`}>
-            {m.title}
-          </p>
-          {m.nextAction && (
-            <p className="text-xs text-muted-foreground mt-0.5">Next: {m.nextAction}</p>
-          )}
+          {(() => {
+            const today = new Date().toISOString().slice(0, 10);
+            const isOverdue = m.targetDate && m.status !== "complete" && m.targetDate < today;
+            return (
+              <>
+                <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${milestoneStatusStyles[m.status as MilestoneStatus] ?? milestoneStatusStyles.planned}`}>
+                    {m.status}
+                  </span>
+                  {m.priority && (
+                    <span className="text-xs text-muted-foreground font-medium">{m.priority}</span>
+                  )}
+                  {m.targetDate && (
+                    <span className="text-xs text-muted-foreground">→ {m.targetDate}</span>
+                  )}
+                  {isOverdue && (
+                    <span className="flex items-center gap-0.5 text-xs font-medium text-rose-600 dark:text-rose-400">
+                      <AlertCircle className="h-3 w-3" />
+                      Overdue
+                    </span>
+                  )}
+                </div>
+                <p className={`text-sm font-medium text-foreground ${m.status === "complete" ? "line-through text-muted-foreground" : ""}`}>
+                  {m.title}
+                </p>
+                {m.nextAction && (
+                  <p className="text-xs text-muted-foreground mt-0.5">Next: {m.nextAction}</p>
+                )}
+              </>
+            );
+          })()}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           <Dialog open={editId === m.id} onOpenChange={open => setEditId(open ? m.id : null)}>
@@ -568,9 +600,16 @@ function MilestonesSection({ pillarId }: { pillarId: number }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Milestones{milestones && milestones.length > 0 ? ` · ${milestones.length}` : ""}
-        </p>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Milestones
+          </p>
+          {orderedMilestones.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {orderedMilestones.filter(m => m.status === "complete").length} / {orderedMilestones.length} complete
+            </p>
+          )}
+        </div>
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger asChild>
             <Button variant="ghost" size="sm" className="h-7 rounded-lg gap-1 text-xs px-2">
@@ -630,6 +669,18 @@ function MilestonesSection({ pillarId }: { pillarId: number }) {
   );
 }
 
+const featureTagStyles: Record<string, string> = {
+  personal: "text-sky-700 bg-sky-50 dark:text-sky-400 dark:bg-sky-900/20",
+  shared: "text-violet-700 bg-violet-50 dark:text-violet-400 dark:bg-violet-900/20",
+  sellable: "text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-900/20",
+};
+
+const featureTagLabels: Record<string, string> = {
+  personal: "Personal",
+  shared: "Shared",
+  sellable: "Sellable",
+};
+
 interface PillarCardProps {
   pillar: {
     id: number;
@@ -639,6 +690,7 @@ interface PillarCardProps {
     color?: string | null;
     isActiveThisWeek: boolean;
     portfolioStatus?: string | null;
+    featureTag?: string | null;
     currentStage?: string | null;
     whyItMatters?: string | null;
     nowFocus?: string | null;
@@ -674,6 +726,11 @@ function PillarCard({ pillar, onEdit, onStatusChange, editLoading, statusLoading
                   onStatusSelect={(s) => onStatusChange(pillar.id, s)}
                   loading={statusLoading}
                 />
+                {pillar.featureTag && featureTagLabels[pillar.featureTag] && (
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${featureTagStyles[pillar.featureTag] ?? ""}`}>
+                    {featureTagLabels[pillar.featureTag]}
+                  </span>
+                )}
               </div>
               {pillar.description && (
                 <p className="text-xs text-muted-foreground mt-1">{pillar.description}</p>
@@ -704,6 +761,7 @@ function PillarCard({ pillar, onEdit, onStatusChange, editLoading, statusLoading
                     description: pillar.description ?? "",
                     color: pillar.color ?? COLORS[0]!,
                     portfolioStatus: pillar.portfolioStatus ?? "Active",
+                    featureTag: pillar.featureTag ?? "",
                     currentStage: pillar.currentStage ?? "",
                     whyItMatters: pillar.whyItMatters ?? "",
                     nowFocus: pillar.nowFocus ?? "",
@@ -862,6 +920,7 @@ export default function SettingsPage() {
           nextFocus: data.nextFocus || undefined,
           laterFocus: data.laterFocus || undefined,
           blockers: data.blockers || undefined,
+          featureTag: (data.featureTag as "personal" | "shared" | "sellable") || null,
           lastUpdated: today,
         },
       },
