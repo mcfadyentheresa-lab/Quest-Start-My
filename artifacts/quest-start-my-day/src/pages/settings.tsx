@@ -170,13 +170,44 @@ const portfolioStatusStyles: Record<PortfolioStatus, string> = {
   Parked: "text-muted-foreground bg-muted/50",
 };
 
-function PortfolioStatusBadge({ status }: { status: string | null | undefined }) {
+const STATUS_CYCLE: PortfolioStatus[] = ["Active", "Warm", "Parked"];
+
+function nextStatus(current: string | null | undefined): PortfolioStatus {
+  const idx = STATUS_CYCLE.indexOf((current ?? "Active") as PortfolioStatus);
+  return STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length]!;
+}
+
+function PortfolioStatusBadge({
+  status,
+  onClick,
+  loading,
+}: {
+  status: string | null | undefined;
+  onClick?: () => void;
+  loading?: boolean;
+}) {
   const s = (status ?? "Active") as PortfolioStatus;
   const style = portfolioStatusStyles[s] ?? portfolioStatusStyles.Active;
+  const next = nextStatus(s);
+
+  if (!onClick) {
+    return (
+      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${style}`}>
+        {s}
+      </span>
+    );
+  }
+
   return (
-    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${style}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={loading}
+      title={`Tap to set → ${next}`}
+      className={`text-xs font-medium px-2 py-0.5 rounded-full transition-opacity hover:opacity-70 active:scale-95 cursor-pointer disabled:opacity-50 ${style}`}
+    >
       {s}
-    </span>
+    </button>
   );
 }
 
@@ -197,10 +228,12 @@ interface PillarCardProps {
     blockers?: string | null;
   };
   onEdit: (id: number, data: PillarFormData) => void;
+  onStatusChange: (id: number, status: PortfolioStatus) => void;
   editLoading: boolean;
+  statusLoading: boolean;
 }
 
-function PillarCard({ pillar, onEdit, editLoading }: PillarCardProps) {
+function PillarCard({ pillar, onEdit, onStatusChange, editLoading, statusLoading }: PillarCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const hasDetail = pillar.whyItMatters || pillar.nowFocus || pillar.nextFocus || pillar.laterFocus || pillar.blockers || pillar.currentStage;
@@ -217,7 +250,11 @@ function PillarCard({ pillar, onEdit, editLoading }: PillarCardProps) {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-serif font-medium text-foreground">{pillar.name}</span>
                 <PriorityBadge priority={pillar.priority} />
-                <PortfolioStatusBadge status={pillar.portfolioStatus} />
+                <PortfolioStatusBadge
+                  status={pillar.portfolioStatus}
+                  onClick={() => onStatusChange(pillar.id, nextStatus(pillar.portfolioStatus))}
+                  loading={statusLoading}
+                />
               </div>
               {pillar.description && (
                 <p className="text-xs text-muted-foreground mt-1">{pillar.description}</p>
@@ -356,6 +393,25 @@ export default function SettingsPage() {
     );
   };
 
+  const handleStatusChange = (id: number, status: PortfolioStatus) => {
+    updatePillar.mutate(
+      {
+        id,
+        data: {
+          portfolioStatus: status,
+        },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListPillarsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          toast({ title: `Moved to ${status}` });
+        },
+        onError: () => toast({ title: "Failed to update status", variant: "destructive" }),
+      }
+    );
+  };
+
   const handleEdit = (id: number, data: PillarFormData) => {
     const today = new Date().toISOString().slice(0, 10);
     updatePillar.mutate(
@@ -465,7 +521,9 @@ export default function SettingsPage() {
                     key={pillar.id}
                     pillar={pillar}
                     onEdit={handleEdit}
+                    onStatusChange={handleStatusChange}
                     editLoading={updatePillar.isPending}
+                    statusLoading={updatePillar.isPending}
                   />
                 ))}
               </div>
