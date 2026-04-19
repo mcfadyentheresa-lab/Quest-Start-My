@@ -1,0 +1,115 @@
+[weweb +2]
+Here’s your Phase 2 prompt for Replit:
+---
+Continue developing the existing “Quest Start My Day” app. Do not rebuild from scratch. Preserve the current app, existing data, database, and any task history already created. Extend the product carefully.
+Phase 2 goal
+Phase 2 should connect my daily dashboard to a weekly planning layer and a simple big-picture portfolio layer, while still keeping the experience calm and not overwhelming.
+I want the app to move from:
+•	“What do I do today?”
+to
+•	“What matters this week, and how does today fit into it?”
+Core Phase 2 additions
+1. Weekly Control Panel
+Add a dedicated weekly planning section or screen with:
+•	current week overview
+•	weekly focus statement
+•	top 3 priorities for the week
+•	weekly health focus
+•	weekly business focus
+•	weekly creative/build focus
+•	optional notes for this week
+This should feel like a planning layer above the daily dashboard.
+2. Active vs Warm vs Parked projects
+Add a project portfolio section with these categories:
+•	Core / Active
+•	Warm
+•	Parked
+Use my current pillar projects:
+•	Aster & Spruce Connect — Core / Active
+•	Quest Workday — Core / Active
+•	Circadian App — Warm
+•	AI Assistant Helper — Warm
+•	Books / Digital Products — Parked
+Allow me to edit these later.
+3. P1–P4 priority system
+Add a clear priority system:
+•	P1 = must move now
+•	P2 = important but not urgent
+•	P3 = warm / exploratory
+•	P4 = parked / inactive
+Show a legend and apply these labels to projects and major weekly priorities.
+4. Project detail view
+For each pillar project, add a simple detail view or expandable section that includes:
+•	project name
+•	role in portfolio
+•	current stage
+•	why it matters
+•	now
+•	next
+•	later
+•	blockers
+•	last updated
+This should help me remember what each project is for and what stage it is in.
+5. Weekly-to-daily connection
+The daily task assignments should now come from the weekly priorities and active projects.
+Do not show random tasks.
+Today’s tasks should clearly relate to:
+•	the active weekly priorities
+•	the active projects
+•	my energy / capacity if that already exists in the app
+6. Stronger progress reporting
+Expand progress tracking to include:
+•	today summary
+•	week summary
+•	completed
+•	pushed
+•	passed
+•	blocked
+•	suggested next step saved for tomorrow
+Show a weekly reflection area such as:
+•	What moved forward this week?
+•	What got stuck?
+•	What should continue next week?
+7. Re-entry support
+Add a feature that helps me resume after interruptions.
+For example:
+•	“Pick up where I left off”
+•	“Last unfinished task”
+•	“Suggested next step”
+•	“What matters today because of this week’s priorities”
+This is important because I forget context and need help re-entering the work.
+Data and persistence requirements
+Do not wipe or reset existing user data.
+Preserve the current database and existing records.
+If schema changes are needed:
+•	use safe migrations
+•	do not destroy existing task data
+•	do not reset the database
+•	keep backward compatibility where possible
+Important:
+Any new weekly planning fields, portfolio fields, and progress fields must persist between sessions and deployments.
+UX requirements
+Keep the experience elegant, calm, and uncluttered.
+Do not make this feel like a noisy project management SaaS dashboard.
+The app should still feel:
+•	supportive
+•	feminine but grounded
+•	clear
+•	warm
+•	thoughtful
+•	easy to re-enter
+The app should reduce overwhelm, not increase it.
+UI structure suggestion
+Keep the Start My Day dashboard, but add navigation tabs or sections for:
+•	Today
+•	Week
+•	Projects
+•	Progress
+Technical instruction
+Please first review the current codebase and current data structure.
+Then explain:
+1.	what you will preserve
+2.	what new tables or fields you need
+3.	how you will avoid wiping current data
+4.	what the Phase 2 implementation plan is
+Only after explaining the plan should you implement the changes.

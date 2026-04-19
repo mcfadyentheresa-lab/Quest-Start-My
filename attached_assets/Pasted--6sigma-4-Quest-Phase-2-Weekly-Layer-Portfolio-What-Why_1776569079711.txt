@@ -1,0 +1,200 @@
+[6sigma +4]
+---
+Quest Phase 2 — Weekly Layer & Portfolio
+What & Why
+Extend the existing Quest Start My Day app with:
+•	a weekly planning layer,
+•	a project portfolio view,
+•	re-entry support,
+•	and richer progress reporting.
+All changes must be additive only.  
+Do not remove, reset, recreate, or overwrite existing data, tables, routes, or task history.
+The goal is to evolve the experience from:
+“What do I do today?”  
+to  
+“What matters this week, and how does today fit into it?”
+Migration Safety Requirement
+Before applying any schema changes:
+•	Review the current schema and current data structure first.
+•	Show me the exact migration plan before running it.
+•	Confirm that all schema changes are additive only.
+•	If any migration would drop, rename, recreate, or reset tables or columns, stop and ask for approval first.
+•	Review generated SQL before applying changes.
+•	Existing data must be preserved.
+Use safe migrations only. Existing tasks, pillars, weekly plans, and progress logs must remain intact. Safer additive schema evolution is preferred over risky convenience changes.[ecosire +3]
+Done looks like
+•	Weekly control panel has fields for:
+•	weekly focus
+•	top 3 priorities
+•	health focus
+•	business focus
+•	creative focus
+•	optional notes  
+All are persisted to the database.
+•	Projects page groups pillars into:
+•	Active
+•	Warm
+•	Parked  
+with the five projects correctly categorized.
+•	Each pillar card expands or links to a detail view showing:
+•	current stage
+•	why it matters
+•	Now
+•	Next
+•	Later
+•	blockers  
+All editable and saved to the database.
+•	Dashboard has a Pick up where you left off re-entry panel showing:
+•	the most recent unfinished task
+•	its suggested next step  
+If no unfinished task exists, show the most recent completed task plus the next recommended action.
+•	Weekly page has a Reflection section at the bottom with:
+•	What moved forward
+•	What got stuck
+•	What continues next week  
+All editable and persisted.
+•	Today’s task cards show a subtle link to the weekly priority or pillar they serve.
+•	P1–P4 legend is visible with clear descriptions on the Projects / Pillars page.
+•	History page shows a weekly summary tab alongside the existing log feed, including:
+•	completed count
+•	pushed count
+•	passed count
+•	blocked count
+•	completion rate
+•	which pillars had activity
+•	All existing tasks, weekly plans, pillars, and progress logs are fully preserved after migration.
+Out of scope
+•	User authentication
+•	Multi-user support
+•	AI-generated task suggestions
+•	Smart scheduling
+•	Native mobile app
+•	Push notifications
+•	Any redesign of the existing warm cream / terracotta theme
+•	Any font changes
+Steps
+1. Schema migration
+Add nullable columns to `pillars`:
+•	`portfolioStatus`
+•	`currentStage`
+•	`whyItMatters`
+•	`nowFocus`
+•	`nextFocus`
+•	`laterFocus`
+•	`blockers`
+•	`lastUpdated`
+Add nullable columns to `weekly_plans`:
+•	`businessFocus`
+•	`creativeFocus`
+•	`whatMovedForward`
+•	`whatGotStuck`
+•	`whatContinues`
+Use a safe migration workflow. Do not perform destructive changes. If using `drizzle-kit push`, first review and confirm the generated changes before applying them.[orm.drizzle +2]
+2. Seed new pillar
+Add a fifth project:
+•	Books / Digital Products — P4 / Parked
+Update existing pillars:
+•	Aster & Spruce Connect = Active
+•	Quest Workday = Active
+•	Circadian App = Warm
+•	AI Assistant Helper = Warm
+3. API extensions
+Extend the pillars PATCH route to accept and save:
+•	portfolioStatus
+•	currentStage
+•	whyItMatters
+•	nowFocus
+•	nextFocus
+•	laterFocus
+•	blockers
+•	lastUpdated
+Extend the weekly PATCH route to accept and save:
+•	businessFocus
+•	creativeFocus
+•	whatMovedForward
+•	whatGotStuck
+•	whatContinues
+Regenerate OpenAPI codegen output after the route changes.
+4. Pillar detail editing
+Replace the flat edit form on the Projects / Pillars page with an expanded form including:
+•	stage
+•	why it matters
+•	now
+•	next
+•	later
+•	blockers
+Keep the existing:
+•	name
+•	priority
+•	color
+•	description fields
+5. Portfolio grouping
+On the Projects page:
+•	group pillars under three visual sections:
+•	Active
+•	Warm
+•	Parked
+•	show a portfolioStatus badge on each pillar card
+•	display a visible P1–P4 legend with clear descriptions
+6. Enhanced Weekly Control Panel
+On the Weekly page:
+•	keep the existing healthFocus and priorities fields
+•	add:
+•	businessFocus
+•	creativeFocus
+•	add a collapsible Reflection section at the bottom with:
+•	what moved forward
+•	what got stuck
+•	what continues next week
+7. Re-entry panel on dashboard
+Add a Pick up where you left off card above today’s tasks when unfinished prior tasks exist.
+It should display:
+•	most recent unfinished task title
+•	suggested next step
+•	button/link to jump to it
+•	button to mark it done
+If no unfinished task exists:
+•	show the most recent completed task
+•	and a suggested next action
+8. Weekly progress tab in History
+Add a tab or toggle on the History page showing this week’s summary:
+•	done count
+•	pushed count
+•	passed count
+•	blocked count
+•	completion rate
+•	pillars with activity
+Keep the existing log feed intact.
+9. Weekly-to-daily task connection
+On each task card and in the add-task dialog:
+•	show which weekly priority the task relates to
+•	if a task has a `pillarId` that is active this week, show a subtle pillar chip on the card
+Relevant files
+•	`lib/db/src/schema/pillars.ts`
+•	`lib/db/src/schema/weekly_plans.ts`
+•	`lib/db/src/schema/tasks.ts`
+•	`lib/db/src/schema/progress_logs.ts`
+•	`lib/db/src/schema/index.ts`
+•	`artifacts/api-server/src/routes/pillars.ts`
+•	`artifacts/api-server/src/routes/weekly.ts`
+•	`artifacts/api-server/src/routes/dashboard.ts`
+•	`artifacts/api-server/src/routes/progress.ts`
+•	`artifacts/quest-start-my-day/src/pages/dashboard.tsx`
+•	`artifacts/quest-start-my-day/src/pages/weekly.tsx`
+•	`artifacts/quest-start-my-day/src/pages/history.tsx`
+•	`artifacts/quest-start-my-day/src/pages/settings.tsx`
+•	`artifacts/quest-start-my-day/src/components/task-card.tsx`
+•	`artifacts/quest-start-my-day/src/components/add-task-dialog.tsx`
+•	`artifacts/quest-start-my-day/src/components/priority-badge.tsx`
+•	`lib/api-spec/openapi.yaml`
+•	`lib/api-spec/package.json`
+Implementation instruction
+Before coding, do this in order:
+1.	Review the current codebase and schema.
+2.	Explain:
+•	what will be preserved,
+•	what new columns or structures are needed,
+•	how data will be protected,
+•	and what the Phase 2 implementation order is.
+3.	Wait for approval if any migration appears risky.
+4.	Then implement the changes.
