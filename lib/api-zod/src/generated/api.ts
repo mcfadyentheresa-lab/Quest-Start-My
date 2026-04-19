@@ -322,6 +322,14 @@ export const GetWeekSummaryResponse = zod.object({
       pillarId: zod.number(),
       pillarName: zod.string(),
       taskCount: zod.number(),
+      tasks: zod.array(
+        zod.object({
+          id: zod.number(),
+          title: zod.string(),
+          status: zod.string(),
+          category: zod.string(),
+        }),
+      ),
     }),
   ),
 });

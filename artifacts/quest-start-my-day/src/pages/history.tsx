@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useListProgressLogs, getListProgressLogsQueryKey, useGetWeekSummary } from "@workspace/api-client-react";
 import { CategoryBadge } from "@/components/category-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, SkipForward, Pause, AlertCircle, History, TrendingUp } from "lucide-react";
+import { CheckCircle2, SkipForward, Pause, AlertCircle, History, TrendingUp, Layers, Clock } from "lucide-react";
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
@@ -19,7 +19,10 @@ const statusConfig: Record<string, { icon: React.ElementType; className: string;
   pushed: { icon: SkipForward, className: "text-amber-600 dark:text-amber-400", label: "Pushed" },
   passed: { icon: Pause, className: "text-sky-600 dark:text-sky-400", label: "Passed" },
   blocked: { icon: AlertCircle, className: "text-rose-600 dark:text-rose-400", label: "Blocked" },
+  pending: { icon: Clock, className: "text-muted-foreground", label: "Pending" },
 };
+
+const unknownStatus = { icon: Clock, className: "text-muted-foreground", label: "Unknown" };
 
 type Tab = "log" | "week";
 
@@ -99,7 +102,7 @@ export default function HistoryPage() {
                 </h2>
                 <div className="rounded-2xl bg-card border border-card-border divide-y divide-border overflow-hidden">
                   {grouped[date]?.map(log => {
-                    const statusInfo = log ? (statusConfig[log.status] ?? statusConfig.done) : statusConfig.done;
+                    const statusInfo = log ? (statusConfig[log.status] ?? unknownStatus) : unknownStatus;
                     const StatusIcon = statusInfo.icon;
                     return log ? (
                       <div key={log.id} className="flex items-center gap-3 px-4 py-3">
@@ -160,18 +163,39 @@ export default function HistoryPage() {
               <p className="text-xs text-muted-foreground mt-1.5">{weekSummary.totalTasks} tasks total this week</p>
             </div>
 
-            {/* Pillar activity */}
+            {/* Pillar activity with tasks */}
             {weekSummary.pillarActivity && weekSummary.pillarActivity.length > 0 && (
-              <div className="rounded-2xl bg-card border border-card-border p-4">
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Pillar activity</p>
-                <div className="space-y-2">
-                  {weekSummary.pillarActivity.map(pa => (
-                    <div key={pa.pillarId} className="flex items-center justify-between">
-                      <span className="text-sm text-foreground/80">{pa.pillarName}</span>
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground px-1">By pillar</p>
+                {weekSummary.pillarActivity.map(pa => (
+                  <div key={pa.pillarId} className="rounded-2xl bg-card border border-card-border overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                      <div className="flex items-center gap-2">
+                        <Layers className="h-3.5 w-3.5 text-primary/70" />
+                        <span className="text-sm font-medium text-foreground">{pa.pillarName}</span>
+                      </div>
                       <span className="text-xs font-medium text-muted-foreground">{pa.taskCount} task{pa.taskCount !== 1 ? "s" : ""}</span>
                     </div>
-                  ))}
-                </div>
+                    <div className="divide-y divide-border">
+                      {pa.tasks.map(task => {
+                        const statusInfo = statusConfig[task.status] ?? unknownStatus;
+                        const StatusIcon = statusInfo.icon;
+                        return (
+                          <div key={task.id} className="flex items-center gap-3 px-4 py-2.5">
+                            <StatusIcon className={`h-3.5 w-3.5 flex-shrink-0 ${statusInfo.className}`} />
+                            <span className={`text-sm flex-1 min-w-0 truncate ${task.status === "done" ? "line-through text-muted-foreground" : "text-foreground/80"}`}>
+                              {task.title}
+                            </span>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <CategoryBadge category={task.category} />
+                              <span className={`text-xs font-medium ${statusInfo.className}`}>{statusInfo.label}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 

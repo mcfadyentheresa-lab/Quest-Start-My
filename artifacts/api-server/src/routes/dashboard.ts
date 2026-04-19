@@ -103,17 +103,26 @@ router.get("/dashboard/week-summary", async (req, res): Promise<void> => {
 
   // Build pillar activity
   const pillarMap = new Map(pillars.map(p => [p.id, p.name]));
-  const pillarCounts = new Map<number, number>();
+  const pillarTasksMap = new Map<number, { id: number; title: string; status: string; category: string }[]>();
   for (const task of tasks) {
     if (task.pillarId !== null && task.pillarId !== undefined) {
-      pillarCounts.set(task.pillarId, (pillarCounts.get(task.pillarId) ?? 0) + 1);
+      if (!pillarTasksMap.has(task.pillarId)) {
+        pillarTasksMap.set(task.pillarId, []);
+      }
+      pillarTasksMap.get(task.pillarId)!.push({
+        id: task.id,
+        title: task.title,
+        status: task.status,
+        category: task.category,
+      });
     }
   }
-  const pillarActivity = Array.from(pillarCounts.entries())
-    .map(([pillarId, taskCount]) => ({
+  const pillarActivity = Array.from(pillarTasksMap.entries())
+    .map(([pillarId, pillarTasks]) => ({
       pillarId,
       pillarName: pillarMap.get(pillarId) ?? "Unknown",
-      taskCount,
+      taskCount: pillarTasks.length,
+      tasks: pillarTasks,
     }))
     .sort((a, b) => b.taskCount - a.taskCount);
 

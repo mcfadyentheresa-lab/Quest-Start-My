@@ -226,10 +226,18 @@ export interface DashboardSummary {
   planningStreak: number;
 }
 
+export type WeekSummaryPillarActivityTaskItem = {
+  id: number;
+  title: string;
+  status: string;
+  category: string;
+};
+
 export type WeekSummaryPillarActivityItem = {
   pillarId: number;
   pillarName: string;
   taskCount: number;
+  tasks: WeekSummaryPillarActivityTaskItem[];
 };
 
 export interface WeekSummary {

@@ -716,10 +716,29 @@ components:
                 type: string
               taskCount:
                 type: integer
+              tasks:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    title:
+                      type: string
+                    status:
+                      type: string
+                    category:
+                      type: string
+                  required:
+                    - id
+                    - title
+                    - status
+                    - category
             required:
               - pillarId
               - pillarName
               - taskCount
+              - tasks
       required:
         - weekOf
         - totalTasks
