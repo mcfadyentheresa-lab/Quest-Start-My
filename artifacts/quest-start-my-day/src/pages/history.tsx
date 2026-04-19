@@ -239,6 +239,7 @@ function ProportionBar({
 export default function HistoryPage() {
   const [tab, setTab] = useState<Tab>("log");
   const [selectedWeek, setSelectedWeek] = useState<string>(() => getCurrentWeekStart());
+  const [frictionTypeFilter, setFrictionTypeFilter] = useState<string | null>(null);
 
   const currentWeek = getCurrentWeekStart();
   const isCurrentWeek = selectedWeek === currentWeek;
@@ -871,10 +872,50 @@ export default function HistoryPage() {
             <p className="text-sm font-medium text-foreground">All clear</p>
             <p className="text-xs text-muted-foreground mt-1">No friction patterns detected — things look healthy</p>
           </div>
-        ) : (
+        ) : (() => {
+            const typeCounts = friction.reduce<Record<string, number>>((acc, s) => {
+              acc[s.type] = (acc[s.type] ?? 0) + 1;
+              return acc;
+            }, {});
+            const uniqueTypes = Object.keys(typeCounts);
+            const effectiveFilter = frictionTypeFilter && typeCounts[frictionTypeFilter]
+              ? frictionTypeFilter
+              : null;
+            const displayed = effectiveFilter ? friction.filter(s => s.type === effectiveFilter) : friction;
+            return (
           <div className="space-y-3">
-            <p className="text-xs text-muted-foreground px-1">{friction.length} pattern{friction.length !== 1 ? "s" : ""} worth a look</p>
-            {friction.map((signal, i) => {
+            {uniqueTypes.length >= 2 && (
+              <div className="flex flex-wrap gap-2">
+                {uniqueTypes.map(type => {
+                  const cfg = frictionTypeConfig[type] ?? { icon: AlertCircle, label: type, iconClass: "text-muted-foreground" };
+                  const IconComp = cfg.icon;
+                  const active = effectiveFilter === type;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setFrictionTypeFilter(active ? null : type)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                        active
+                          ? "bg-foreground text-background border-foreground"
+                          : "bg-card text-foreground border-card-border hover:bg-muted"
+                      }`}
+                    >
+                      <IconComp className={`h-3 w-3 ${active ? "" : cfg.iconClass}`} />
+                      {cfg.label}
+                      <span className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
+                        active ? "bg-background/20 text-background" : "bg-muted text-muted-foreground"
+                      }`}>
+                        {typeCounts[type]}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <>
+              <p className="text-xs text-muted-foreground px-1">{displayed.length} pattern{displayed.length !== 1 ? "s" : ""} worth a look</p>
+              {displayed.map((signal, i) => {
               const config = frictionTypeConfig[signal.type] ?? { icon: AlertCircle, label: signal.type, iconClass: "text-muted-foreground" };
               const IconComponent = config.icon;
               return (
@@ -909,8 +950,10 @@ export default function HistoryPage() {
                 </motion.div>
               );
             })}
+            </>
           </div>
-        )}
+        );
+        })()}
         </div>
       )}
     </div>
