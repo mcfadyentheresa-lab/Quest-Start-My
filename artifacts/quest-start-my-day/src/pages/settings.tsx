@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   useListPillars,
@@ -22,10 +22,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check, Trash2 } from "lucide-react";
+import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check, Trash2, GripVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useForm } from "react-hook-form";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const COLORS = [
   "#c2a49e", "#d4a77a", "#a8b89c", "#8eafc0", "#b49ac4", "#c4947a",
@@ -339,6 +356,113 @@ function PortfolioStatusBadge({
   );
 }
 
+type MilestoneItem = {
+  id: number;
+  title: string;
+  status: string;
+  priority?: string | null;
+  targetDate?: string | null;
+  description?: string | null;
+  nextAction?: string | null;
+  sortOrder?: number | null;
+};
+
+function SortableMilestoneRow({
+  m,
+  editId,
+  setEditId,
+  updateMilestone,
+  deleteMilestone,
+  handleUpdate,
+  handleDelete,
+}: {
+  m: MilestoneItem;
+  editId: number | null;
+  setEditId: (id: number | null) => void;
+  updateMilestone: { isPending: boolean };
+  deleteMilestone: { isPending: boolean };
+  handleUpdate: (id: number, data: MilestoneFormData) => void;
+  handleDelete: (id: number) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: m.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="rounded-xl bg-background border border-border/60 px-3 py-2.5">
+      <div className="flex items-start justify-between gap-2">
+        <button
+          {...attributes}
+          {...listeners}
+          className="flex-shrink-0 mt-1 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors touch-none"
+          aria-label="Drag to reorder"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-0.5">
+            <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${milestoneStatusStyles[m.status as MilestoneStatus] ?? milestoneStatusStyles.planned}`}>
+              {m.status}
+            </span>
+            {m.priority && (
+              <span className="text-xs text-muted-foreground font-medium">{m.priority}</span>
+            )}
+            {m.targetDate && (
+              <span className="text-xs text-muted-foreground">→ {m.targetDate}</span>
+            )}
+          </div>
+          <p className={`text-sm font-medium text-foreground ${m.status === "complete" ? "line-through text-muted-foreground" : ""}`}>
+            {m.title}
+          </p>
+          {m.nextAction && (
+            <p className="text-xs text-muted-foreground mt-0.5">Next: {m.nextAction}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <Dialog open={editId === m.id} onOpenChange={open => setEditId(open ? m.id : null)}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
+                <Pencil className="h-3 w-3" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="rounded-2xl max-w-sm mx-4">
+              <DialogHeader>
+                <DialogTitle className="font-serif text-lg">Edit milestone</DialogTitle>
+              </DialogHeader>
+              <MilestoneForm
+                defaultValues={{
+                  title: m.title,
+                  status: m.status,
+                  priority: m.priority ?? "",
+                  targetDate: m.targetDate ?? "",
+                  description: m.description ?? "",
+                  nextAction: m.nextAction ?? "",
+                }}
+                onSubmit={(data) => handleUpdate(m.id, data)}
+                loading={updateMilestone.isPending}
+                submitLabel="Save changes"
+              />
+            </DialogContent>
+          </Dialog>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-lg text-muted-foreground hover:text-rose-600"
+            onClick={() => handleDelete(m.id)}
+            disabled={deleteMilestone.isPending}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MilestonesSection({ pillarId }: { pillarId: number }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -348,9 +472,41 @@ function MilestonesSection({ pillarId }: { pillarId: number }) {
   const deleteMilestone = useDeleteMilestone();
   const [addOpen, setAddOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
+  const [orderedMilestones, setOrderedMilestones] = useState<MilestoneItem[]>([]);
+
+  useEffect(() => {
+    if (milestones) {
+      setOrderedMilestones(milestones as MilestoneItem[]);
+    }
+  }, [milestones]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: getListMilestonesQueryKey({ pillarId }) });
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = orderedMilestones.findIndex(m => m.id === active.id);
+    const newIndex = orderedMilestones.findIndex(m => m.id === over.id);
+    const reordered = arrayMove(orderedMilestones, oldIndex, newIndex);
+
+    setOrderedMilestones(reordered);
+
+    reordered.forEach((m, index) => {
+      if (m.sortOrder !== index) {
+        updateMilestone.mutate(
+          { id: m.id, data: { sortOrder: index } },
+          { onError: () => toast({ title: "Failed to save order", variant: "destructive" }) }
+        );
+      }
+    });
   };
 
   const handleCreate = (data: MilestoneFormData) => {
@@ -448,72 +604,27 @@ function MilestonesSection({ pillarId }: { pillarId: number }) {
         </div>
       )}
 
-      {(!milestones || milestones.length === 0) ? (
+      {(!orderedMilestones || orderedMilestones.length === 0) ? (
         <p className="text-xs text-muted-foreground/60 italic py-1">No milestones yet. Add one to track progress.</p>
       ) : (
-        <div className="space-y-1.5">
-          {milestones.map(m => (
-            <div key={m.id} className="rounded-xl bg-background border border-border/60 px-3 py-2.5">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${milestoneStatusStyles[m.status as MilestoneStatus] ?? milestoneStatusStyles.planned}`}>
-                      {m.status}
-                    </span>
-                    {m.priority && (
-                      <span className="text-xs text-muted-foreground font-medium">{m.priority}</span>
-                    )}
-                    {m.targetDate && (
-                      <span className="text-xs text-muted-foreground">→ {m.targetDate}</span>
-                    )}
-                  </div>
-                  <p className={`text-sm font-medium text-foreground ${m.status === "complete" ? "line-through text-muted-foreground" : ""}`}>
-                    {m.title}
-                  </p>
-                  {m.nextAction && (
-                    <p className="text-xs text-muted-foreground mt-0.5">Next: {m.nextAction}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <Dialog open={editId === m.id} onOpenChange={open => setEditId(open ? m.id : null)}>
-                    <DialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="rounded-2xl max-w-sm mx-4">
-                      <DialogHeader>
-                        <DialogTitle className="font-serif text-lg">Edit milestone</DialogTitle>
-                      </DialogHeader>
-                      <MilestoneForm
-                        defaultValues={{
-                          title: m.title,
-                          status: m.status,
-                          priority: m.priority ?? "",
-                          targetDate: m.targetDate ?? "",
-                          description: m.description ?? "",
-                          nextAction: m.nextAction ?? "",
-                        }}
-                        onSubmit={(data) => handleUpdate(m.id, data)}
-                        loading={updateMilestone.isPending}
-                        submitLabel="Save changes"
-                      />
-                    </DialogContent>
-                  </Dialog>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 rounded-lg text-muted-foreground hover:text-rose-600"
-                    onClick={() => handleDelete(m.id)}
-                    disabled={deleteMilestone.isPending}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={orderedMilestones.map(m => m.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-1.5">
+              {orderedMilestones.map(m => (
+                <SortableMilestoneRow
+                  key={m.id}
+                  m={m}
+                  editId={editId}
+                  setEditId={setEditId}
+                  updateMilestone={updateMilestone}
+                  deleteMilestone={deleteMilestone}
+                  handleUpdate={handleUpdate}
+                  handleDelete={handleDelete}
+                />
+              ))}
             </div>
-          ))}
-        </div>
+          </SortableContext>
+        </DndContext>
       )}
     </div>
   );
