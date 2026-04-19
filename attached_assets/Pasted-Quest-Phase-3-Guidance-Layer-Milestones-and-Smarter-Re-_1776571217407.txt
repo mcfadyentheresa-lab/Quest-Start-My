@@ -1,0 +1,167 @@
+Quest Phase 3 — Guidance Layer, Milestones, and Smarter Re-entry
+What & Why
+Continue developing the existing Quest Start My Day app.
+Do not rebuild from scratch.  
+Do not remove or reset existing routes, components, database records, weekly plans, tasks, pillars, or progress history.
+Phase 3 should add a lightweight guidance layer on top of the existing daily and weekly experience.
+The goal is to evolve the app from:
+“What matters this week?”  
+to  
+“Help me keep moving, remember context, and know the next right step.”
+This phase should make the app more supportive and intelligent without becoming overwhelming or overly automated.
+Core Phase 3 outcomes
+Phase 3 should help me:
+•	remember what each project is trying to achieve
+•	break projects into milestones
+•	know what stage each major project is in
+•	get a suggested next step when I stop or get blocked
+•	resume after interruption without losing momentum
+•	review whether I am actually moving my core pillars
+Migration Safety Requirement
+Before making any schema or data changes:
+•	review the current schema and implementation first
+•	explain what needs to change
+•	confirm all changes are additive only
+•	do not drop, recreate, rename, or overwrite existing data without approval
+•	if any migration is risky, stop and ask first
+All existing tasks, pillars, weekly plans, progress logs, and Phase 2 data must remain intact. Safe incremental changes are required.[youtube +1]
+Done looks like
+•	Each major project has milestone support with:
+•	milestone title
+•	milestone description
+•	milestone status
+•	milestone priority
+•	optional target date
+•	linked project / pillar
+•	optional next step
+•	Projects page or detail view shows:
+•	current project stage
+•	active milestone
+•	next milestone
+•	percent complete or milestone progress indicator
+•	Dashboard includes a smarter Today with context experience showing:
+•	what pillar matters most today
+•	why it matters this week
+•	what unfinished work is most relevant
+•	one suggested next step
+•	Re-entry support becomes stronger with:
+•	resume last unfinished item
+•	suggested next step based on latest task or blocker
+•	“why this matters” reminder
+•	gentle “continue where you left off” wording
+•	Weekly review becomes more structured with:
+•	what moved
+•	what stalled
+•	what should be deprioritized
+•	what deserves attention next week
+•	Add a lightweight goal health / pillar health view showing:
+•	which core pillars had movement this week
+•	which had no progress
+•	whether too much effort went into Warm or Parked projects
+•	If a project has not moved recently, show a subtle nudge such as:
+•	“No movement in 7 days”
+•	“Consider a tiny next action”
+•	Existing task cards can store or surface:
+•	blocker reason
+•	suggested next step
+•	related milestone
+•	related weekly priority
+Out of scope
+•	Full autonomous AI agent behavior
+•	Automatic task completion without user confirmation
+•	Multi-user collaboration
+•	User authentication
+•	Email integrations
+•	Calendar integrations
+•	Native mobile app
+•	Push notifications
+•	Large redesign of the interface
+•	Replacing the current visual tone
+New feature areas
+1. Milestones
+Add milestone support for pillar projects.
+Each pillar can have multiple milestones with fields like:
+•	title
+•	description
+•	status
+•	priority
+•	target date
+•	next action
+•	notes
+Allow milestones to be:
+•	Planned
+•	Active
+•	Blocked
+•	Complete
+A project detail view should show milestone history and current milestone focus.
+2. Smarter next-step guidance
+Add a simple guidance engine that uses existing data to suggest the next best step.
+Do not use external AI APIs yet unless already in place.
+This can be rules-based first.
+For example:
+•	if a task is blocked, suggest a clarification or fallback action
+•	if a task was passed, suggest a smaller version of it
+•	if a weekly priority has no movement, suggest one tiny action
+•	if a project has many “now” items but no completed tasks, suggest narrowing focus
+3. Better weekly review
+Expand weekly review so I can reflect on:
+•	what moved forward
+•	what got stuck
+•	what I kept avoiding
+•	what should be dropped or parked
+•	what the next week should emphasize
+4. Pillar health
+Create a portfolio health section or widget that shows:
+•	which Core pillars moved this week
+•	which Warm pillars got attention
+•	whether Parked projects are taking too much energy
+•	whether the system is aligned with intended priorities
+5. Context memory inside the app
+Without building a huge AI system, make the app better at remembering:
+•	latest unfinished task
+•	last meaningful progress
+•	current weekly focus
+•	next step tied to each pillar
+•	active milestone per project
+This should improve re-entry without turning the app into a chatbot.
+UX requirements
+Keep the experience:
+•	warm
+•	elegant
+•	uncluttered
+•	emotionally supportive
+•	not noisy
+•	not corporate
+•	not overbuilt
+Use progressive disclosure:
+•	show what matters first
+•	tuck deeper planning behind expandable sections or secondary screens
+The user should feel guided, not managed. Progressive disclosure and incremental releases help reduce feature bloat and cognitive overload.[linkedin +1]
+Technical expectations
+•	Reuse the current app structure where possible
+•	Preserve existing APIs and data
+•	Extend schema only if needed
+•	Use additive migrations only
+•	Keep logic understandable and maintainable
+•	If “smart suggestions” are added, implement them as transparent rules first, not black-box complexity
+Suggested build order
+1.	Review current codebase and existing Phase 1 + Phase 2 data structures
+2.	Design milestone schema and safe migration plan
+3.	Add milestone storage and project detail integration
+4.	Add smarter re-entry and next-step guidance
+5.	Add pillar health / portfolio health summary
+6.	Add richer weekly review prompts
+7.	Polish the UX
+Before coding
+Before implementation, explain:
+1.	what will be preserved
+2.	what new schema or tables are needed
+3.	how milestones will connect to pillars and tasks
+4.	how suggested next steps will be generated
+5.	how you will prevent data loss
+If any migration could risk current data, stop and ask for approval first.
+---
+What Phase 3 really is
+Phase 3 is where Quest starts becoming your decision support system, not just your task list. A good product portfolio view links strategy to active work, while good roadmap discipline avoids planning every future detail equally. “Now” should be concrete; “Later” should stay lighter.[aakashg +2]
+Best caution
+Do not let Replit turn Phase 3 into a bloated AI product. The smarter version of this app should feel more helpful and simpler, not more complicated. Overbuilding and feature bloat are common traps, especially once “AI” enters the conversation.
