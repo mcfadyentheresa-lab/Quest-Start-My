@@ -8,7 +8,7 @@ import {
   GetPillarHealthResponse,
   GetOutcomeMetricsResponse,
   GetPillarCompletionHistoryResponse,
-  GetPillarCompletionHistoryParams,
+  GetPillarCompletionHistoryQueryParams as GetPillarCompletionHistoryParams,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();

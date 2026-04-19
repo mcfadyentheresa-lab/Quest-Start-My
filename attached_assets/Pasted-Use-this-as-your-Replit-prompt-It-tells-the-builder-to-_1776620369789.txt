@@ -1,0 +1,311 @@
+Use this as your Replit prompt. It tells the builder to add the best version of the adjustment system for Quest: not just a generic back button, but a clearer action model with Step back, Push one step, and Blocked behaving differently. That is the stronger design because task decomposition, dependency handling, and user control work better when “too advanced,” “too big,” and “externally blocked” are treated as separate states.
+
+Replit prompt
+Build an upgrade to Quest Workday’s task action system.
+
+Context:
+Quest already exists. Each task card currently includes:
+
+task title
+
+Why this matters
+
+Done looks like
+
+Suggested next step
+
+action buttons like Done, Push one step, Pass for now, and Blocked
+
+I want to improve how Quest handles tasks that are too advanced, too big, or blocked by missing prerequisites.
+
+Goal:
+Add a smarter task-adjustment system so Quest can help the user keep moving instead of getting stuck or overwhelmed.
+
+Core product decision:
+Do NOT make this a generic browser-style Back button.
+Instead, implement a clearer task-state model with these actions:
+
+Done
+
+Push one step
+
+Step back
+
+Pass for now
+
+Blocked
+
+Definitions:
+
+Done = task completed
+
+Push one step = same task is still valid, but the next move should be made smaller or easier
+
+Step back = current task is one level too advanced and should be replaced by its immediate prerequisite task
+
+Pass for now = not doing this today, but not broken
+
+Blocked = this task cannot proceed because of an external blocker or dependency outside the user’s direct control
+
+Important UX rule:
+“Step back” and “Blocked” are NOT the same.
+
+Step back is for missing internal foundation, missing plan, missing draft, missing setup, or wrong task level
+
+Blocked is for external waiting, approvals, access issues, missing files from someone else, or other outside dependencies
+
+Examples:
+Example 1:
+Current task: “Review Aster & Spruce content calendar for this month”
+If no content calendar exists:
+
+Step back should generate: “Create a simple 2-week Aster & Spruce content calendar”
+If that is still too advanced:
+
+Step back again should generate: “List 5 content ideas for Aster & Spruce”
+If blocked because waiting on client photos:
+
+Blocked should mark it as waiting on external input, not rewrite it as a smaller task
+
+Example 2:
+Current task: “Reach out to strategic partners”
+If there is no partner list:
+
+Step back should generate: “Create a shortlist of 10 possible strategic partners”
+
+Example 3:
+Current task: “Review monthly lead sources”
+If there is no tracking system:
+
+Step back should generate: “Create a simple lead tracking sheet”
+
+What to build:
+
+A. New button behavior
+Add a “Step back” button to each task card.
+If “Back” already exists or is being considered, rename it to “Step back”.
+Do not use plain “Back” because that sounds like navigation.
+The user should clearly understand this means “go one level simpler”.
+
+B. Task transformation logic
+When the user presses “Step back”:
+
+analyze the current task
+
+identify what it assumes already exists
+
+infer the most likely immediate prerequisite
+
+create a new task card at one level lower
+
+preserve the same card structure:
+
+title
+
+Why this matters
+
+Done looks like
+
+Suggested next step
+
+link the new step-back task to the original task as its prerequisite
+
+update the original task state to something like:
+
+“Waiting on prerequisite”
+
+or “Stepped back from this task”
+
+allow the user to navigate between the original task and the generated prerequisite
+
+C. Push one step logic
+When the user presses “Push one step”:
+
+keep the task at the same conceptual level
+
+do not create a prerequisite
+
+instead, rewrite Suggested next step into a smaller, easier, more concrete action
+
+optionally create a micro-step or subtask
+
+example:
+task = “Update ASL homepage messaging”
+push one step = “Open homepage copy doc and rewrite headline only”
+
+D. Blocked logic
+When the user presses “Blocked”:
+
+ask or infer the blocker reason
+
+classify blocker type:
+
+waiting on person
+
+waiting on approval
+
+missing external asset
+
+access/tool issue
+
+dependency outside control
+
+do not automatically step the task back
+
+mark task as blocked
+
+show blocker reason clearly
+
+optionally create a follow-up item like:
+
+“Follow up with client for photos”
+
+“Request access to analytics account”
+
+blocked tasks should be reviewable in a separate list/filter
+
+E. Internal model
+Add an internal task-adjustment model with fields like:
+
+actionType: done | push | step_back | pass | blocked
+
+sourceTaskId
+
+derivedFromTaskId
+
+blockerType
+
+blockerReason
+
+prerequisiteTaskId
+
+adjustmentDepth
+
+adjustedAt
+
+adjustedByUser
+
+F. Card UI behavior
+On each card, after adjustment:
+
+show the adjusted status clearly
+
+if stepped back, show something like:
+“This task was stepped back because it depended on a missing foundation.”
+
+if blocked, show:
+“This task is blocked by an external dependency.”
+
+if pushed, show:
+“This task remains active, but the next move has been reduced.”
+
+G. Suggested copy
+For Step back result cards, use this structure:
+
+Why this matters: explain why building the missing foundation matters before the original task
+
+Done looks like: define what completing this prerequisite means
+
+Suggested next step: smallest real move
+
+H. Smart heuristics for Step back
+Add heuristics to detect phrases that imply missing prerequisites, such as:
+
+review calendar
+
+update homepage
+
+reach out to partners
+
+review analytics
+
+finalize launch plan
+
+revise content plan
+If the dependent artifact likely does not exist, generate the simpler predecessor task
+
+Examples of predecessor patterns:
+
+review X -> create X
+
+update X -> draft X
+
+refine X -> outline X
+
+publish X -> prepare X
+
+launch X -> finalize X
+
+contact X -> create shortlist of X
+
+analyze X -> collect X
+
+organize X -> gather X
+
+I. Safety and UX requirements
+
+Never create infinite step-back loops
+
+Limit step-back depth to a sensible number, like 3 to 5 levels
+
+Always show the reason for the transformation
+
+Let the user manually edit the generated task
+
+Keep the original task visible in history
+
+Preserve user control and clarity over automation
+
+J. Build quality
+Please implement:
+
+frontend UI updates for buttons and state labels
+
+backend or local logic for the adjustment engine
+
+task relationship tracking
+
+clean, readable code
+
+a few seeded examples in the UI for testing:
+
+content calendar example
+
+strategic partners example
+
+homepage messaging example
+
+lead tracking example
+
+K. Deliverable
+Return the feature fully integrated into the existing Quest app, with:
+
+updated task card UI
+
+step-back workflow
+
+blocked workflow
+
+push-one-step workflow
+
+test/demo data
+
+concise comments only where needed
+
+Design principle:
+Quest should feel like a calm workday partner.
+When a task is too big or too advanced, it should help the user move one layer closer to action.
+When a task is truly blocked externally, it should say so clearly instead of pretending the answer is always to just break it smaller.
+
+Small recommendation
+If you want the strongest result, I’d also tell Replit to add a small “reason” chip after any adjustment, such as:
+
+Missing foundation
+
+Reduced scope
+
+Waiting on person
+
+Waiting on asset
+
+That will make the system easier to trust and review later. Clear task state visibility is part of good dependency and blocker management.

@@ -263,6 +263,28 @@ export const TaskStatus = {
   pushed: "pushed",
   passed: "passed",
   blocked: "blocked",
+  stepped_back: "stepped_back",
+} as const;
+
+export type TaskBlockerType =
+  | (typeof TaskBlockerType)[keyof typeof TaskBlockerType]
+  | null;
+
+export const TaskBlockerType = {
+  waiting_on_person: "waiting_on_person",
+  waiting_on_approval: "waiting_on_approval",
+  missing_asset: "missing_asset",
+  access_issue: "access_issue",
+  dependency: "dependency",
+} as const;
+
+export type TaskAdjustmentType =
+  | (typeof TaskAdjustmentType)[keyof typeof TaskAdjustmentType]
+  | null;
+
+export const TaskAdjustmentType = {
+  step_back: "step_back",
+  push: "push",
 } as const;
 
 export interface Task {
@@ -278,6 +300,11 @@ export interface Task {
   blockerReason?: string | null;
   date: string;
   createdAt: string;
+  parentTaskId?: number | null;
+  stepBackDepth: number;
+  blockerType?: TaskBlockerType;
+  adjustmentType?: TaskAdjustmentType;
+  adjustmentReason?: string | null;
 }
 
 export type CreateTaskBodyCategory =
@@ -319,6 +346,19 @@ export const UpdateTaskBodyStatus = {
   pushed: "pushed",
   passed: "passed",
   blocked: "blocked",
+  stepped_back: "stepped_back",
+} as const;
+
+export type UpdateTaskBodyBlockerType =
+  | (typeof UpdateTaskBodyBlockerType)[keyof typeof UpdateTaskBodyBlockerType]
+  | null;
+
+export const UpdateTaskBodyBlockerType = {
+  waiting_on_person: "waiting_on_person",
+  waiting_on_approval: "waiting_on_approval",
+  missing_asset: "missing_asset",
+  access_issue: "access_issue",
+  dependency: "dependency",
 } as const;
 
 export interface UpdateTaskBody {
@@ -331,6 +371,13 @@ export interface UpdateTaskBody {
   pillarId?: number | null;
   milestoneId?: number | null;
   blockerReason?: string | null;
+  blockerType?: UpdateTaskBodyBlockerType;
+  adjustmentReason?: string | null;
+}
+
+export interface StepBackTaskResponse {
+  originalTask: Task;
+  prerequisiteTask: Task;
 }
 
 export interface WeeklyPlan {
@@ -585,7 +632,7 @@ export type ListProgressLogsParams = {
 
 export type GetOutcomeMetricsParams = {
   /**
-   * Week start date YYYY-MM-DD (Monday). Defaults to current week.
+   * Week start date in YYYY-MM-DD format (Monday). Defaults to the current week.
    */
   weekOf?: string;
 };

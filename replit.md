@@ -67,6 +67,16 @@ A personal daily command center — mobile-first web app for morning planning.
 - Month nav tab (BookOpen icon) added between History and Pillars in bottom nav
 - Milestone `updatedAt` column added to DB; set on every PATCH; included in API responses
 
+**Phase 5 features (task adjustment system — added):**
+- Step back button on task cards: creates a simpler prerequisite task using pattern-based heuristics (review→create, update→draft, refine→outline, launch→plan, contact→shortlist, etc.). Max depth 3. Original task marked as "stepped_back" (violet UI).
+- Improved Blocked flow: blocker type selector (5 categories: waiting on person, waiting on approval, missing asset, access issue, dependency) shown before marking blocked. blockerType stored and displayed.
+- Adjustment reason chips: colored reason labels shown on cards (e.g. "Missing foundation", "Missing draft").
+- Prerequisite badge: step-back-generated tasks show an "Prerequisite" badge with arrow icon.
+- DB additions (fully additive, no existing data touched): parentTaskId, stepBackDepth, blockerType, adjustmentType, adjustmentReason columns added to tasks table.
+- New status "stepped_back" (violet card color) added to status enum — backwards compatible.
+- "Resume this task" button replaces "Undo" for stepped_back tasks.
+- Fixed API server import error: GetPillarCompletionHistoryQueryParams alias.
+
 **Pages:**
 - `/` — Start My Day dashboard
 - `/weekly` — Weekly planning + reflection
@@ -85,7 +95,7 @@ A personal daily command center — mobile-first web app for morning planning.
 ## Database Schema
 
 - `pillars` — project pillars with priority (P1-P4), portfolioStatus (Active/Warm/Parked), detail fields (currentStage, whyItMatters, nowFocus, nextFocus, laterFocus, blockers, lastUpdated)
-- `tasks` — daily tasks with category (business/creative/wellness), status, rich details, pillarId FK, milestoneId FK (nullable), blockerReason (nullable)
+- `tasks` — daily tasks with category (business/creative/wellness), status (pending/done/pushed/passed/blocked/stepped_back), rich details, pillarId FK, milestoneId FK (nullable), blockerReason, blockerType, adjustmentType, adjustmentReason, parentTaskId, stepBackDepth
 - `weekly_plans` — weekly priorities, healthFocus, businessFocus, creativeFocus, notes, reflection fields (whatMovedForward, whatGotStuck, whatContinues, whatToDeprioritize, nextWeekFocus), activePillarIds
 - `milestones` — per-pillar milestones with status (planned/active/blocked/complete), priority (P1-P4), targetDate, description, nextAction, sortOrder
 - `progress_logs` — log of task status changes for history view
@@ -97,6 +107,7 @@ A personal daily command center — mobile-first web app for morning planning.
 - `PATCH /api/pillars/:id` — update pillar (incl. detail fields)
 - `GET /api/tasks?date=YYYY-MM-DD` — list tasks for date
 - `POST/PATCH/DELETE /api/tasks/:id` — manage tasks
+- `POST /api/tasks/:id/step-back` — create a simpler prerequisite task (heuristic engine), marks original as stepped_back
 - `GET /api/weekly?weekOf=YYYY-MM-DD` — get weekly plan
 - `POST/PATCH /api/weekly/:id` — create/update weekly plan
 - `GET /api/dashboard/summary` — today's dashboard summary

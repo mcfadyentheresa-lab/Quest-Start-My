@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, SkipForward, Pause, AlertCircle, ChevronDown, ChevronUp, Trash2, Pencil } from "lucide-react";
-import { useUpdateTask, useDeleteTask } from "@workspace/api-client-react";
+import {
+  CheckCircle2, SkipForward, Pause, AlertCircle, ChevronDown, ChevronUp,
+  Trash2, Pencil, ChevronsDown, ArrowLeft,
+} from "lucide-react";
+import { useUpdateTask, useDeleteTask, useStepBackTask } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getListTasksQueryKey, getGetDashboardSummaryQueryKey, getGetReentryTaskQueryKey } from "@workspace/api-client-react";
 import { CategoryBadge } from "@/components/category-badge";
@@ -28,6 +31,11 @@ interface Task {
   date: string;
   pillarId?: number | null;
   milestoneId?: number | null;
+  parentTaskId?: number | null;
+  stepBackDepth?: number | null;
+  blockerType?: string | null;
+  adjustmentType?: string | null;
+  adjustmentReason?: string | null;
 }
 
 interface TaskCardProps {
@@ -37,27 +45,70 @@ interface TaskCardProps {
   activePillarIds?: number[];
 }
 
+const MAX_STEP_BACK_DEPTH = 3;
+
 const statusConfig = {
-  done: { icon: CheckCircle2, label: "Done", className: "border-emerald-300 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-900/10" },
-  pushed: { icon: SkipForward, label: "Pushed", className: "border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/10" },
-  passed: { icon: Pause, label: "Passed", className: "border-sky-300 bg-sky-50 dark:border-sky-700 dark:bg-sky-900/10" },
-  blocked: { icon: AlertCircle, label: "Blocked", className: "border-rose-300 bg-rose-50 dark:border-rose-700 dark:bg-rose-900/10" },
-  pending: { icon: null, label: "Pending", className: "border-border bg-card" },
+  done: { label: "Done", className: "border-emerald-300 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-900/10", badgeClass: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" },
+  pushed: { label: "Pushed", className: "border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/10", badgeClass: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" },
+  passed: { label: "Passed", className: "border-sky-300 bg-sky-50 dark:border-sky-700 dark:bg-sky-900/10", badgeClass: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300" },
+  blocked: { label: "Blocked", className: "border-rose-300 bg-rose-50 dark:border-rose-700 dark:bg-rose-900/10", badgeClass: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300" },
+  stepped_back: { label: "Waiting on prerequisite", className: "border-violet-300 bg-violet-50 dark:border-violet-700 dark:bg-violet-900/10", badgeClass: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300" },
+  pending: { label: "Pending", className: "border-border bg-card", badgeClass: "" },
 };
 
+const blockerTypeLabels: Record<string, string> = {
+  waiting_on_person: "Waiting on person",
+  waiting_on_approval: "Waiting on approval",
+  missing_asset: "Missing external asset",
+  access_issue: "Access / tool issue",
+  dependency: "External dependency",
+};
+
+const adjustmentReasonColors: Record<string, string> = {
+  "Missing foundation": "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
+  "Missing draft": "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+  "Missing outline": "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+  "Missing preparation": "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+  "Missing plan": "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+  "Missing shortlist": "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+  "Missing data": "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+  "Missing material": "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+  "Missing setup plan": "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+  "Reduced scope": "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+  default: "bg-muted text-muted-foreground",
+};
+
+function getReasonColor(reason: string | null | undefined): string {
+  if (!reason) return adjustmentReasonColors.default;
+  return adjustmentReasonColors[reason] ?? adjustmentReasonColors.default;
+}
+
+const BLOCKER_TYPES = [
+  { value: "waiting_on_person", label: "Waiting on someone" },
+  { value: "waiting_on_approval", label: "Waiting on approval" },
+  { value: "missing_asset", label: "Missing external asset" },
+  { value: "access_issue", label: "Access / tool issue" },
+  { value: "dependency", label: "Outside dependency" },
+] as const;
+
 export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardProps) {
-  const [expanded, setExpanded] = useState(task.status === "pending");
+  const [expanded, setExpanded] = useState(task.status === "pending" || task.status === "stepped_back");
   const [blockerDraft, setBlockerDraft] = useState("");
+  const [selectedBlockerType, setSelectedBlockerType] = useState<string>("");
   const [showBlockerInput, setShowBlockerInput] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
+  const stepBackTask = useStepBackTask();
 
   const statusInfo = statusConfig[task.status as keyof typeof statusConfig] ?? statusConfig.pending;
   const pillar = task.pillarId && pillarMap ? pillarMap.get(task.pillarId) : undefined;
   const isActivePillar = pillar && activePillarIds ? activePillarIds.includes(pillar.id) : false;
+  const depth = task.stepBackDepth ?? 0;
+  const canStepBack = depth < MAX_STEP_BACK_DEPTH;
+  const isPrerequisite = !!task.parentTaskId && task.adjustmentType === "step_back";
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date }) });
@@ -86,15 +137,42 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
 
   const handleConfirmBlocked = () => {
     updateTask.mutate(
-      { id: task.id, data: { status: "blocked", blockerReason: blockerDraft.trim() || undefined } },
+      {
+        id: task.id,
+        data: {
+          status: "blocked",
+          blockerReason: blockerDraft.trim() || undefined,
+          blockerType: (selectedBlockerType as "waiting_on_person" | "waiting_on_approval" | "missing_asset" | "access_issue" | "dependency") || undefined,
+        },
+      },
       {
         onSuccess: () => {
           invalidateAll();
           setShowBlockerInput(false);
           setBlockerDraft("");
+          setSelectedBlockerType("");
         },
         onError: () => {
           toast({ title: "Something went wrong", variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const handleStepBack = () => {
+    stepBackTask.mutate(
+      { id: task.id },
+      {
+        onSuccess: (data) => {
+          invalidateAll();
+          toast({
+            title: "Prerequisite task created",
+            description: `"${data.prerequisiteTask.title}" was added to today's list.`,
+          });
+        },
+        onError: (err: unknown) => {
+          const msg = err instanceof Error ? err.message : "Could not step back.";
+          toast({ title: "Cannot step back", description: msg, variant: "destructive" });
         },
       }
     );
@@ -105,6 +183,7 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
   };
 
   const isPending = task.status === "pending";
+  const isSteppedBack = task.status === "stepped_back";
 
   return (
     <motion.div
@@ -135,13 +214,14 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
               </span>
             )}
             {task.status !== "pending" && (
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                task.status === "done" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" :
-                task.status === "pushed" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" :
-                task.status === "passed" ? "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300" :
-                "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300"
-              }`}>
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusInfo.badgeClass}`}>
                 {statusInfo.label}
+              </span>
+            )}
+            {isPrerequisite && (
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 flex items-center gap-1">
+                <ArrowLeft className="h-2.5 w-2.5" />
+                Prerequisite
               </span>
             )}
           </div>
@@ -183,6 +263,15 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
             className="overflow-hidden"
           >
             <div className="mt-4 space-y-3">
+              {task.adjustmentReason && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${getReasonColor(task.adjustmentReason)}`}>
+                    {task.adjustmentReason.startsWith("Prerequisite created:")
+                      ? task.adjustmentReason
+                      : task.adjustmentReason}
+                  </span>
+                </div>
+              )}
               {task.whyItMatters && (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Why this matters</p>
@@ -201,10 +290,24 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
                   <p className="text-sm text-foreground/80 leading-relaxed">{task.suggestedNextStep}</p>
                 </div>
               )}
-              {task.status === "blocked" && task.blockerReason && (
-                <div className="rounded-xl bg-rose-50 dark:bg-rose-900/20 px-3 py-2.5">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-rose-600 dark:text-rose-400 mb-1">Blocker</p>
-                  <p className="text-sm text-foreground/80 leading-relaxed">{task.blockerReason}</p>
+              {task.status === "blocked" && (task.blockerType || task.blockerReason) && (
+                <div className="rounded-xl bg-rose-50 dark:bg-rose-900/20 px-3 py-2.5 space-y-1">
+                  {task.blockerType && (
+                    <p className="text-xs font-semibold text-rose-600 dark:text-rose-400">
+                      {blockerTypeLabels[task.blockerType] ?? task.blockerType}
+                    </p>
+                  )}
+                  {task.blockerReason && (
+                    <p className="text-sm text-foreground/80 leading-relaxed">{task.blockerReason}</p>
+                  )}
+                </div>
+              )}
+              {isSteppedBack && (
+                <div className="rounded-xl bg-violet-50 dark:bg-violet-900/20 px-3 py-2.5">
+                  <p className="text-xs font-semibold text-violet-600 dark:text-violet-400 mb-1">Waiting on prerequisite</p>
+                  <p className="text-sm text-foreground/80 leading-relaxed">
+                    A simpler prerequisite task was created. Complete it first, then return here.
+                  </p>
                 </div>
               )}
             </div>
@@ -230,6 +333,18 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
                   <SkipForward className="h-3.5 w-3.5 mr-1.5" />
                   Push one step
                 </Button>
+                {canStepBack && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl font-medium text-violet-600 border-violet-200 hover:bg-violet-50 dark:text-violet-400 dark:border-violet-800 dark:hover:bg-violet-900/20"
+                    onClick={handleStepBack}
+                    disabled={stepBackTask.isPending}
+                  >
+                    <ChevronsDown className="h-3.5 w-3.5 mr-1.5" />
+                    Step back
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
@@ -243,7 +358,7 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
                 <Button
                   size="sm"
                   variant="outline"
-                  className="rounded-xl font-medium text-rose-600 border-rose-200 hover:bg-rose-50 dark:text-rose-400 dark:border-rose-800 dark:hover:bg-rose-900/20"
+                  className={`rounded-xl font-medium text-rose-600 border-rose-200 hover:bg-rose-50 dark:text-rose-400 dark:border-rose-800 dark:hover:bg-rose-900/20 ${canStepBack ? "" : "col-span-2"}`}
                   onClick={() => handleAction("blocked")}
                   disabled={updateTask.isPending}
                 >
@@ -254,11 +369,29 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
             )}
 
             {isPending && showBlockerInput && (
-              <div className="mt-4 space-y-2">
+              <div className="mt-4 space-y-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">What kind of blocker?</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {BLOCKER_TYPES.map((bt) => (
+                      <button
+                        key={bt.value}
+                        onClick={() => setSelectedBlockerType(prev => prev === bt.value ? "" : bt.value)}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                          selectedBlockerType === bt.value
+                            ? "bg-rose-100 border-rose-400 text-rose-700 dark:bg-rose-900/40 dark:border-rose-600 dark:text-rose-300"
+                            : "border-border text-muted-foreground hover:border-rose-300 hover:text-rose-600"
+                        }`}
+                      >
+                        {bt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <Textarea
                   value={blockerDraft}
                   onChange={e => setBlockerDraft(e.target.value)}
-                  placeholder="What's blocking this? (optional)"
+                  placeholder="Describe the blocker (optional)"
                   className="rounded-xl resize-none text-sm"
                   rows={2}
                   autoFocus
@@ -268,7 +401,7 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
                     size="sm"
                     variant="outline"
                     className="rounded-xl text-xs"
-                    onClick={() => { setShowBlockerInput(false); setBlockerDraft(""); }}
+                    onClick={() => { setShowBlockerInput(false); setBlockerDraft(""); setSelectedBlockerType(""); }}
                   >
                     Cancel
                   </Button>
@@ -286,7 +419,7 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
               </div>
             )}
 
-            {!isPending && (
+            {!isPending && !isSteppedBack && (
               <div className="mt-4 flex gap-2">
                 <Button
                   size="sm"
@@ -295,6 +428,27 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
                   onClick={() => updateTask.mutate({ id: task.id, data: { status: "pending" } }, { onSuccess: invalidateAll })}
                 >
                   Undo
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="rounded-xl text-xs text-muted-foreground"
+                  onClick={handleDelete}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+
+            {isSteppedBack && (
+              <div className="mt-4 flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-xl text-xs font-medium text-violet-600 border-violet-200 hover:bg-violet-50 dark:text-violet-400 dark:border-violet-800"
+                  onClick={() => updateTask.mutate({ id: task.id, data: { status: "pending" } }, { onSuccess: invalidateAll })}
+                >
+                  Resume this task
                 </Button>
                 <Button
                   size="sm"

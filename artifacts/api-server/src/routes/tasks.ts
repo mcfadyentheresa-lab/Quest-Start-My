@@ -9,9 +9,69 @@ import {
   ListTasksQueryParams,
   ListTasksResponse,
   UpdateTaskResponse,
+  StepBackTaskParams,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+
+const MAX_STEP_BACK_DEPTH = 3;
+
+interface GeneratedTask {
+  title: string;
+  whyItMatters: string;
+  doneLooksLike: string;
+  suggestedNextStep: string;
+  adjustmentReason: string;
+}
+
+const VERB_PATTERNS: [RegExp, string, string][] = [
+  [/^(review|revise|evaluate)\b/i, "Create", "Missing foundation"],
+  [/^(update|improve|enhance|polish)\b/i, "Draft", "Missing draft"],
+  [/^(refine|iterate on|perfect)\b/i, "Outline", "Missing outline"],
+  [/^(publish|release|ship)\b/i, "Prepare", "Missing preparation"],
+  [/^(launch|roll out)\b/i, "Finalize plan for", "Missing plan"],
+  [/^(contact|reach out to|email|message|pitch)\b/i, "Create a shortlist of", "Missing shortlist"],
+  [/^(analyze|analyse|measure|audit)\b/i, "Collect data for", "Missing data"],
+  [/^(organize|organise|sort|arrange)\b/i, "Gather material for", "Missing material"],
+  [/^(finalize|finalise|complete|finish)\b/i, "Outline", "Missing outline"],
+  [/^(present|present|demo|show)\b/i, "Prepare", "Missing preparation"],
+  [/^(build|create|develop|design)\b/i, "Sketch a simple version of", "Missing foundation"],
+  [/^(write|draft|document)\b/i, "Outline", "Missing outline"],
+  [/^(set up|setup|configure|install)\b/i, "Plan the setup steps for", "Missing setup plan"],
+];
+
+function generateStepBackTask(originalTitle: string, originalDepth: number): GeneratedTask {
+  const trimmed = originalTitle.trim();
+
+  for (const [pattern, verb, reason] of VERB_PATTERNS) {
+    const match = trimmed.match(pattern);
+    if (match) {
+      const rest = trimmed.slice(match[0].length).trim();
+      const newTitle = rest ? `${verb} ${rest}` : `${verb} the prerequisite for: ${trimmed}`;
+      return {
+        title: newTitle,
+        whyItMatters: `This foundation needs to exist before "${trimmed}" can move forward. Building it first prevents getting stuck mid-task.`,
+        doneLooksLike: `You have a clear, usable starting point for "${trimmed}" — enough to move to the next level.`,
+        suggestedNextStep: originalDepth === 0
+          ? "Start with the simplest possible version — even a rough draft counts."
+          : "Keep it small and concrete. One action, one output.",
+        adjustmentReason: reason,
+      };
+    }
+  }
+
+  return {
+    title: `Prepare the foundation for: ${trimmed}`,
+    whyItMatters: `"${trimmed}" assumes something already exists. This step builds that missing piece first.`,
+    doneLooksLike: `You have enough in place to return to "${trimmed}" and make real progress.`,
+    suggestedNextStep: "Identify the single most important thing needed before the original task can proceed.",
+    adjustmentReason: "Missing foundation",
+  };
+}
+
+function serializeTask(task: typeof tasksTable.$inferSelect) {
+  return { ...task, createdAt: task.createdAt.toISOString() };
+}
 
 router.get("/tasks", async (req, res): Promise<void> => {
   const query = ListTasksQueryParams.safeParse(req.query);
@@ -22,10 +82,7 @@ router.get("/tasks", async (req, res): Promise<void> => {
     .where(eq(tasksTable.date, date))
     .orderBy(tasksTable.createdAt);
 
-  res.json(ListTasksResponse.parse(tasks.map(t => ({
-    ...t,
-    createdAt: t.createdAt.toISOString(),
-  }))));
+  res.json(ListTasksResponse.parse(tasks.map(serializeTask)));
 });
 
 router.post("/tasks", async (req, res): Promise<void> => {
@@ -48,10 +105,7 @@ router.post("/tasks", async (req, res): Promise<void> => {
     status: "pending",
   }).returning();
 
-  res.status(201).json({
-    ...task,
-    createdAt: task.createdAt.toISOString(),
-  });
+  res.status(201).json(serializeTask(task));
 });
 
 router.patch("/tasks/:id", async (req, res): Promise<void> => {
@@ -77,6 +131,8 @@ router.patch("/tasks/:id", async (req, res): Promise<void> => {
   if (parsed.data.pillarId !== undefined) updates.pillarId = parsed.data.pillarId;
   if (parsed.data.milestoneId !== undefined) updates.milestoneId = parsed.data.milestoneId;
   if (parsed.data.blockerReason !== undefined) updates.blockerReason = parsed.data.blockerReason;
+  if (parsed.data.blockerType !== undefined) updates.blockerType = parsed.data.blockerType;
+  if (parsed.data.adjustmentReason !== undefined) updates.adjustmentReason = parsed.data.adjustmentReason;
 
   const [task] = await db
     .update(tasksTable)
@@ -99,10 +155,73 @@ router.patch("/tasks/:id", async (req, res): Promise<void> => {
     });
   }
 
-  res.json(UpdateTaskResponse.parse({
-    ...task,
-    createdAt: task.createdAt.toISOString(),
-  }));
+  res.json(UpdateTaskResponse.parse(serializeTask(task)));
+});
+
+router.post("/tasks/:id/step-back", async (req, res): Promise<void> => {
+  const params = StepBackTaskParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [original] = await db.select().from(tasksTable).where(eq(tasksTable.id, params.data.id));
+  if (!original) {
+    res.status(404).json({ error: "Task not found" });
+    return;
+  }
+
+  if (original.stepBackDepth >= MAX_STEP_BACK_DEPTH) {
+    res.status(400).json({
+      error: `Cannot step back further — maximum depth of ${MAX_STEP_BACK_DEPTH} reached. Break this task down manually.`,
+    });
+    return;
+  }
+
+  if (original.status !== "pending" && original.status !== "stepped_back") {
+    res.status(400).json({ error: "Only pending tasks can be stepped back." });
+    return;
+  }
+
+  const generated = generateStepBackTask(original.title, original.stepBackDepth);
+
+  const [prereq] = await db.insert(tasksTable).values({
+    title: generated.title,
+    category: original.category,
+    whyItMatters: generated.whyItMatters,
+    doneLooksLike: generated.doneLooksLike,
+    suggestedNextStep: generated.suggestedNextStep,
+    pillarId: original.pillarId ?? null,
+    milestoneId: original.milestoneId ?? null,
+    date: original.date,
+    status: "pending",
+    parentTaskId: original.id,
+    stepBackDepth: original.stepBackDepth + 1,
+    adjustmentType: "step_back",
+    adjustmentReason: generated.adjustmentReason,
+  }).returning();
+
+  const [updated] = await db
+    .update(tasksTable)
+    .set({
+      status: "stepped_back",
+      adjustmentReason: `Prerequisite created: ${generated.title}`,
+    })
+    .where(eq(tasksTable.id, original.id))
+    .returning();
+
+  await db.insert(progressLogsTable).values({
+    taskId: original.id,
+    taskTitle: original.title,
+    category: original.category,
+    status: "stepped_back",
+    date: original.date,
+  });
+
+  res.status(201).json({
+    originalTask: serializeTask(updated),
+    prerequisiteTask: serializeTask(prereq),
+  });
 });
 
 router.delete("/tasks/:id", async (req, res): Promise<void> => {

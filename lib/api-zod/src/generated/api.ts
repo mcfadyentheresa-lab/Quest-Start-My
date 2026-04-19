@@ -188,12 +188,32 @@ export const ListTasksResponseItem = zod.object({
   whyItMatters: zod.string().nullish(),
   doneLooksLike: zod.string().nullish(),
   suggestedNextStep: zod.string().nullish(),
-  status: zod.enum(["pending", "done", "pushed", "passed", "blocked"]),
+  status: zod.enum([
+    "pending",
+    "done",
+    "pushed",
+    "passed",
+    "blocked",
+    "stepped_back",
+  ]),
   pillarId: zod.number().nullish(),
   milestoneId: zod.number().nullish(),
   blockerReason: zod.string().nullish(),
   date: zod.string(),
   createdAt: zod.string(),
+  parentTaskId: zod.number().nullish(),
+  stepBackDepth: zod.number(),
+  blockerType: zod
+    .enum([
+      "waiting_on_person",
+      "waiting_on_approval",
+      "missing_asset",
+      "access_issue",
+      "dependency",
+    ])
+    .nullish(),
+  adjustmentType: zod.enum(["step_back", "push"]).nullish(),
+  adjustmentReason: zod.string().nullish(),
 });
 export const ListTasksResponse = zod.array(ListTasksResponseItem);
 
@@ -226,11 +246,21 @@ export const UpdateTaskBody = zod.object({
   doneLooksLike: zod.string().nullish(),
   suggestedNextStep: zod.string().nullish(),
   status: zod
-    .enum(["pending", "done", "pushed", "passed", "blocked"])
+    .enum(["pending", "done", "pushed", "passed", "blocked", "stepped_back"])
     .optional(),
   pillarId: zod.number().nullish(),
   milestoneId: zod.number().nullish(),
   blockerReason: zod.string().nullish(),
+  blockerType: zod
+    .enum([
+      "waiting_on_person",
+      "waiting_on_approval",
+      "missing_asset",
+      "access_issue",
+      "dependency",
+    ])
+    .nullish(),
+  adjustmentReason: zod.string().nullish(),
 });
 
 export const UpdateTaskResponse = zod.object({
@@ -240,18 +270,45 @@ export const UpdateTaskResponse = zod.object({
   whyItMatters: zod.string().nullish(),
   doneLooksLike: zod.string().nullish(),
   suggestedNextStep: zod.string().nullish(),
-  status: zod.enum(["pending", "done", "pushed", "passed", "blocked"]),
+  status: zod.enum([
+    "pending",
+    "done",
+    "pushed",
+    "passed",
+    "blocked",
+    "stepped_back",
+  ]),
   pillarId: zod.number().nullish(),
   milestoneId: zod.number().nullish(),
   blockerReason: zod.string().nullish(),
   date: zod.string(),
   createdAt: zod.string(),
+  parentTaskId: zod.number().nullish(),
+  stepBackDepth: zod.number(),
+  blockerType: zod
+    .enum([
+      "waiting_on_person",
+      "waiting_on_approval",
+      "missing_asset",
+      "access_issue",
+      "dependency",
+    ])
+    .nullish(),
+  adjustmentType: zod.enum(["step_back", "push"]).nullish(),
+  adjustmentReason: zod.string().nullish(),
 });
 
 /**
  * @summary Delete a task
  */
 export const DeleteTaskParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Create a prerequisite task one level simpler and mark original as stepped back
+ */
+export const StepBackTaskParams = zod.object({
   id: zod.coerce.number(),
 });
 
@@ -503,6 +560,15 @@ export const GetPillarHealthResponse = zod.object({
 /**
  * @summary Get outcome metrics (milestone and task completion rates)
  */
+export const GetOutcomeMetricsQueryParams = zod.object({
+  weekOf: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "Week start date in YYYY-MM-DD format (Monday). Defaults to the current week.",
+    ),
+});
+
 export const GetOutcomeMetricsResponse = zod.object({
   milestonesCompletedThisWeek: zod.number(),
   milestonesCompletedThisMonth: zod.number(),

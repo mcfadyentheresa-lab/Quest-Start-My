@@ -39,6 +39,7 @@ import type {
   PillarHealthResponse,
   ProgressLog,
   ReentryInfo,
+  StepBackTaskResponse,
   Task,
   UpdateMilestoneBody,
   UpdateMonthlyReviewBody,
@@ -1082,6 +1083,90 @@ export const useDeleteTask = <
 };
 
 /**
+ * @summary Create a prerequisite task one level simpler and mark original as stepped back
+ */
+export const getStepBackTaskUrl = (id: number) => {
+  return `/api/tasks/${id}/step-back`;
+};
+
+export const stepBackTask = async (
+  id: number,
+  options?: RequestInit,
+): Promise<StepBackTaskResponse> => {
+  return customFetch<StepBackTaskResponse>(getStepBackTaskUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getStepBackTaskMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof stepBackTask>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof stepBackTask>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["stepBackTask"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof stepBackTask>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return stepBackTask(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type StepBackTaskMutationResult = NonNullable<
+  Awaited<ReturnType<typeof stepBackTask>>
+>;
+
+export type StepBackTaskMutationError = ErrorType<void>;
+
+/**
+ * @summary Create a prerequisite task one level simpler and mark original as stepped back
+ */
+export const useStepBackTask = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof stepBackTask>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof stepBackTask>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getStepBackTaskMutationOptions(options));
+};
+
+/**
  * @summary List weekly plans
  */
 export const getListWeeklyPlansUrl = (params?: ListWeeklyPlansParams) => {
@@ -1774,8 +1859,13 @@ export const getOutcomeMetrics = async (
   });
 };
 
-export const getGetOutcomeMetricsQueryKey = (params?: GetOutcomeMetricsParams) => {
-  return [`/api/dashboard/outcome-metrics`, ...(params ? [params] : [])] as const;
+export const getGetOutcomeMetricsQueryKey = (
+  params?: GetOutcomeMetricsParams,
+) => {
+  return [
+    `/api/dashboard/outcome-metrics`,
+    ...(params ? [params] : []),
+  ] as const;
 };
 
 export const getGetOutcomeMetricsQueryOptions = <
@@ -1794,7 +1884,8 @@ export const getGetOutcomeMetricsQueryOptions = <
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetOutcomeMetricsQueryKey(params);
+  const queryKey =
+    queryOptions?.queryKey ?? getGetOutcomeMetricsQueryKey(params);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof getOutcomeMetrics>>

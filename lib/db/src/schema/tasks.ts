@@ -16,6 +16,11 @@ export const tasksTable = pgTable("tasks", {
   blockerReason: text("blocker_reason"),
   date: text("date").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  parentTaskId: integer("parent_task_id"),
+  stepBackDepth: integer("step_back_depth").notNull().default(0),
+  blockerType: text("blocker_type"),
+  adjustmentType: text("adjustment_type"),
+  adjustmentReason: text("adjustment_reason"),
 });
 
 export const insertTaskSchema = createInsertSchema(tasksTable).omit({ id: true, createdAt: true });

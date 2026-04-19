@@ -248,6 +248,29 @@ paths:
         "204":
           description: Deleted
 
+  /tasks/{id}/step-back:
+    post:
+      operationId: stepBackTask
+      tags: [tasks]
+      summary: Create a prerequisite task one level simpler and mark original as stepped back
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "201":
+          description: Prerequisite task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StepBackTaskResponse"
+        "400":
+          description: Cannot step back (max depth reached or invalid task state)
+        "404":
+          description: Task not found
+
   /weekly:
     get:
       operationId: listWeeklyPlans
@@ -817,7 +840,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [pending, done, pushed, passed, blocked]
+          enum: [pending, done, pushed, passed, blocked, stepped_back]
         pillarId:
           type: integer
           nullable: true
@@ -831,6 +854,22 @@ components:
           type: string
         createdAt:
           type: string
+        parentTaskId:
+          type: integer
+          nullable: true
+        stepBackDepth:
+          type: integer
+        blockerType:
+          type: string
+          nullable: true
+          enum: [waiting_on_person, waiting_on_approval, missing_asset, access_issue, dependency]
+        adjustmentType:
+          type: string
+          nullable: true
+          enum: [step_back, push]
+        adjustmentReason:
+          type: string
+          nullable: true
       required:
         - id
         - title
@@ -838,6 +877,7 @@ components:
         - status
         - date
         - createdAt
+        - stepBackDepth
 
     CreateTaskBody:
       type: object
@@ -891,7 +931,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [pending, done, pushed, passed, blocked]
+          enum: [pending, done, pushed, passed, blocked, stepped_back]
         pillarId:
           type: integer
           nullable: true
@@ -901,6 +941,24 @@ components:
         blockerReason:
           type: string
           nullable: true
+        blockerType:
+          type: string
+          nullable: true
+          enum: [waiting_on_person, waiting_on_approval, missing_asset, access_issue, dependency]
+        adjustmentReason:
+          type: string
+          nullable: true
+
+    StepBackTaskResponse:
+      type: object
+      properties:
+        originalTask:
+          $ref: "#/components/schemas/Task"
+        prerequisiteTask:
+          $ref: "#/components/schemas/Task"
+      required:
+        - originalTask
+        - prerequisiteTask
 
     WeeklyPlan:
       type: object
