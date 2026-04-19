@@ -6,6 +6,8 @@ import tasksRouter from "./tasks";
 import weeklyRouter from "./weekly";
 import progressRouter from "./progress";
 import dashboardRouter from "./dashboard";
+import monthlyRouter from "./monthly";
+import frictionRouter from "./friction";
 
 const router: IRouter = Router();
 
@@ -16,5 +18,7 @@ router.use(tasksRouter);
 router.use(weeklyRouter);
 router.use(progressRouter);
 router.use(dashboardRouter);
+router.use(monthlyRouter);
+router.use(frictionRouter);
 
 export default router;

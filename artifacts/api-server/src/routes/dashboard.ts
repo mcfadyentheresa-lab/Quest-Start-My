@@ -6,6 +6,7 @@ import {
   GetWeekSummaryResponse,
   GetReentryTaskResponse,
   GetPillarHealthResponse,
+  GetOutcomeMetricsResponse,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -256,7 +257,6 @@ router.get("/dashboard/reentry", async (req, res): Promise<void> => {
 router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
   const weekOf = getWeekStart();
   const weekEnd = getWeekEnd(weekOf);
-  const today = new Date().toISOString().slice(0, 10);
 
   const [pillars, weekTasks, recentLogs] = await Promise.all([
     db.select().from(pillarsTable).orderBy(pillarsTable.id),
@@ -269,17 +269,14 @@ router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
 
   const totalDoneThisWeek = weekTasks.filter(t => t.status === "done").length;
 
-  // Group logs by taskId to find which pillar they belong to
-  // We need task->pillar mapping, so build from weekTasks + any task that has a pillarId
   const allTasks = await db.select({ id: tasksTable.id, pillarId: tasksTable.pillarId }).from(tasksTable);
   const taskPillarMap = new Map(allTasks.map(t => [t.id, t.pillarId]));
 
-  const result = pillars.map(pillar => {
+  const pillarEntries = pillars.map(pillar => {
     const pillarWeekTasks = weekTasks.filter(t => t.pillarId === pillar.id);
     const tasksDoneThisWeek = pillarWeekTasks.filter(t => t.status === "done").length;
     const tasksPushedOrPassedThisWeek = pillarWeekTasks.filter(t => t.status === "pushed" || t.status === "passed").length;
 
-    // Compute days since last movement from progress_logs
     const pillarLogs = recentLogs.filter(log => {
       const taskPillarId = log.taskId ? taskPillarMap.get(log.taskId) : null;
       return taskPillarId === pillar.id;
@@ -287,13 +284,11 @@ router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
 
     let daysSinceLastMovement: number | null = null;
     if (pillarLogs.length > 0 && pillarLogs[0]) {
-      const lastLog = pillarLogs[0];
-      const lastDate = new Date(lastLog.loggedAt);
+      const lastDate = new Date(pillarLogs[0].loggedAt);
       const now = new Date();
       daysSinceLastMovement = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
     }
 
-    // Generate nudge if no movement in 7+ days
     let nudge: string | null = null;
     if (daysSinceLastMovement !== null && daysSinceLastMovement >= 7) {
       nudge = "No movement in 7 days — one tiny action?";
@@ -301,7 +296,6 @@ router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
       nudge = "No tasks this week — is this pillar still active?";
     }
 
-    // Generate warning if Warm/Parked pillar absorbs >30% of done tasks
     let warning: string | null = null;
     if (
       (pillar.portfolioStatus === "Warm" || pillar.portfolioStatus === "Parked") &&
@@ -310,6 +304,10 @@ router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
     ) {
       warning = `${pillar.portfolioStatus} project absorbing ${Math.round(tasksDoneThisWeek / totalDoneThisWeek * 100)}% of completed work this week.`;
     }
+
+    const portfolioSharePercent = totalDoneThisWeek > 0
+      ? Math.round((tasksDoneThisWeek / totalDoneThisWeek) * 100)
+      : null;
 
     return {
       pillarId: pillar.id,
@@ -320,10 +318,97 @@ router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
       daysSinceLastMovement,
       nudge,
       warning,
+      portfolioSharePercent,
     };
   });
 
-  res.json(GetPillarHealthResponse.parse(result));
+  // Compute portfolio balance by portfolioStatus bucket
+  const statusBuckets = { active: 0, warm: 0, parked: 0, other: 0 };
+  if (totalDoneThisWeek > 0) {
+    for (const entry of pillarEntries) {
+      const done = entry.tasksDoneThisWeek;
+      const status = (entry.portfolioStatus ?? "").toLowerCase();
+      if (status === "active") statusBuckets.active += done;
+      else if (status === "warm") statusBuckets.warm += done;
+      else if (status === "parked") statusBuckets.parked += done;
+      else statusBuckets.other += done;
+    }
+  }
+  const toPercent = (n: number) => totalDoneThisWeek > 0 ? Math.round((n / totalDoneThisWeek) * 100) : 0;
+  const portfolioBalance = {
+    activeShare: toPercent(statusBuckets.active),
+    warmShare: toPercent(statusBuckets.warm),
+    parkedShare: toPercent(statusBuckets.parked),
+    otherShare: toPercent(statusBuckets.other),
+  };
+
+  res.json(GetPillarHealthResponse.parse({ pillars: pillarEntries, portfolioBalance }));
+});
+
+router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
+  const weekOf = getWeekStart();
+  const weekEnd = getWeekEnd(weekOf);
+  const monthStart = weekOf.slice(0, 7) + "-01";
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [weekTasks, pillars, allMilestones] = await Promise.all([
+    db.select().from(tasksTable).where(and(
+      gte(tasksTable.date, weekOf),
+      lte(tasksTable.date, weekEnd)
+    )),
+    db.select().from(pillarsTable).orderBy(pillarsTable.id),
+    db.select().from(milestonesTable),
+  ]);
+
+  // Milestones completed this week (status = complete and targetDate within week)
+  const milestonesCompletedThisWeek = allMilestones.filter(m =>
+    m.status === "complete" && m.targetDate && m.targetDate >= weekOf && m.targetDate <= weekEnd
+  ).length;
+
+  // Milestones completed this month
+  const milestonesCompletedThisMonth = allMilestones.filter(m =>
+    m.status === "complete" && m.targetDate && m.targetDate >= monthStart && m.targetDate <= today
+  ).length;
+
+  // Average active milestone days — rough estimate: compare createdAt with now for active milestones
+  const activeMilestones = allMilestones.filter(m => m.status === "active");
+  let averageActiveMilestoneDays: number | null = null;
+  if (activeMilestones.length > 0) {
+    const now = Date.now();
+    const totalDays = activeMilestones.reduce((sum, m) => {
+      const days = Math.floor((now - new Date(m.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+      return sum + days;
+    }, 0);
+    averageActiveMilestoneDays = Math.round(totalDays / activeMilestones.length);
+  }
+
+  // Per-pillar task metrics for this week
+  const pillarMetrics = pillars.map(pillar => {
+    const pillarTasks = weekTasks.filter(t => t.pillarId === pillar.id);
+    const doneCount = pillarTasks.filter(t => t.status === "done").length;
+    const blockedCount = pillarTasks.filter(t => t.status === "blocked").length;
+    const passedCount = pillarTasks.filter(t => t.status === "passed").length;
+    const totalCount = pillarTasks.filter(t => t.status !== "pending").length; // exclude still-pending
+    const completionRate = totalCount > 0 ? doneCount / totalCount : 0;
+    return { pillarId: pillar.id, pillarName: pillar.name, completionRate, doneCount, totalCount, blockedCount, passedCount };
+  });
+
+  // P1 completed this week: tasks linked to P1-priority pillars
+  const p1PillarIds = new Set(pillars.filter(p => p.priority === "P1").map(p => p.id));
+  const p1CompletedThisWeek = weekTasks.filter(t => t.status === "done" && t.pillarId !== null && p1PillarIds.has(t.pillarId!)).length;
+
+  // Warm/Parked completed this week
+  const warmParkedPillarIds = new Set(pillars.filter(p => p.portfolioStatus === "Warm" || p.portfolioStatus === "Parked").map(p => p.id));
+  const warmParkedCompletedThisWeek = weekTasks.filter(t => t.status === "done" && t.pillarId !== null && warmParkedPillarIds.has(t.pillarId!)).length;
+
+  res.json(GetOutcomeMetricsResponse.parse({
+    milestonesCompletedThisWeek,
+    milestonesCompletedThisMonth,
+    averageActiveMilestoneDays,
+    pillarMetrics,
+    p1CompletedThisWeek,
+    warmParkedCompletedThisWeek,
+  }));
 });
 
 export default router;

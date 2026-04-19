@@ -257,7 +257,7 @@ export default function HistoryPage() {
             <Skeleton className="h-28 rounded-2xl" />
             <Skeleton className="h-28 rounded-2xl" />
           </div>
-        ) : !pillarHealth || pillarHealth.length === 0 ? (
+        ) : !pillarHealth || (pillarHealth.pillars ?? []).length === 0 ? (
           <div className="text-center py-16 rounded-2xl bg-card border border-dashed border-border">
             <Activity className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
             <p className="text-sm font-medium text-foreground">No pillar data yet</p>
@@ -266,7 +266,7 @@ export default function HistoryPage() {
         ) : (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground px-1">Pillar momentum this week</p>
-            {pillarHealth.map((entry, i) => {
+            {(pillarHealth.pillars ?? []).map((entry, i) => {
               const healthStatus: "green" | "amber" | "red" =
                 entry.warning ? "red"
                 : entry.nudge || (entry.tasksPushedOrPassedThisWeek > entry.tasksDoneThisWeek && entry.tasksDoneThisWeek === 0) ? "amber"

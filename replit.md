@@ -49,6 +49,17 @@ A personal daily command center — mobile-first web app for morning planning.
 - Weekly reflection: two new fields — "What to deprioritize" and "Next week's key focus"
 - Weekly plan save/restore: new fields persisted to weekly_plans table (whatToDeprioritize, nextWeekFocus)
 
+**Phase 4-A features (data layer + API — added):**
+- `monthly_reviews` table: UNIQUE constraint on `month_of`, array field for `top_priorities_next_month`
+- `pillars.feature_tag` column: nullable productization label
+- `GET /monthly` — list reviews newest-first
+- `POST /monthly` — create with 409 on duplicate `monthOf`
+- `PATCH /monthly/:id` — partial update
+- `GET /dashboard/outcome-metrics` — milestone completion counts, per-pillar completion rates, P1 vs warm/parked done counts
+- `GET /dashboard/friction` — four signal types: `repeated_pass`, `repeated_block`, `stalled_milestone`, `low_completion_ratio`
+- `GET /dashboard/pillar-health` — response restructured to `{ pillars, portfolioBalance }` with `portfolioSharePercent` per entry and aggregate `{ activeShare, warmShare, parkedShare, otherShare }` balance
+- History.tsx: minimal compatibility patch to handle new pillar-health response shape (Phase 4-B will add full UI)
+
 **Pages:**
 - `/` — Start My Day dashboard
 - `/weekly` — Weekly planning + reflection

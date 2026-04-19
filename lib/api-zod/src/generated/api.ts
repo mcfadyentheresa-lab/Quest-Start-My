@@ -33,6 +33,10 @@ export const ListPillarsResponseItem = zod.object({
   laterFocus: zod.string().nullish(),
   blockers: zod.string().nullish(),
   lastUpdated: zod.string().nullish(),
+  featureTag: zod
+    .string()
+    .nullish()
+    .describe("Optional product\/feature label for productization tracking"),
 });
 export const ListPillarsResponse = zod.array(ListPillarsResponseItem);
 
@@ -69,6 +73,7 @@ export const UpdatePillarBody = zod.object({
   laterFocus: zod.string().nullish(),
   blockers: zod.string().nullish(),
   lastUpdated: zod.string().nullish(),
+  featureTag: zod.string().nullish(),
 });
 
 export const UpdatePillarResponse = zod.object({
@@ -87,6 +92,10 @@ export const UpdatePillarResponse = zod.object({
   laterFocus: zod.string().nullish(),
   blockers: zod.string().nullish(),
   lastUpdated: zod.string().nullish(),
+  featureTag: zod
+    .string()
+    .nullish()
+    .describe("Optional product\/feature label for productization tracking"),
 });
 
 /**
@@ -371,6 +380,12 @@ export const GetDashboardSummaryResponse = zod.object({
       laterFocus: zod.string().nullish(),
       blockers: zod.string().nullish(),
       lastUpdated: zod.string().nullish(),
+      featureTag: zod
+        .string()
+        .nullish()
+        .describe(
+          "Optional product\/feature label for productization tracking",
+        ),
     }),
   ),
   weeklyPlan: zod
@@ -449,14 +464,153 @@ export const GetReentryTaskResponse = zod.object({
 /**
  * @summary Get per-pillar health stats for this week
  */
-export const GetPillarHealthResponseItem = zod.object({
-  pillarId: zod.number(),
-  pillarName: zod.string(),
-  portfolioStatus: zod.string().nullish(),
-  tasksDoneThisWeek: zod.number(),
-  tasksPushedOrPassedThisWeek: zod.number(),
-  daysSinceLastMovement: zod.number().nullish(),
-  nudge: zod.string().nullish(),
-  warning: zod.string().nullish(),
+export const GetPillarHealthResponse = zod.object({
+  pillars: zod.array(
+    zod.object({
+      pillarId: zod.number(),
+      pillarName: zod.string(),
+      portfolioStatus: zod.string().nullish(),
+      tasksDoneThisWeek: zod.number(),
+      tasksPushedOrPassedThisWeek: zod.number(),
+      daysSinceLastMovement: zod.number().nullish(),
+      nudge: zod.string().nullish(),
+      warning: zod.string().nullish(),
+      portfolioSharePercent: zod
+        .number()
+        .nullish()
+        .describe(
+          "Percentage of this week's done tasks attributable to this pillar",
+        ),
+    }),
+  ),
+  portfolioBalance: zod.object({
+    activeShare: zod
+      .number()
+      .describe("Percentage of done tasks from Active pillars"),
+    warmShare: zod
+      .number()
+      .describe("Percentage of done tasks from Warm pillars"),
+    parkedShare: zod
+      .number()
+      .describe("Percentage of done tasks from Parked pillars"),
+    otherShare: zod
+      .number()
+      .describe(
+        "Percentage of done tasks from pillars with no portfolio status",
+      ),
+  }),
 });
-export const GetPillarHealthResponse = zod.array(GetPillarHealthResponseItem);
+
+/**
+ * @summary Get outcome metrics (milestone and task completion rates)
+ */
+export const GetOutcomeMetricsResponse = zod.object({
+  milestonesCompletedThisWeek: zod.number(),
+  milestonesCompletedThisMonth: zod.number(),
+  averageActiveMilestoneDays: zod
+    .number()
+    .nullish()
+    .describe("Average days a milestone stays active before completion"),
+  pillarMetrics: zod.array(
+    zod.object({
+      pillarId: zod.number(),
+      pillarName: zod.string(),
+      completionRate: zod
+        .number()
+        .describe(
+          "Fraction of done tasks out of total (done + pushed + passed + blocked)",
+        ),
+      doneCount: zod.number(),
+      totalCount: zod.number(),
+      blockedCount: zod.number(),
+      passedCount: zod.number(),
+    }),
+  ),
+  p1CompletedThisWeek: zod
+    .number()
+    .describe("Done tasks tagged with P1 milestones or pillars this week"),
+  warmParkedCompletedThisWeek: zod
+    .number()
+    .describe("Done tasks from Warm or Parked pillars this week"),
+});
+
+/**
+ * @summary Get detected friction signals across pillars, tasks, and milestones
+ */
+export const GetFrictionSignalsResponseItem = zod.object({
+  type: zod.enum([
+    "repeated_pass",
+    "repeated_block",
+    "stalled_milestone",
+    "low_completion_ratio",
+  ]),
+  pillarId: zod.number().nullish(),
+  pillarName: zod.string().nullish(),
+  taskId: zod.number().nullish(),
+  taskTitle: zod.string().nullish(),
+  milestoneId: zod.number().nullish(),
+  milestoneTitle: zod.string().nullish(),
+  detail: zod.string(),
+});
+export const GetFrictionSignalsResponse = zod.array(
+  GetFrictionSignalsResponseItem,
+);
+
+/**
+ * @summary List monthly reviews, newest first
+ */
+export const ListMonthlyReviewsResponseItem = zod.object({
+  id: zod.number(),
+  monthOf: zod.string().describe("Month in YYYY-MM format"),
+  whatMoved: zod.string().nullish(),
+  pillarsAdvanced: zod.string().nullish(),
+  milestonesCompleted: zod.string().nullish(),
+  whatDelayed: zod.string().nullish(),
+  whatToPause: zod.string().nullish(),
+  topPrioritiesNextMonth: zod.array(zod.string()).nullish(),
+  createdAt: zod.string(),
+});
+export const ListMonthlyReviewsResponse = zod.array(
+  ListMonthlyReviewsResponseItem,
+);
+
+/**
+ * @summary Create a monthly review (409 if monthOf already exists)
+ */
+export const CreateMonthlyReviewBody = zod.object({
+  monthOf: zod.string().describe("Month in YYYY-MM format"),
+  whatMoved: zod.string().nullish(),
+  pillarsAdvanced: zod.string().nullish(),
+  milestonesCompleted: zod.string().nullish(),
+  whatDelayed: zod.string().nullish(),
+  whatToPause: zod.string().nullish(),
+  topPrioritiesNextMonth: zod.array(zod.string()).nullish(),
+});
+
+/**
+ * @summary Update a monthly review
+ */
+export const UpdateMonthlyReviewParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateMonthlyReviewBody = zod.object({
+  whatMoved: zod.string().nullish(),
+  pillarsAdvanced: zod.string().nullish(),
+  milestonesCompleted: zod.string().nullish(),
+  whatDelayed: zod.string().nullish(),
+  whatToPause: zod.string().nullish(),
+  topPrioritiesNextMonth: zod.array(zod.string()).nullish(),
+});
+
+export const UpdateMonthlyReviewResponse = zod.object({
+  id: zod.number(),
+  monthOf: zod.string().describe("Month in YYYY-MM format"),
+  whatMoved: zod.string().nullish(),
+  pillarsAdvanced: zod.string().nullish(),
+  milestonesCompleted: zod.string().nullish(),
+  whatDelayed: zod.string().nullish(),
+  whatToPause: zod.string().nullish(),
+  topPrioritiesNextMonth: zod.array(zod.string()).nullish(),
+  createdAt: zod.string(),
+});

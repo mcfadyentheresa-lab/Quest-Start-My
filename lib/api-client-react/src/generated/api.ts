@@ -18,22 +18,27 @@ import type {
 
 import type {
   CreateMilestoneBody,
+  CreateMonthlyReviewBody,
   CreatePillarBody,
   CreateTaskBody,
   CreateWeeklyPlanBody,
   DashboardSummary,
+  FrictionSignal,
   HealthStatus,
   ListMilestonesParams,
   ListProgressLogsParams,
   ListTasksParams,
   ListWeeklyPlansParams,
   Milestone,
+  MonthlyReview,
+  OutcomeMetrics,
   Pillar,
-  PillarHealthEntry,
+  PillarHealthResponse,
   ProgressLog,
   ReentryInfo,
   Task,
   UpdateMilestoneBody,
+  UpdateMonthlyReviewBody,
   UpdatePillarBody,
   UpdateTaskBody,
   UpdateWeeklyPlanBody,
@@ -1671,8 +1676,8 @@ export const getGetPillarHealthUrl = () => {
 
 export const getPillarHealth = async (
   options?: RequestInit,
-): Promise<PillarHealthEntry[]> => {
-  return customFetch<PillarHealthEntry[]>(getGetPillarHealthUrl(), {
+): Promise<PillarHealthResponse> => {
+  return customFetch<PillarHealthResponse>(getGetPillarHealthUrl(), {
     ...options,
     method: "GET",
   });
@@ -1736,3 +1741,401 @@ export function useGetPillarHealth<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get outcome metrics (milestone and task completion rates)
+ */
+export const getGetOutcomeMetricsUrl = () => {
+  return `/api/dashboard/outcome-metrics`;
+};
+
+export const getOutcomeMetrics = async (
+  options?: RequestInit,
+): Promise<OutcomeMetrics> => {
+  return customFetch<OutcomeMetrics>(getGetOutcomeMetricsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetOutcomeMetricsQueryKey = () => {
+  return [`/api/dashboard/outcome-metrics`] as const;
+};
+
+export const getGetOutcomeMetricsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getOutcomeMetrics>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getOutcomeMetrics>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetOutcomeMetricsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getOutcomeMetrics>>
+  > = ({ signal }) => getOutcomeMetrics({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getOutcomeMetrics>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetOutcomeMetricsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getOutcomeMetrics>>
+>;
+export type GetOutcomeMetricsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get outcome metrics (milestone and task completion rates)
+ */
+
+export function useGetOutcomeMetrics<
+  TData = Awaited<ReturnType<typeof getOutcomeMetrics>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getOutcomeMetrics>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetOutcomeMetricsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get detected friction signals across pillars, tasks, and milestones
+ */
+export const getGetFrictionSignalsUrl = () => {
+  return `/api/dashboard/friction`;
+};
+
+export const getFrictionSignals = async (
+  options?: RequestInit,
+): Promise<FrictionSignal[]> => {
+  return customFetch<FrictionSignal[]>(getGetFrictionSignalsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetFrictionSignalsQueryKey = () => {
+  return [`/api/dashboard/friction`] as const;
+};
+
+export const getGetFrictionSignalsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFrictionSignals>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getFrictionSignals>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetFrictionSignalsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getFrictionSignals>>
+  > = ({ signal }) => getFrictionSignals({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFrictionSignals>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetFrictionSignalsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFrictionSignals>>
+>;
+export type GetFrictionSignalsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get detected friction signals across pillars, tasks, and milestones
+ */
+
+export function useGetFrictionSignals<
+  TData = Awaited<ReturnType<typeof getFrictionSignals>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getFrictionSignals>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetFrictionSignalsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List monthly reviews, newest first
+ */
+export const getListMonthlyReviewsUrl = () => {
+  return `/api/monthly`;
+};
+
+export const listMonthlyReviews = async (
+  options?: RequestInit,
+): Promise<MonthlyReview[]> => {
+  return customFetch<MonthlyReview[]>(getListMonthlyReviewsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListMonthlyReviewsQueryKey = () => {
+  return [`/api/monthly`] as const;
+};
+
+export const getListMonthlyReviewsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMonthlyReviews>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMonthlyReviews>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListMonthlyReviewsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listMonthlyReviews>>
+  > = ({ signal }) => listMonthlyReviews({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMonthlyReviews>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListMonthlyReviewsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listMonthlyReviews>>
+>;
+export type ListMonthlyReviewsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List monthly reviews, newest first
+ */
+
+export function useListMonthlyReviews<
+  TData = Awaited<ReturnType<typeof listMonthlyReviews>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMonthlyReviews>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListMonthlyReviewsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a monthly review (409 if monthOf already exists)
+ */
+export const getCreateMonthlyReviewUrl = () => {
+  return `/api/monthly`;
+};
+
+export const createMonthlyReview = async (
+  createMonthlyReviewBody: CreateMonthlyReviewBody,
+  options?: RequestInit,
+): Promise<MonthlyReview> => {
+  return customFetch<MonthlyReview>(getCreateMonthlyReviewUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createMonthlyReviewBody),
+  });
+};
+
+export const getCreateMonthlyReviewMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createMonthlyReview>>,
+    TError,
+    { data: BodyType<CreateMonthlyReviewBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createMonthlyReview>>,
+  TError,
+  { data: BodyType<CreateMonthlyReviewBody> },
+  TContext
+> => {
+  const mutationKey = ["createMonthlyReview"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createMonthlyReview>>,
+    { data: BodyType<CreateMonthlyReviewBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createMonthlyReview(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateMonthlyReviewMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createMonthlyReview>>
+>;
+export type CreateMonthlyReviewMutationBody = BodyType<CreateMonthlyReviewBody>;
+export type CreateMonthlyReviewMutationError = ErrorType<void>;
+
+/**
+ * @summary Create a monthly review (409 if monthOf already exists)
+ */
+export const useCreateMonthlyReview = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createMonthlyReview>>,
+    TError,
+    { data: BodyType<CreateMonthlyReviewBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createMonthlyReview>>,
+  TError,
+  { data: BodyType<CreateMonthlyReviewBody> },
+  TContext
+> => {
+  return useMutation(getCreateMonthlyReviewMutationOptions(options));
+};
+
+/**
+ * @summary Update a monthly review
+ */
+export const getUpdateMonthlyReviewUrl = (id: number) => {
+  return `/api/monthly/${id}`;
+};
+
+export const updateMonthlyReview = async (
+  id: number,
+  updateMonthlyReviewBody: UpdateMonthlyReviewBody,
+  options?: RequestInit,
+): Promise<MonthlyReview> => {
+  return customFetch<MonthlyReview>(getUpdateMonthlyReviewUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateMonthlyReviewBody),
+  });
+};
+
+export const getUpdateMonthlyReviewMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMonthlyReview>>,
+    TError,
+    { id: number; data: BodyType<UpdateMonthlyReviewBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateMonthlyReview>>,
+  TError,
+  { id: number; data: BodyType<UpdateMonthlyReviewBody> },
+  TContext
+> => {
+  const mutationKey = ["updateMonthlyReview"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateMonthlyReview>>,
+    { id: number; data: BodyType<UpdateMonthlyReviewBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateMonthlyReview(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateMonthlyReviewMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateMonthlyReview>>
+>;
+export type UpdateMonthlyReviewMutationBody = BodyType<UpdateMonthlyReviewBody>;
+export type UpdateMonthlyReviewMutationError = ErrorType<void>;
+
+/**
+ * @summary Update a monthly review
+ */
+export const useUpdateMonthlyReview = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMonthlyReview>>,
+    TError,
+    { id: number; data: BodyType<UpdateMonthlyReviewBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateMonthlyReview>>,
+  TError,
+  { id: number; data: BodyType<UpdateMonthlyReviewBody> },
+  TContext
+> => {
+  return useMutation(getUpdateMonthlyReviewMutationOptions(options));
+};

@@ -22,6 +22,8 @@ tags:
     description: Progress log operations
   - name: dashboard
     description: Dashboard summary operations
+  - name: monthly
+    description: Monthly review operations
 paths:
   /healthz:
     get:
@@ -378,13 +380,100 @@ paths:
       summary: Get per-pillar health stats for this week
       responses:
         "200":
-          description: List of pillar health entries
+          description: Pillar health with portfolio balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PillarHealthResponse"
+
+  /dashboard/outcome-metrics:
+    get:
+      operationId: getOutcomeMetrics
+      tags: [dashboard]
+      summary: Get outcome metrics (milestone and task completion rates)
+      responses:
+        "200":
+          description: Outcome metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OutcomeMetrics"
+
+  /dashboard/friction:
+    get:
+      operationId: getFrictionSignals
+      tags: [dashboard]
+      summary: Get detected friction signals across pillars, tasks, and milestones
+      responses:
+        "200":
+          description: List of friction signals
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/PillarHealthEntry"
+                  $ref: "#/components/schemas/FrictionSignal"
+
+  /monthly:
+    get:
+      operationId: listMonthlyReviews
+      tags: [monthly]
+      summary: List monthly reviews, newest first
+      responses:
+        "200":
+          description: List of monthly reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MonthlyReview"
+    post:
+      operationId: createMonthlyReview
+      tags: [monthly]
+      summary: Create a monthly review (409 if monthOf already exists)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMonthlyReviewBody"
+      responses:
+        "201":
+          description: Created monthly review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MonthlyReview"
+        "409":
+          description: A review for this month already exists
+
+  /monthly/{id}:
+    patch:
+      operationId: updateMonthlyReview
+      tags: [monthly]
+      summary: Update a monthly review
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMonthlyReviewBody"
+      responses:
+        "200":
+          description: Updated monthly review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MonthlyReview"
+        "404":
+          description: Monthly review not found
 
 components:
   schemas:
@@ -501,11 +590,49 @@ components:
         warning:
           type: string
           nullable: true
+        portfolioSharePercent:
+          type: number
+          nullable: true
+          description: Percentage of this week's done tasks attributable to this pillar
       required:
         - pillarId
         - pillarName
         - tasksDoneThisWeek
         - tasksPushedOrPassedThisWeek
+
+    PortfolioBalance:
+      type: object
+      properties:
+        activeShare:
+          type: number
+          description: Percentage of done tasks from Active pillars
+        warmShare:
+          type: number
+          description: Percentage of done tasks from Warm pillars
+        parkedShare:
+          type: number
+          description: Percentage of done tasks from Parked pillars
+        otherShare:
+          type: number
+          description: Percentage of done tasks from pillars with no portfolio status
+      required:
+        - activeShare
+        - warmShare
+        - parkedShare
+        - otherShare
+
+    PillarHealthResponse:
+      type: object
+      properties:
+        pillars:
+          type: array
+          items:
+            $ref: "#/components/schemas/PillarHealthEntry"
+        portfolioBalance:
+          $ref: "#/components/schemas/PortfolioBalance"
+      required:
+        - pillars
+        - portfolioBalance
 
     HealthStatus:
       type: object
@@ -559,6 +686,10 @@ components:
         lastUpdated:
           type: string
           nullable: true
+        featureTag:
+          type: string
+          nullable: true
+          description: Optional product/feature label for productization tracking
       required:
         - id
         - name
@@ -628,6 +759,9 @@ components:
           type: string
           nullable: true
         lastUpdated:
+          type: string
+          nullable: true
+        featureTag:
           type: string
           nullable: true
 
@@ -1043,3 +1177,173 @@ components:
           nullable: true
       required:
         - type
+
+    MonthlyReview:
+      type: object
+      properties:
+        id:
+          type: integer
+        monthOf:
+          type: string
+          description: Month in YYYY-MM format
+        whatMoved:
+          type: string
+          nullable: true
+        pillarsAdvanced:
+          type: string
+          nullable: true
+        milestonesCompleted:
+          type: string
+          nullable: true
+        whatDelayed:
+          type: string
+          nullable: true
+        whatToPause:
+          type: string
+          nullable: true
+        topPrioritiesNextMonth:
+          type: array
+          nullable: true
+          items:
+            type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - monthOf
+        - createdAt
+
+    CreateMonthlyReviewBody:
+      type: object
+      properties:
+        monthOf:
+          type: string
+          description: Month in YYYY-MM format
+        whatMoved:
+          type: string
+          nullable: true
+        pillarsAdvanced:
+          type: string
+          nullable: true
+        milestonesCompleted:
+          type: string
+          nullable: true
+        whatDelayed:
+          type: string
+          nullable: true
+        whatToPause:
+          type: string
+          nullable: true
+        topPrioritiesNextMonth:
+          type: array
+          nullable: true
+          items:
+            type: string
+      required:
+        - monthOf
+
+    UpdateMonthlyReviewBody:
+      type: object
+      properties:
+        whatMoved:
+          type: string
+          nullable: true
+        pillarsAdvanced:
+          type: string
+          nullable: true
+        milestonesCompleted:
+          type: string
+          nullable: true
+        whatDelayed:
+          type: string
+          nullable: true
+        whatToPause:
+          type: string
+          nullable: true
+        topPrioritiesNextMonth:
+          type: array
+          nullable: true
+          items:
+            type: string
+
+    OutcomeMetrics:
+      type: object
+      properties:
+        milestonesCompletedThisWeek:
+          type: integer
+        milestonesCompletedThisMonth:
+          type: integer
+        averageActiveMilestoneDays:
+          type: number
+          nullable: true
+          description: Average days a milestone stays active before completion
+        pillarMetrics:
+          type: array
+          items:
+            type: object
+            properties:
+              pillarId:
+                type: integer
+              pillarName:
+                type: string
+              completionRate:
+                type: number
+                description: Fraction of done tasks out of total (done + pushed + passed + blocked)
+              doneCount:
+                type: integer
+              totalCount:
+                type: integer
+              blockedCount:
+                type: integer
+              passedCount:
+                type: integer
+            required:
+              - pillarId
+              - pillarName
+              - completionRate
+              - doneCount
+              - totalCount
+              - blockedCount
+              - passedCount
+        p1CompletedThisWeek:
+          type: integer
+          description: Done tasks tagged with P1 milestones or pillars this week
+        warmParkedCompletedThisWeek:
+          type: integer
+          description: Done tasks from Warm or Parked pillars this week
+      required:
+        - milestonesCompletedThisWeek
+        - milestonesCompletedThisMonth
+        - pillarMetrics
+        - p1CompletedThisWeek
+        - warmParkedCompletedThisWeek
+
+    FrictionSignal:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [repeated_pass, repeated_block, stalled_milestone, low_completion_ratio]
+        pillarId:
+          type: integer
+          nullable: true
+        pillarName:
+          type: string
+          nullable: true
+        taskId:
+          type: integer
+          nullable: true
+        taskTitle:
+          type: string
+          nullable: true
+        milestoneId:
+          type: integer
+          nullable: true
+        milestoneTitle:
+          type: string
+          nullable: true
+        detail:
+          type: string
+      required:
+        - type
+        - detail

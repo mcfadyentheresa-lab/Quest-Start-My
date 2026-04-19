@@ -19,6 +19,8 @@ export const pillarsTable = pgTable("pillars", {
   laterFocus: text("later_focus"),
   blockers: text("blockers"),
   lastUpdated: text("last_updated"),
+  // Phase 4 additions
+  featureTag: text("feature_tag"),
 });
 
 export const insertPillarSchema = createInsertSchema(pillarsTable).omit({ id: true, createdAt: true });

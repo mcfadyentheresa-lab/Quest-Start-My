@@ -111,6 +111,24 @@ export interface PillarHealthEntry {
   daysSinceLastMovement?: number | null;
   nudge?: string | null;
   warning?: string | null;
+  /** Percentage of this week's done tasks attributable to this pillar */
+  portfolioSharePercent?: number | null;
+}
+
+export interface PortfolioBalance {
+  /** Percentage of done tasks from Active pillars */
+  activeShare: number;
+  /** Percentage of done tasks from Warm pillars */
+  warmShare: number;
+  /** Percentage of done tasks from Parked pillars */
+  parkedShare: number;
+  /** Percentage of done tasks from pillars with no portfolio status */
+  otherShare: number;
+}
+
+export interface PillarHealthResponse {
+  pillars: PillarHealthEntry[];
+  portfolioBalance: PortfolioBalance;
 }
 
 export interface HealthStatus {
@@ -143,6 +161,8 @@ export interface Pillar {
   laterFocus?: string | null;
   blockers?: string | null;
   lastUpdated?: string | null;
+  /** Optional product/feature label for productization tracking */
+  featureTag?: string | null;
 }
 
 export type CreatePillarBodyPriority =
@@ -188,6 +208,7 @@ export interface UpdatePillarBody {
   laterFocus?: string | null;
   blockers?: string | null;
   lastUpdated?: string | null;
+  featureTag?: string | null;
 }
 
 export type TaskCategory = (typeof TaskCategory)[keyof typeof TaskCategory];
@@ -397,6 +418,83 @@ export interface ReentryInfo {
   type: ReentryInfoType;
   task?: ReentryInfoTask;
   guidance?: string | null;
+}
+
+export interface MonthlyReview {
+  id: number;
+  /** Month in YYYY-MM format */
+  monthOf: string;
+  whatMoved?: string | null;
+  pillarsAdvanced?: string | null;
+  milestonesCompleted?: string | null;
+  whatDelayed?: string | null;
+  whatToPause?: string | null;
+  topPrioritiesNextMonth?: string[] | null;
+  createdAt: string;
+}
+
+export interface CreateMonthlyReviewBody {
+  /** Month in YYYY-MM format */
+  monthOf: string;
+  whatMoved?: string | null;
+  pillarsAdvanced?: string | null;
+  milestonesCompleted?: string | null;
+  whatDelayed?: string | null;
+  whatToPause?: string | null;
+  topPrioritiesNextMonth?: string[] | null;
+}
+
+export interface UpdateMonthlyReviewBody {
+  whatMoved?: string | null;
+  pillarsAdvanced?: string | null;
+  milestonesCompleted?: string | null;
+  whatDelayed?: string | null;
+  whatToPause?: string | null;
+  topPrioritiesNextMonth?: string[] | null;
+}
+
+export type OutcomeMetricsPillarMetricsItem = {
+  pillarId: number;
+  pillarName: string;
+  /** Fraction of done tasks out of total (done + pushed + passed + blocked) */
+  completionRate: number;
+  doneCount: number;
+  totalCount: number;
+  blockedCount: number;
+  passedCount: number;
+};
+
+export interface OutcomeMetrics {
+  milestonesCompletedThisWeek: number;
+  milestonesCompletedThisMonth: number;
+  /** Average days a milestone stays active before completion */
+  averageActiveMilestoneDays?: number | null;
+  pillarMetrics: OutcomeMetricsPillarMetricsItem[];
+  /** Done tasks tagged with P1 milestones or pillars this week */
+  p1CompletedThisWeek: number;
+  /** Done tasks from Warm or Parked pillars this week */
+  warmParkedCompletedThisWeek: number;
+}
+
+export type FrictionSignalType =
+  (typeof FrictionSignalType)[keyof typeof FrictionSignalType];
+
+export const FrictionSignalType = {
+  repeated_pass: "repeated_pass",
+  repeated_block: "repeated_block",
+  stalled_milestone: "stalled_milestone",
+  low_completion_ratio: "low_completion_ratio",
+} as const;
+
+export interface FrictionSignal {
+  type: FrictionSignalType;
+  pillarId?: number | null;
+  pillarName?: string | null;
+  taskId?: number | null;
+  taskTitle?: string | null;
+  milestoneId?: number | null;
+  milestoneTitle?: string | null;
+  detail: string;
 }
 
 export type ListMilestonesParams = {
