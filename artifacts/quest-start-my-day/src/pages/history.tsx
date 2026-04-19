@@ -237,7 +237,13 @@ function ProportionBar({
 }
 
 export default function HistoryPage() {
-  const [tab, setTab] = useState<Tab>("log");
+  const [tab, setTab] = useState<Tab>(() => {
+    try {
+      const saved = sessionStorage.getItem("history_tab");
+      if (saved === "log" || saved === "week" || saved === "health" || saved === "outcomes" || saved === "friction") return saved as Tab;
+    } catch {}
+    return "log";
+  });
   const [selectedWeek, setSelectedWeek] = useState<string>(() => {
     try {
       const saved = sessionStorage.getItem("history_friction_week");
@@ -251,6 +257,12 @@ export default function HistoryPage() {
     } catch {}
     return null;
   });
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("history_tab", tab);
+    } catch {}
+  }, [tab]);
 
   useEffect(() => {
     try {
