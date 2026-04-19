@@ -43,17 +43,27 @@ router.post("/monthly", async (req, res): Promise<void> => {
     return;
   }
 
-  const [created] = await db.insert(monthlyReviewsTable)
-    .values({
-      monthOf: body.monthOf,
-      whatMoved: body.whatMoved ?? null,
-      pillarsAdvanced: body.pillarsAdvanced ?? null,
-      milestonesCompleted: body.milestonesCompleted ?? null,
-      whatDelayed: body.whatDelayed ?? null,
-      whatToPause: body.whatToPause ?? null,
-      topPrioritiesNextMonth: body.topPrioritiesNextMonth ?? null,
-    })
-    .returning();
+  let created: typeof monthlyReviewsTable.$inferSelect | undefined;
+  try {
+    [created] = await db.insert(monthlyReviewsTable)
+      .values({
+        monthOf: body.monthOf,
+        whatMoved: body.whatMoved ?? null,
+        pillarsAdvanced: body.pillarsAdvanced ?? null,
+        milestonesCompleted: body.milestonesCompleted ?? null,
+        whatDelayed: body.whatDelayed ?? null,
+        whatToPause: body.whatToPause ?? null,
+        topPrioritiesNextMonth: body.topPrioritiesNextMonth ?? null,
+      })
+      .returning();
+  } catch (err: any) {
+    // Unique constraint violation (race condition between pre-check and insert)
+    if (err?.code === "23505") {
+      res.status(409).json({ error: "A review for this month already exists", monthOf: body.monthOf });
+      return;
+    }
+    throw err;
+  }
 
   res.status(201).json(serializeReview(created!));
 });
