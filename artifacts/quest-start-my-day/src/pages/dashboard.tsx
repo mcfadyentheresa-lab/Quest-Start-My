@@ -15,9 +15,10 @@ import { PriorityBadge, PriorityLegend } from "@/components/priority-badge";
 import { AddTaskDialog } from "@/components/add-task-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Plus, Sprout, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Plus, Sprout, ArrowRight, CheckCircle2, ExternalLink } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useSearch, useLocation } from "wouter";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -38,13 +39,19 @@ function formatShortDate(dateStr: string) {
 
 export default function Dashboard() {
   const today = new Date().toISOString().slice(0, 10);
+  const search = useSearch();
+  const [, navigate] = useLocation();
+  const viewDate = new URLSearchParams(search).get("date") ?? today;
+  const isViewingHistory = viewDate !== today;
+
+  const setDateParam = (date: string) => navigate(`/?date=${date}`);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const { data: summary, isLoading: summaryLoading } = useGetDashboardSummary();
   const { data: tasks, isLoading: tasksLoading } = useListTasks(
-    { date: today },
-    { query: { queryKey: getListTasksQueryKey({ date: today }) } }
+    { date: viewDate },
+    { query: { queryKey: getListTasksQueryKey({ date: viewDate }) } }
   );
   const { data: reentry } = useGetReentryTask({
     query: { queryKey: getGetReentryTaskQueryKey() }
@@ -54,6 +61,14 @@ export default function Dashboard() {
 
   const pendingTasks = tasks?.filter(t => t.status === "pending") ?? [];
   const completedTasks = tasks?.filter(t => t.status !== "pending") ?? [];
+
+  const handleJumpToTask = () => {
+    if (!reentry?.task) return;
+    setDateParam(reentry.task.date);
+    setTimeout(() => {
+      document.getElementById("tasks-section")?.scrollIntoView({ behavior: "smooth" });
+    }, 200);
+  };
 
   const handleMarkReentryDone = () => {
     if (!reentry?.task) return;
@@ -205,7 +220,16 @@ export default function Dashboard() {
             </div>
           )}
           {reentry.type === "unfinished" && (
-            <div className="mt-4">
+            <div className="mt-4 flex gap-2 flex-wrap">
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-xl gap-1.5"
+                onClick={handleJumpToTask}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Jump to task
+              </Button>
               <Button
                 size="sm"
                 className="rounded-xl gap-1.5"
@@ -238,16 +262,36 @@ export default function Dashboard() {
         </motion.section>
       )}
 
-      {/* Today's tasks */}
-      <section>
+      {/* Historical date banner */}
+      {isViewingHistory && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl bg-amber-50 border border-amber-200 dark:bg-amber-900/10 dark:border-amber-700 px-4 py-3 flex items-center justify-between"
+        >
+          <p className="text-sm text-foreground/80">
+            Viewing tasks from <strong>{formatDate(viewDate)}</strong>
+          </p>
+          <Button size="sm" variant="ghost" className="text-xs rounded-xl" onClick={() => navigate("/")}>
+            Back to today
+          </Button>
+        </motion.div>
+      )}
+
+      {/* Tasks section */}
+      <section id="tasks-section">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-serif text-base font-medium text-foreground">Today's tasks</h2>
-          <AddTaskDialog date={today}>
-            <Button variant="outline" size="sm" className="rounded-xl gap-1.5 text-xs">
-              <Plus className="h-3.5 w-3.5" />
-              Add task
-            </Button>
-          </AddTaskDialog>
+          <h2 className="font-serif text-base font-medium text-foreground">
+            {isViewingHistory ? `Tasks from ${formatShortDate(viewDate)}` : "Today's tasks"}
+          </h2>
+          {!isViewingHistory && (
+            <AddTaskDialog date={viewDate}>
+              <Button variant="outline" size="sm" className="rounded-xl gap-1.5 text-xs">
+                <Plus className="h-3.5 w-3.5" />
+                Add task
+              </Button>
+            </AddTaskDialog>
+          )}
         </div>
 
         {tasksLoading ? (
@@ -258,15 +302,21 @@ export default function Dashboard() {
         ) : pendingTasks.length === 0 && completedTasks.length === 0 ? (
           <div className="text-center py-12 rounded-2xl bg-card border border-dashed border-border">
             <Sprout className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-            <p className="text-sm font-medium text-foreground">No tasks yet for today</p>
-            <p className="text-xs text-muted-foreground mt-1 mb-4">Add up to 3 tasks to get started</p>
-            <AddTaskDialog date={today} />
+            <p className="text-sm font-medium text-foreground">
+              {isViewingHistory ? "No tasks found for this date" : "No tasks yet for today"}
+            </p>
+            {!isViewingHistory && (
+              <>
+                <p className="text-xs text-muted-foreground mt-1 mb-4">Add up to 3 tasks to get started</p>
+                <AddTaskDialog date={viewDate} />
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
             <AnimatePresence mode="popLayout">
               {pendingTasks.map(task => (
-                <TaskCard key={task.id} task={task} date={today} pillarMap={pillarMap} activePillarIds={summary?.activePillars?.map(p => p.id) ?? []} />
+                <TaskCard key={task.id} task={task} date={viewDate} pillarMap={pillarMap} activePillarIds={summary?.activePillars?.map(p => p.id) ?? []} />
               ))}
             </AnimatePresence>
             {completedTasks.length > 0 && (
@@ -275,7 +325,7 @@ export default function Dashboard() {
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">Completed</p>
                 <AnimatePresence mode="popLayout">
                   {completedTasks.map(task => (
-                    <TaskCard key={task.id} task={task} date={today} pillarMap={pillarMap} activePillarIds={summary?.activePillars?.map(p => p.id) ?? []} />
+                    <TaskCard key={task.id} task={task} date={viewDate} pillarMap={pillarMap} activePillarIds={summary?.activePillars?.map(p => p.id) ?? []} />
                   ))}
                 </AnimatePresence>
               </>

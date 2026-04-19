@@ -29,7 +29,7 @@ interface TaskFormData {
 export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
   const [open, setOpen] = useState(false);
   const { register, handleSubmit, reset, setValue, watch } = useForm<TaskFormData>({
-    defaultValues: { title: "", category: "business", pillarId: "", whyItMatters: "", doneLooksLike: "", suggestedNextStep: "" },
+    defaultValues: { title: "", category: "business", pillarId: "none", whyItMatters: "", doneLooksLike: "", suggestedNextStep: "" },
   });
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -51,7 +51,7 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
           whyItMatters: data.whyItMatters || undefined,
           doneLooksLike: data.doneLooksLike || undefined,
           suggestedNextStep: data.suggestedNextStep || undefined,
-          pillarId: data.pillarId ? parseInt(data.pillarId) : undefined,
+          pillarId: data.pillarId && data.pillarId !== "none" ? parseInt(data.pillarId) : undefined,
           date,
         },
       },
@@ -114,7 +114,7 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
                     <SelectValue placeholder="None" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {activePillars.map(p => (
                       <SelectItem key={p.id} value={String(p.id)}>
                         {p.name}
@@ -127,7 +127,7 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
           </div>
 
           {/* Show the weekly priority reminder if a pillar is selected */}
-          {pillarId && summary?.weeklyPlan?.priorities && summary.weeklyPlan.priorities.length > 0 && (
+          {pillarId && pillarId !== "none" && summary?.weeklyPlan?.priorities && summary.weeklyPlan.priorities.length > 0 && (
             <div className="rounded-xl bg-muted/50 p-3">
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">This week's priorities</p>
               <ul className="space-y-1">

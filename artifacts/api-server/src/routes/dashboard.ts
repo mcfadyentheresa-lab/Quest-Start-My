@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, gte, lte, lt, ne } from "drizzle-orm";
+import { eq, and, gte, lte, lt, ne, desc } from "drizzle-orm";
 import { db, tasksTable, pillarsTable, weeklyPlansTable } from "@workspace/db";
 import {
   GetDashboardSummaryResponse,
@@ -122,7 +122,7 @@ router.get("/dashboard/reentry", async (req, res): Promise<void> => {
       lt(tasksTable.date, today),
       eq(tasksTable.status, "pending")
     ))
-    .orderBy(tasksTable.date)
+    .orderBy(desc(tasksTable.date), desc(tasksTable.id))
     .limit(1);
 
   if (unfinished.length > 0 && unfinished[0]) {
@@ -145,7 +145,7 @@ router.get("/dashboard/reentry", async (req, res): Promise<void> => {
   // Fallback: most recent completed task from any date
   const completed = await db.select().from(tasksTable)
     .where(ne(tasksTable.status, "pending"))
-    .orderBy(tasksTable.date)
+    .orderBy(desc(tasksTable.date), desc(tasksTable.id))
     .limit(1);
 
   if (completed.length > 0 && completed[0]) {
