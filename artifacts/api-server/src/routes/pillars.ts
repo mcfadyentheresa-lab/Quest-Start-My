@@ -69,6 +69,7 @@ router.patch("/pillars/:id", async (req, res): Promise<void> => {
   if (parsed.data.laterFocus !== undefined) updates.laterFocus = parsed.data.laterFocus;
   if (parsed.data.blockers !== undefined) updates.blockers = parsed.data.blockers;
   if (parsed.data.lastUpdated !== undefined) updates.lastUpdated = parsed.data.lastUpdated;
+  if (parsed.data.featureTag !== undefined) updates.featureTag = parsed.data.featureTag;
 
   const [pillar] = await db
     .update(pillarsTable)

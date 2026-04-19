@@ -322,8 +322,8 @@ router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
     };
   });
 
-  // Compute portfolio balance by portfolioStatus bucket
-  const statusBuckets = { active: 0, warm: 0, parked: 0, other: 0 };
+  // Compute portfolio balance: Active / Warm / Parked shares of done tasks
+  const statusBuckets = { active: 0, warm: 0, parked: 0 };
   if (totalDoneThisWeek > 0) {
     for (const entry of pillarEntries) {
       const done = entry.tasksDoneThisWeek;
@@ -331,7 +331,6 @@ router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
       if (status === "active") statusBuckets.active += done;
       else if (status === "warm") statusBuckets.warm += done;
       else if (status === "parked") statusBuckets.parked += done;
-      else statusBuckets.other += done;
     }
   }
   const toPercent = (n: number) => totalDoneThisWeek > 0 ? Math.round((n / totalDoneThisWeek) * 100) : 0;
@@ -339,7 +338,6 @@ router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
     activeShare: toPercent(statusBuckets.active),
     warmShare: toPercent(statusBuckets.warm),
     parkedShare: toPercent(statusBuckets.parked),
-    otherShare: toPercent(statusBuckets.other),
   };
 
   res.json(GetPillarHealthResponse.parse({ pillars: pillarEntries, portfolioBalance }));
@@ -348,8 +346,9 @@ router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
 router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
   const weekOf = getWeekStart();
   const weekEnd = getWeekEnd(weekOf);
-  const monthStart = weekOf.slice(0, 7) + "-01";
+  // Use today's actual date to derive current month (not weekOf, which can be prior month)
   const today = new Date().toISOString().slice(0, 10);
+  const monthStart = today.slice(0, 7) + "-01";
 
   const [weekTasks, pillars, allMilestones] = await Promise.all([
     db.select().from(tasksTable).where(and(
@@ -360,46 +359,51 @@ router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
     db.select().from(milestonesTable),
   ]);
 
-  // Milestones completed this week (status = complete and targetDate within week)
-  const milestonesCompletedThisWeek = allMilestones.filter(m =>
-    m.status === "complete" && m.targetDate && m.targetDate >= weekOf && m.targetDate <= weekEnd
-  ).length;
+  // Milestones completed this week: status=complete AND createdAt within this week
+  const milestonesCompletedThisWeek = allMilestones.filter(m => {
+    if (m.status !== "complete") return false;
+    const created = m.createdAt.toISOString().slice(0, 10);
+    return created >= weekOf && created <= weekEnd;
+  }).length;
 
-  // Milestones completed this month
-  const milestonesCompletedThisMonth = allMilestones.filter(m =>
-    m.status === "complete" && m.targetDate && m.targetDate >= monthStart && m.targetDate <= today
-  ).length;
+  // Milestones completed this month: status=complete AND createdAt within current calendar month
+  const milestonesCompletedThisMonth = allMilestones.filter(m => {
+    if (m.status !== "complete") return false;
+    const created = m.createdAt.toISOString().slice(0, 10);
+    return created >= monthStart && created <= today;
+  }).length;
 
-  // Average active milestone days — rough estimate: compare createdAt with now for active milestones
-  const activeMilestones = allMilestones.filter(m => m.status === "active");
+  // Average age in days of milestones with status active OR planned
+  const openMilestones = allMilestones.filter(m => m.status === "active" || m.status === "planned");
   let averageActiveMilestoneDays: number | null = null;
-  if (activeMilestones.length > 0) {
+  if (openMilestones.length > 0) {
     const now = Date.now();
-    const totalDays = activeMilestones.reduce((sum, m) => {
+    const totalDays = openMilestones.reduce((sum, m) => {
       const days = Math.floor((now - new Date(m.createdAt).getTime()) / (1000 * 60 * 60 * 24));
       return sum + days;
     }, 0);
-    averageActiveMilestoneDays = Math.round(totalDays / activeMilestones.length);
+    averageActiveMilestoneDays = Math.round(totalDays / openMilestones.length);
   }
 
-  // Per-pillar task metrics for this week
+  // Per-pillar task metrics for this week (exclude still-pending from denominator)
   const pillarMetrics = pillars.map(pillar => {
     const pillarTasks = weekTasks.filter(t => t.pillarId === pillar.id);
     const doneCount = pillarTasks.filter(t => t.status === "done").length;
     const blockedCount = pillarTasks.filter(t => t.status === "blocked").length;
     const passedCount = pillarTasks.filter(t => t.status === "passed").length;
-    const totalCount = pillarTasks.filter(t => t.status !== "pending").length; // exclude still-pending
+    const totalCount = pillarTasks.filter(t => t.status !== "pending").length;
     const completionRate = totalCount > 0 ? doneCount / totalCount : 0;
     return { pillarId: pillar.id, pillarName: pillar.name, completionRate, doneCount, totalCount, blockedCount, passedCount };
   });
 
-  // P1 completed this week: tasks linked to P1-priority pillars
+  // P1 vs Warm/Parked effort ratio this week
   const p1PillarIds = new Set(pillars.filter(p => p.priority === "P1").map(p => p.id));
-  const p1CompletedThisWeek = weekTasks.filter(t => t.status === "done" && t.pillarId !== null && p1PillarIds.has(t.pillarId!)).length;
-
-  // Warm/Parked completed this week
   const warmParkedPillarIds = new Set(pillars.filter(p => p.portfolioStatus === "Warm" || p.portfolioStatus === "Parked").map(p => p.id));
+  const p1CompletedThisWeek = weekTasks.filter(t => t.status === "done" && t.pillarId !== null && p1PillarIds.has(t.pillarId!)).length;
   const warmParkedCompletedThisWeek = weekTasks.filter(t => t.status === "done" && t.pillarId !== null && warmParkedPillarIds.has(t.pillarId!)).length;
+  const p1VsWarmParkedRatio = warmParkedCompletedThisWeek > 0
+    ? Math.round((p1CompletedThisWeek / warmParkedCompletedThisWeek) * 100) / 100
+    : null;
 
   res.json(GetOutcomeMetricsResponse.parse({
     milestonesCompletedThisWeek,
@@ -408,6 +412,7 @@ router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
     pillarMetrics,
     p1CompletedThisWeek,
     warmParkedCompletedThisWeek,
+    p1VsWarmParkedRatio,
   }));
 });
 

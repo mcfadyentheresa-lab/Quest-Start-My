@@ -122,8 +122,6 @@ export interface PortfolioBalance {
   warmShare: number;
   /** Percentage of done tasks from Parked pillars */
   parkedShare: number;
-  /** Percentage of done tasks from pillars with no portfolio status */
-  otherShare: number;
 }
 
 export interface PillarHealthResponse {
@@ -470,10 +468,12 @@ export interface OutcomeMetrics {
   /** Average days a milestone stays active before completion */
   averageActiveMilestoneDays?: number | null;
   pillarMetrics: OutcomeMetricsPillarMetricsItem[];
-  /** Done tasks tagged with P1 milestones or pillars this week */
+  /** Done tasks from P1-priority pillars this week */
   p1CompletedThisWeek: number;
   /** Done tasks from Warm or Parked pillars this week */
   warmParkedCompletedThisWeek: number;
+  /** Ratio of P1 done tasks to Warm/Parked done tasks this week (null when denominator is 0) */
+  p1VsWarmParkedRatio?: number | null;
 }
 
 export type FrictionSignalType =

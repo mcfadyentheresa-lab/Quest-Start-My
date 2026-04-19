@@ -493,11 +493,6 @@ export const GetPillarHealthResponse = zod.object({
     parkedShare: zod
       .number()
       .describe("Percentage of done tasks from Parked pillars"),
-    otherShare: zod
-      .number()
-      .describe(
-        "Percentage of done tasks from pillars with no portfolio status",
-      ),
   }),
 });
 
@@ -528,10 +523,16 @@ export const GetOutcomeMetricsResponse = zod.object({
   ),
   p1CompletedThisWeek: zod
     .number()
-    .describe("Done tasks tagged with P1 milestones or pillars this week"),
+    .describe("Done tasks from P1-priority pillars this week"),
   warmParkedCompletedThisWeek: zod
     .number()
     .describe("Done tasks from Warm or Parked pillars this week"),
+  p1VsWarmParkedRatio: zod
+    .number()
+    .nullish()
+    .describe(
+      "Ratio of P1 done tasks to Warm\/Parked done tasks this week (null when denominator is 0)",
+    ),
 });
 
 /**

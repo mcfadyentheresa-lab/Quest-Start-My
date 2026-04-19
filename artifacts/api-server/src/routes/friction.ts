@@ -1,17 +1,9 @@
 import { Router, type IRouter } from "express";
-import { and, gte, eq } from "drizzle-orm";
+import { and, gte, ne, eq, desc } from "drizzle-orm";
 import { db, tasksTable, pillarsTable, milestonesTable, progressLogsTable } from "@workspace/db";
 import { GetFrictionSignalsResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
-
-function getWeekStart(date: Date = new Date()): string {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().slice(0, 10);
-}
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -19,20 +11,50 @@ function daysAgo(n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-router.get("/dashboard/friction", async (req, res): Promise<void> => {
-  const weekOf = getWeekStart();
-  const fourteenDaysAgo = daysAgo(14);
-  const weekEnd = new Date(weekOf);
-  weekEnd.setDate(weekEnd.getDate() + 6);
-  const weekEndStr = weekEnd.toISOString().slice(0, 10);
+function getMonthStart(): string {
+  return new Date().toISOString().slice(0, 7) + "-01";
+}
 
-  const [pillars, recentTasks, allMilestones] = await Promise.all([
+router.get("/dashboard/friction", async (req, res): Promise<void> => {
+  const fourteenDaysAgo = daysAgo(14);
+  const thirtyDaysAgo = daysAgo(30);
+  const monthStart = getMonthStart();
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [pillars, allMilestones, recentPassedLogs, allTasksThisMonth, allBlockedLogs] = await Promise.all([
     db.select().from(pillarsTable),
-    db.select().from(tasksTable).where(gte(tasksTable.date, fourteenDaysAgo)),
-    db.select().from(milestonesTable),
+    db.select().from(milestonesTable).where(ne(milestonesTable.status, "complete")),
+    // passed logs in last 30 days (for repeated_pass)
+    db.select().from(progressLogsTable).where(
+      and(eq(progressLogsTable.status, "passed"), gte(progressLogsTable.date, thirtyDaysAgo))
+    ),
+    // tasks created this month (for low_completion_ratio)
+    db.select().from(tasksTable).where(gte(tasksTable.date, monthStart)),
+    // ALL recent blocked logs in last 14 days (for repeated_block)
+    db.select().from(progressLogsTable).where(
+      and(eq(progressLogsTable.status, "blocked"), gte(progressLogsTable.date, fourteenDaysAgo))
+    ),
   ]);
 
   const pillarMap = new Map(pillars.map(p => [p.id, p]));
+
+  // Build task->pillar lookup from this month's tasks
+  const taskPillarMap = new Map(allTasksThisMonth.map(t => [t.id, t.pillarId]));
+
+  // Fetch all progress logs per milestone's linked tasks for stalled_milestone check
+  // We need logs for tasks linked to open milestones
+  const openMilestoneIds = new Set(allMilestones.map(m => m.id));
+  const milestoneTasks = await db.select({
+    id: tasksTable.id,
+    milestoneId: tasksTable.milestoneId,
+    pillarId: tasksTable.pillarId,
+  }).from(tasksTable).where(gte(tasksTable.date, daysAgo(90))); // look back 90 days for milestone tasks
+
+  // Also get progress_logs for all recent tasks (for repeated_block per pillar)
+  const recentAllLogs = await db.select().from(progressLogsTable)
+    .where(gte(progressLogsTable.date, fourteenDaysAgo))
+    .orderBy(desc(progressLogsTable.loggedAt));
+
   const signals: {
     type: string;
     pillarId: number | null;
@@ -44,71 +66,104 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
     detail: string;
   }[] = [];
 
-  // --- repeated_pass: pillar with 3+ passed tasks in last 14 days ---
-  const passedByPillar = new Map<number, { tasks: { id: number; title: string }[] }>();
-  for (const task of recentTasks) {
-    if (task.status === "passed" && task.pillarId !== null) {
-      if (!passedByPillar.has(task.pillarId)) passedByPillar.set(task.pillarId, { tasks: [] });
-      passedByPillar.get(task.pillarId)!.tasks.push({ id: task.id, title: task.title });
-    }
+  // --- repeated_pass: same taskTitle appears in progress_logs with status "passed" on 2+ distinct dates ---
+  const passedByTitle = new Map<string, Set<string>>();
+  for (const log of recentPassedLogs) {
+    if (!passedByTitle.has(log.taskTitle)) passedByTitle.set(log.taskTitle, new Set());
+    passedByTitle.get(log.taskTitle)!.add(log.date);
   }
-  for (const [pillarId, { tasks }] of passedByPillar.entries()) {
-    if (tasks.length >= 3) {
-      const pillar = pillarMap.get(pillarId);
+  for (const [taskTitle, dates] of passedByTitle.entries()) {
+    if (dates.size >= 2) {
+      // Find a recent log entry for this task to get pillarId
+      const sampleLog = recentPassedLogs.find(l => l.taskTitle === taskTitle);
+      const pillarId = sampleLog?.taskId ? taskPillarMap.get(sampleLog.taskId) ?? null : null;
+      const pillar = pillarId ? pillarMap.get(pillarId) : null;
       signals.push({
         type: "repeated_pass",
+        pillarId: pillarId ?? null,
+        pillarName: pillar?.name ?? null,
+        taskId: sampleLog?.taskId ?? null,
+        taskTitle,
+        milestoneId: null,
+        milestoneTitle: null,
+        detail: `"${taskTitle}" has been passed (deferred) on ${dates.size} separate days — consider tackling it directly or dropping it.`,
+      });
+    }
+  }
+
+  // --- repeated_block: a pillar's last 2+ progress_logs entries are all "blocked" ---
+  // Build per-pillar log list (using taskId -> pillarId mapping from all recent logs)
+  const allTaskIds = new Set(recentAllLogs.filter(l => l.taskId !== null).map(l => l.taskId!));
+  // Build a full taskId->pillarId map from the DB for all relevant task IDs
+  const taskPillarFull = new Map<number, number | null>(allTasksThisMonth.map(t => [t.id, t.pillarId]));
+  // Also fetch tasks from earlier dates that appear in logs
+  const extraTaskIds = [...allTaskIds].filter(id => !taskPillarFull.has(id));
+  if (extraTaskIds.length > 0) {
+    const extraTasks = await db.select({ id: tasksTable.id, pillarId: tasksTable.pillarId })
+      .from(tasksTable)
+      .where(gte(tasksTable.date, daysAgo(90)));
+    for (const t of extraTasks) taskPillarFull.set(t.id, t.pillarId);
+  }
+
+  const logsByPillar = new Map<number, { status: string; loggedAt: Date }[]>();
+  for (const log of recentAllLogs) {
+    const pillarId = log.taskId ? taskPillarFull.get(log.taskId) ?? null : null;
+    if (pillarId !== null) {
+      if (!logsByPillar.has(pillarId)) logsByPillar.set(pillarId, []);
+      logsByPillar.get(pillarId)!.push({ status: log.status, loggedAt: log.loggedAt });
+    }
+  }
+  for (const [pillarId, logs] of logsByPillar.entries()) {
+    // logs are already desc by loggedAt
+    if (logs.length >= 2 && logs.slice(0, 2).every(l => l.status === "blocked")) {
+      const pillar = pillarMap.get(pillarId);
+      signals.push({
+        type: "repeated_block",
         pillarId,
         pillarName: pillar?.name ?? null,
         taskId: null,
         taskTitle: null,
         milestoneId: null,
         milestoneTitle: null,
-        detail: `${tasks.length} tasks passed (deferred) in this pillar over the last 14 days — consider tackling one directly.`,
+        detail: `Last ${logs.slice(0, 2).length} logged activities in "${pillar?.name ?? "this pillar"}" are all blocked — something may need to be addressed before continuing.`,
       });
     }
   }
 
-  // --- repeated_block: task that appears blocked across multiple log entries ---
-  const blockedLogs = await db
-    .select()
-    .from(progressLogsTable)
-    .where(and(eq(progressLogsTable.status, "blocked"), gte(progressLogsTable.date, fourteenDaysAgo)));
-
-  // Group by taskTitle (tasks may not persist across days, so use title as proxy)
-  const blockedByTitle = new Map<string, { count: number; taskId: number | null; pillarId: number | null }>();
-  for (const log of blockedLogs) {
-    const existing = blockedByTitle.get(log.taskTitle);
-    if (!existing) {
-      const taskPillarId = log.taskId
-        ? (recentTasks.find(t => t.id === log.taskId)?.pillarId ?? null)
-        : null;
-      blockedByTitle.set(log.taskTitle, { count: 1, taskId: log.taskId, pillarId: taskPillarId });
-    } else {
-      existing.count++;
+  // --- stalled_milestone: non-complete milestone with no linked task activity in progress_logs for 14+ days ---
+  // Get progress_log entries for tasks linked to open milestones
+  const milestoneTaskMap = new Map<number, number[]>(); // milestoneId -> taskIds
+  for (const t of milestoneTasks) {
+    if (t.milestoneId && openMilestoneIds.has(t.milestoneId)) {
+      if (!milestoneTaskMap.has(t.milestoneId)) milestoneTaskMap.set(t.milestoneId, []);
+      milestoneTaskMap.get(t.milestoneId)!.push(t.id);
     }
   }
-  for (const [taskTitle, { count, taskId, pillarId }] of blockedByTitle.entries()) {
-    if (count >= 2) {
-      const pillar = pillarId ? pillarMap.get(pillarId) : null;
-      signals.push({
-        type: "repeated_block",
-        pillarId: pillarId ?? null,
-        pillarName: pillar?.name ?? null,
-        taskId: taskId ?? null,
-        taskTitle,
-        milestoneId: null,
-        milestoneTitle: null,
-        detail: `"${taskTitle}" has been blocked ${count} times recently — worth addressing the blocker or breaking it down.`,
-      });
-    }
+  // Get all progress_logs for those milestone task IDs
+  const milestoneTaskIds = new Set(milestoneTasks.filter(t => t.milestoneId && openMilestoneIds.has(t.milestoneId)).map(t => t.id));
+  const milestoneLogs = recentAllLogs.filter(l => l.taskId !== null && milestoneTaskIds.has(l.taskId!));
+  // Build most-recent-log date per milestoneId
+  const lastActivityByMilestone = new Map<number, string>();
+  for (const log of milestoneLogs) {
+    if (!log.taskId) continue;
+    const task = milestoneTasks.find(t => t.id === log.taskId);
+    if (!task?.milestoneId) continue;
+    const logDate = log.date;
+    const current = lastActivityByMilestone.get(task.milestoneId);
+    if (!current || logDate > current) lastActivityByMilestone.set(task.milestoneId, logDate);
   }
 
-  // --- stalled_milestone: active milestone with createdAt 30+ days ago ---
-  const thirtyDaysAgoMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
   for (const milestone of allMilestones) {
-    if (milestone.status === "active" && new Date(milestone.createdAt).getTime() < thirtyDaysAgoMs) {
+    const lastActivity = lastActivityByMilestone.get(milestone.id);
+    const isStalled = !lastActivity || lastActivity < fourteenDaysAgo;
+    if (isStalled) {
       const pillar = milestone.pillarId ? pillarMap.get(milestone.pillarId) : null;
-      const daysActive = Math.floor((Date.now() - new Date(milestone.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+      const daysSince = lastActivity
+        ? Math.floor((Date.now() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24))
+        : null;
+      const detail = daysSince !== null
+        ? `Milestone "${milestone.title}" has had no task activity for ${daysSince} days — review next action or scope.`
+        : `Milestone "${milestone.title}" has no task activity on record — add a linked task to make progress.`;
       signals.push({
         type: "stalled_milestone",
         pillarId: milestone.pillarId ?? null,
@@ -117,19 +172,21 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
         taskTitle: null,
         milestoneId: milestone.id,
         milestoneTitle: milestone.title,
-        detail: `Milestone "${milestone.title}" has been active for ${daysActive} days without completing — review scope or next action.`,
+        detail,
       });
     }
   }
 
-  // --- low_completion_ratio: pillar with <25% completion rate this week (min 4 attempted tasks) ---
+  // --- low_completion_ratio: pillar with 3+ tasks this month and pass/push-to-done ratio > 3:1 ---
   for (const pillar of pillars) {
-    const pillarWeekTasks = recentTasks.filter(t =>
-      t.pillarId === pillar.id && t.date >= weekOf && t.date <= weekEndStr
-    );
-    const attempted = pillarWeekTasks.filter(t => t.status !== "pending");
-    const done = attempted.filter(t => t.status === "done").length;
-    if (attempted.length >= 4 && done / attempted.length < 0.25) {
+    const pillarMonthTasks = allTasksThisMonth.filter(t => t.pillarId === pillar.id);
+    if (pillarMonthTasks.length < 3) continue;
+    const doneCount = pillarMonthTasks.filter(t => t.status === "done").length;
+    const deferCount = pillarMonthTasks.filter(t => t.status === "passed" || t.status === "pushed").length;
+    // Ratio check: defers > 3× done (guard against doneCount=0)
+    const isHighDefer = doneCount === 0 ? deferCount >= 3 : deferCount > 3 * doneCount;
+    if (isHighDefer) {
+      const ratio = doneCount > 0 ? (deferCount / doneCount).toFixed(1) : `${deferCount}:0`;
       signals.push({
         type: "low_completion_ratio",
         pillarId: pillar.id,
@@ -138,7 +195,7 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
         taskTitle: null,
         milestoneId: null,
         milestoneTitle: null,
-        detail: `Only ${done} of ${attempted.length} attempted tasks completed this week (${Math.round(done / attempted.length * 100)}%) — review what's blocking progress.`,
+        detail: `"${pillar.name}" has a pass/push-to-done ratio of ${ratio} this month (${deferCount} deferred vs ${doneCount} done) — tasks may need to be smaller or reprioritised.`,
       });
     }
   }

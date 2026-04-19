@@ -612,14 +612,10 @@ components:
         parkedShare:
           type: number
           description: Percentage of done tasks from Parked pillars
-        otherShare:
-          type: number
-          description: Percentage of done tasks from pillars with no portfolio status
       required:
         - activeShare
         - warmShare
         - parkedShare
-        - otherShare
 
     PillarHealthResponse:
       type: object
@@ -1307,10 +1303,14 @@ components:
               - passedCount
         p1CompletedThisWeek:
           type: integer
-          description: Done tasks tagged with P1 milestones or pillars this week
+          description: Done tasks from P1-priority pillars this week
         warmParkedCompletedThisWeek:
           type: integer
           description: Done tasks from Warm or Parked pillars this week
+        p1VsWarmParkedRatio:
+          type: number
+          nullable: true
+          description: Ratio of P1 done tasks to Warm/Parked done tasks this week (null when denominator is 0)
       required:
         - milestonesCompletedThisWeek
         - milestonesCompletedThisMonth
