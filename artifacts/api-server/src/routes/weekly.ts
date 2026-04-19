@@ -56,6 +56,8 @@ router.post("/weekly", async (req, res): Promise<void> => {
     whatMovedForward: parsed.data.whatMovedForward ?? null,
     whatGotStuck: parsed.data.whatGotStuck ?? null,
     whatContinues: parsed.data.whatContinues ?? null,
+    whatToDeprioritize: parsed.data.whatToDeprioritize ?? null,
+    nextWeekFocus: parsed.data.nextWeekFocus ?? null,
   }).returning();
 
   res.status(201).json(serializePlan(plan!));
@@ -84,6 +86,8 @@ router.patch("/weekly/:id", async (req, res): Promise<void> => {
   if (parsed.data.whatMovedForward !== undefined) updates.whatMovedForward = parsed.data.whatMovedForward;
   if (parsed.data.whatGotStuck !== undefined) updates.whatGotStuck = parsed.data.whatGotStuck;
   if (parsed.data.whatContinues !== undefined) updates.whatContinues = parsed.data.whatContinues;
+  if (parsed.data.whatToDeprioritize !== undefined) updates.whatToDeprioritize = parsed.data.whatToDeprioritize;
+  if (parsed.data.nextWeekFocus !== undefined) updates.nextWeekFocus = parsed.data.nextWeekFocus;
 
   const [plan] = await db
     .update(weeklyPlansTable)

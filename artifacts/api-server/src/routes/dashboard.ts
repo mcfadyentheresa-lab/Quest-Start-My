@@ -1,10 +1,11 @@
 import { Router, type IRouter } from "express";
 import { eq, and, gte, lte, lt, desc, asc } from "drizzle-orm";
-import { db, tasksTable, pillarsTable, weeklyPlansTable } from "@workspace/db";
+import { db, tasksTable, pillarsTable, weeklyPlansTable, progressLogsTable, milestonesTable } from "@workspace/db";
 import {
   GetDashboardSummaryResponse,
   GetWeekSummaryResponse,
   GetReentryTaskResponse,
+  GetPillarHealthResponse,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -34,6 +35,13 @@ function computePlanningStreak(allPlans: { weekOf: string }[], currentWeekOf: st
     weekCursor = d.toISOString().slice(0, 10);
   }
   return streak;
+}
+
+function computeGuidance(status: string, suggestedNextStep: string | null | undefined): string | null {
+  if (status === "blocked") return "Consider clarifying the blocker or trying a smaller version.";
+  if (status === "passed") return "A smaller first step might unlock this.";
+  if (status === "pending" && !suggestedNextStep) return "Pick a tiny concrete action to restart momentum.";
+  return null;
 }
 
 router.get("/dashboard/summary", async (req, res): Promise<void> => {
@@ -101,7 +109,6 @@ router.get("/dashboard/week-summary", async (req, res): Promise<void> => {
   const blockedCount = tasks.filter(t => t.status === "blocked").length;
   const completionRate = totalTasks > 0 ? doneCount / totalTasks : 0;
 
-  // Build pillar activity
   const pillarMap = new Map(pillars.map(p => [p.id, p.name]));
   const pillarTasksMap = new Map<number, { id: number; title: string; status: string; category: string }[]>();
   for (const task of tasks) {
@@ -141,7 +148,7 @@ router.get("/dashboard/week-summary", async (req, res): Promise<void> => {
 router.get("/dashboard/reentry", async (req, res): Promise<void> => {
   const today = new Date().toISOString().slice(0, 10);
 
-  // First: look for most recent unfinished (pending) task from a prior date
+  // First: look for most recent unfinished (pending) or blocked task from a prior date
   const unfinished = await db.select().from(tasksTable)
     .where(and(
       lt(tasksTable.date, today),
@@ -150,19 +157,78 @@ router.get("/dashboard/reentry", async (req, res): Promise<void> => {
     .orderBy(desc(tasksTable.date), desc(tasksTable.id))
     .limit(1);
 
+  const buildTaskPayload = async (t: typeof unfinished[0]) => {
+    let milestoneTitle: string | null = null;
+    if (t.milestoneId) {
+      const [milestone] = await db.select({ title: milestonesTable.title })
+        .from(milestonesTable)
+        .where(eq(milestonesTable.id, t.milestoneId));
+      milestoneTitle = milestone?.title ?? null;
+    }
+    return {
+      id: t.id,
+      title: t.title,
+      suggestedNextStep: t.suggestedNextStep,
+      whyItMatters: t.whyItMatters,
+      blockerReason: t.blockerReason,
+      milestoneTitle,
+      status: t.status,
+      date: t.date,
+      category: t.category,
+      pillarId: t.pillarId,
+    };
+  };
+
   if (unfinished.length > 0 && unfinished[0]) {
     const t = unfinished[0];
+    const task = await buildTaskPayload(t);
+    const guidance = computeGuidance(t.status, t.suggestedNextStep);
     res.json(GetReentryTaskResponse.parse({
       type: "unfinished",
-      task: {
-        id: t.id,
-        title: t.title,
-        suggestedNextStep: t.suggestedNextStep,
-        status: t.status,
-        date: t.date,
-        category: t.category,
-        pillarId: t.pillarId,
-      },
+      task,
+      guidance,
+    }));
+    return;
+  }
+
+  // Also check blocked tasks from prior dates
+  const blocked = await db.select().from(tasksTable)
+    .where(and(
+      lt(tasksTable.date, today),
+      eq(tasksTable.status, "blocked")
+    ))
+    .orderBy(desc(tasksTable.date), desc(tasksTable.id))
+    .limit(1);
+
+  if (blocked.length > 0 && blocked[0]) {
+    const t = blocked[0];
+    const task = await buildTaskPayload(t);
+    const guidance = computeGuidance(t.status, t.suggestedNextStep);
+    res.json(GetReentryTaskResponse.parse({
+      type: "unfinished",
+      task,
+      guidance,
+    }));
+    return;
+  }
+
+  // Check passed tasks from prior dates
+  const passed = await db.select().from(tasksTable)
+    .where(and(
+      lt(tasksTable.date, today),
+      eq(tasksTable.status, "passed")
+    ))
+    .orderBy(desc(tasksTable.date), desc(tasksTable.id))
+    .limit(1);
+
+  if (passed.length > 0 && passed[0]) {
+    const t = passed[0];
+    const task = await buildTaskPayload(t);
+    const guidance = computeGuidance(t.status, t.suggestedNextStep);
+    res.json(GetReentryTaskResponse.parse({
+      type: "unfinished",
+      task,
+      guidance,
     }));
     return;
   }
@@ -175,22 +241,89 @@ router.get("/dashboard/reentry", async (req, res): Promise<void> => {
 
   if (completed.length > 0 && completed[0]) {
     const t = completed[0];
+    const task = await buildTaskPayload(t);
     res.json(GetReentryTaskResponse.parse({
       type: "completed",
-      task: {
-        id: t.id,
-        title: t.title,
-        suggestedNextStep: t.suggestedNextStep,
-        status: t.status,
-        date: t.date,
-        category: t.category,
-        pillarId: t.pillarId,
-      },
+      task,
+      guidance: null,
     }));
     return;
   }
 
-  res.json(GetReentryTaskResponse.parse({ type: "none", task: null }));
+  res.json(GetReentryTaskResponse.parse({ type: "none", task: null, guidance: null }));
+});
+
+router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
+  const weekOf = getWeekStart();
+  const weekEnd = getWeekEnd(weekOf);
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [pillars, weekTasks, recentLogs] = await Promise.all([
+    db.select().from(pillarsTable).orderBy(pillarsTable.id),
+    db.select().from(tasksTable).where(and(
+      gte(tasksTable.date, weekOf),
+      lte(tasksTable.date, weekEnd)
+    )),
+    db.select().from(progressLogsTable).orderBy(desc(progressLogsTable.loggedAt)),
+  ]);
+
+  const totalDoneThisWeek = weekTasks.filter(t => t.status === "done").length;
+
+  // Group logs by taskId to find which pillar they belong to
+  // We need task->pillar mapping, so build from weekTasks + any task that has a pillarId
+  const allTasks = await db.select({ id: tasksTable.id, pillarId: tasksTable.pillarId }).from(tasksTable);
+  const taskPillarMap = new Map(allTasks.map(t => [t.id, t.pillarId]));
+
+  const result = pillars.map(pillar => {
+    const pillarWeekTasks = weekTasks.filter(t => t.pillarId === pillar.id);
+    const tasksDoneThisWeek = pillarWeekTasks.filter(t => t.status === "done").length;
+    const tasksPushedOrPassedThisWeek = pillarWeekTasks.filter(t => t.status === "pushed" || t.status === "passed").length;
+
+    // Compute days since last movement from progress_logs
+    const pillarLogs = recentLogs.filter(log => {
+      const taskPillarId = log.taskId ? taskPillarMap.get(log.taskId) : null;
+      return taskPillarId === pillar.id;
+    });
+
+    let daysSinceLastMovement: number | null = null;
+    if (pillarLogs.length > 0 && pillarLogs[0]) {
+      const lastLog = pillarLogs[0];
+      const lastDate = new Date(lastLog.loggedAt);
+      const now = new Date();
+      daysSinceLastMovement = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    // Generate nudge if no movement in 7+ days
+    let nudge: string | null = null;
+    if (daysSinceLastMovement !== null && daysSinceLastMovement >= 7) {
+      nudge = "No movement in 7 days — one tiny action?";
+    } else if (daysSinceLastMovement === null && pillarWeekTasks.length === 0) {
+      nudge = "No tasks this week — is this pillar still active?";
+    }
+
+    // Generate warning if Warm/Parked pillar absorbs >30% of done tasks
+    let warning: string | null = null;
+    if (
+      (pillar.portfolioStatus === "Warm" || pillar.portfolioStatus === "Parked") &&
+      totalDoneThisWeek > 0 &&
+      tasksDoneThisWeek / totalDoneThisWeek > 0.3
+    ) {
+      warning = `${pillar.portfolioStatus} project absorbing ${Math.round(tasksDoneThisWeek / totalDoneThisWeek * 100)}% of completed work this week.`;
+    }
+
+    return {
+      pillarId: pillar.id,
+      pillarName: pillar.name,
+      portfolioStatus: pillar.portfolioStatus ?? null,
+      tasksDoneThisWeek,
+      tasksPushedOrPassedThisWeek,
+      daysSinceLastMovement,
+      nudge,
+      warning,
+    };
+  });
+
+  res.json(GetPillarHealthResponse.parse(result));
 });
 
 export default router;

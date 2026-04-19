@@ -233,18 +233,47 @@ export default function Dashboard() {
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
             {reentry.type === "unfinished" ? "Pick up where you left off" : "Your last completed task"}
           </p>
+
+          {/* Milestone context */}
+          {reentry.task.milestoneTitle && (
+            <p className="text-xs text-primary/80 font-medium mb-1">
+              ↑ {reentry.task.milestoneTitle}
+            </p>
+          )}
+
           <p className="font-serif text-base font-medium text-foreground leading-snug">
             {reentry.task.title}
           </p>
           {reentry.task.date !== today && (
             <p className="text-xs text-muted-foreground mt-0.5">From {formatShortDate(reentry.task.date)}</p>
           )}
+
+          {/* Why it matters */}
+          {reentry.task.whyItMatters && (
+            <p className="text-xs text-foreground/60 mt-1.5 italic leading-relaxed">{reentry.task.whyItMatters}</p>
+          )}
+
+          {/* Blocker reason */}
+          {reentry.task.blockerReason && (
+            <div className="mt-2 rounded-lg bg-rose-100/70 dark:bg-rose-900/20 px-3 py-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-rose-600 dark:text-rose-400 mb-0.5">Was blocked</p>
+              <p className="text-xs text-foreground/70">{reentry.task.blockerReason}</p>
+            </div>
+          )}
+
+          {/* Suggested next step */}
           {reentry.task.suggestedNextStep && (
             <div className="mt-2 flex items-start gap-1.5">
               <ArrowRight className="h-3.5 w-3.5 text-primary flex-shrink-0 mt-0.5" />
               <p className="text-sm text-foreground/80">{reentry.task.suggestedNextStep}</p>
             </div>
           )}
+
+          {/* Guidance */}
+          {reentry.guidance && (
+            <p className="mt-2 text-xs text-amber-700 dark:text-amber-400 italic">{reentry.guidance}</p>
+          )}
+
           {reentry.type === "unfinished" && (
             <div className="mt-4 flex gap-2 flex-wrap">
               <Button

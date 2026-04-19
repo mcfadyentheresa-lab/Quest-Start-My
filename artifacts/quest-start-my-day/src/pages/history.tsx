@@ -1,9 +1,17 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { useListProgressLogs, getListProgressLogsQueryKey, useGetWeekSummary } from "@workspace/api-client-react";
+import {
+  useListProgressLogs,
+  getListProgressLogsQueryKey,
+  useGetWeekSummary,
+  useGetPillarHealth,
+} from "@workspace/api-client-react";
 import { CategoryBadge } from "@/components/category-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, SkipForward, Pause, AlertCircle, History, TrendingUp, Layers, Clock } from "lucide-react";
+import {
+  CheckCircle2, SkipForward, Pause, AlertCircle, History, TrendingUp, Layers, Clock,
+  Activity, AlertTriangle, Info,
+} from "lucide-react";
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
@@ -24,7 +32,13 @@ const statusConfig: Record<string, { icon: React.ElementType; className: string;
 
 const unknownStatus = { icon: Clock, className: "text-muted-foreground", label: "Unknown" };
 
-type Tab = "log" | "week";
+const portfolioStatusColors: Record<string, string> = {
+  Active: "text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-900/20",
+  Warm: "text-amber-700 bg-amber-50 dark:text-amber-400 dark:bg-amber-900/20",
+  Parked: "text-muted-foreground bg-muted/50",
+};
+
+type Tab = "log" | "week" | "health";
 
 export default function HistoryPage() {
   const [tab, setTab] = useState<Tab>("log");
@@ -34,6 +48,7 @@ export default function HistoryPage() {
     { query: { queryKey: getListProgressLogsQueryKey({ limit: 60 }) } }
   );
   const { data: weekSummary, isLoading: weekLoading } = useGetWeekSummary();
+  const { data: pillarHealth, isLoading: healthLoading } = useGetPillarHealth();
 
   const grouped = (logs ?? []).reduce<Record<string, typeof logs>>((acc, log) => {
     if (!log) return acc;
@@ -44,6 +59,12 @@ export default function HistoryPage() {
 
   const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
+  const tabs = [
+    { id: "log" as Tab, icon: History, label: "Activity" },
+    { id: "week" as Tab, icon: TrendingUp, label: "This week" },
+    { id: "health" as Tab, icon: Activity, label: "Pillar health" },
+  ];
+
   return (
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
@@ -53,28 +74,21 @@ export default function HistoryPage() {
 
       {/* Tab switcher */}
       <div className="flex rounded-xl bg-muted p-1 gap-1">
-        <button
-          onClick={() => setTab("log")}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-            tab === "log"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <History className="h-3.5 w-3.5" />
-          Activity log
-        </button>
-        <button
-          onClick={() => setTab("week")}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-            tab === "week"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <TrendingUp className="h-3.5 w-3.5" />
-          This week
-        </button>
+        {tabs.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+              tab === t.id
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <t.icon className="h-3.5 w-3.5 flex-shrink-0" />
+            <span className="hidden sm:inline">{t.label}</span>
+            <span className="sm:hidden">{t.label.split(" ")[0]}</span>
+          </button>
+        ))}
       </div>
 
       {tab === "log" && (
@@ -208,6 +222,81 @@ export default function HistoryPage() {
             )}
           </div>
         ) : null
+      )}
+
+      {tab === "health" && (
+        healthLoading ? (
+          <div className="space-y-3">
+            <Skeleton className="h-28 rounded-2xl" />
+            <Skeleton className="h-28 rounded-2xl" />
+          </div>
+        ) : !pillarHealth || pillarHealth.length === 0 ? (
+          <div className="text-center py-16 rounded-2xl bg-card border border-dashed border-border">
+            <Activity className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+            <p className="text-sm font-medium text-foreground">No pillar data yet</p>
+            <p className="text-xs text-muted-foreground mt-1">Add pillars in Projects to see their health here</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground px-1">Pillar momentum this week</p>
+            {pillarHealth.map((entry, i) => (
+              <motion.div
+                key={entry.pillarId}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04 }}
+                className="rounded-2xl bg-card border border-card-border p-4 space-y-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-serif font-medium text-foreground">{entry.pillarName}</span>
+                      {entry.portfolioStatus && (
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${portfolioStatusColors[entry.portfolioStatus] ?? "text-muted-foreground bg-muted/50"}`}>
+                          {entry.portfolioStatus}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-lg font-serif font-medium text-emerald-600 dark:text-emerald-400">{entry.tasksDoneThisWeek}</p>
+                    <p className="text-xs text-muted-foreground">done</p>
+                  </div>
+                </div>
+
+                {/* Stats row */}
+                <div className="flex gap-4 text-xs text-muted-foreground">
+                  {entry.tasksPushedOrPassedThisWeek > 0 && (
+                    <span className="text-amber-600 dark:text-amber-400">
+                      {entry.tasksPushedOrPassedThisWeek} pushed/passed
+                    </span>
+                  )}
+                  {entry.daysSinceLastMovement !== null && entry.daysSinceLastMovement !== undefined && (
+                    <span>
+                      Last move: {entry.daysSinceLastMovement === 0 ? "today" : `${entry.daysSinceLastMovement}d ago`}
+                    </span>
+                  )}
+                </div>
+
+                {/* Nudge */}
+                {entry.nudge && (
+                  <div className="flex items-start gap-2 rounded-lg bg-sky-50 dark:bg-sky-900/20 px-3 py-2">
+                    <Info className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-sky-700 dark:text-sky-400">{entry.nudge}</p>
+                  </div>
+                )}
+
+                {/* Warning for Warm/Parked over-absorption */}
+                {entry.warning && (
+                  <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-700 dark:text-amber-400">{entry.warning}</p>
+                  </div>
+                )}
+              </motion.div>
+            ))}
+          </div>
+        )
       )}
     </div>
   );

@@ -90,6 +90,78 @@ export const UpdatePillarResponse = zod.object({
 });
 
 /**
+ * @summary List milestones for a pillar
+ */
+export const ListMilestonesQueryParams = zod.object({
+  pillarId: zod.coerce.number().optional(),
+});
+
+export const ListMilestonesResponseItem = zod.object({
+  id: zod.number(),
+  pillarId: zod.number(),
+  title: zod.string(),
+  status: zod.enum(["planned", "active", "blocked", "complete"]),
+  priority: zod.enum(["P1", "P2", "P3", "P4"]).nullish(),
+  targetDate: zod.string().nullish(),
+  description: zod.string().nullish(),
+  nextAction: zod.string().nullish(),
+  sortOrder: zod.number(),
+  createdAt: zod.string(),
+});
+export const ListMilestonesResponse = zod.array(ListMilestonesResponseItem);
+
+/**
+ * @summary Create a milestone
+ */
+export const CreateMilestoneBody = zod.object({
+  pillarId: zod.number(),
+  title: zod.string(),
+  status: zod.enum(["planned", "active", "blocked", "complete"]).optional(),
+  priority: zod.enum(["P1", "P2", "P3", "P4"]).nullish(),
+  targetDate: zod.string().nullish(),
+  description: zod.string().nullish(),
+  nextAction: zod.string().nullish(),
+  sortOrder: zod.number().optional(),
+});
+
+/**
+ * @summary Update a milestone
+ */
+export const UpdateMilestoneParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateMilestoneBody = zod.object({
+  title: zod.string().optional(),
+  status: zod.enum(["planned", "active", "blocked", "complete"]).optional(),
+  priority: zod.enum(["P1", "P2", "P3", "P4"]).nullish(),
+  targetDate: zod.string().nullish(),
+  description: zod.string().nullish(),
+  nextAction: zod.string().nullish(),
+  sortOrder: zod.number().optional(),
+});
+
+export const UpdateMilestoneResponse = zod.object({
+  id: zod.number(),
+  pillarId: zod.number(),
+  title: zod.string(),
+  status: zod.enum(["planned", "active", "blocked", "complete"]),
+  priority: zod.enum(["P1", "P2", "P3", "P4"]).nullish(),
+  targetDate: zod.string().nullish(),
+  description: zod.string().nullish(),
+  nextAction: zod.string().nullish(),
+  sortOrder: zod.number(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Delete a milestone
+ */
+export const DeleteMilestoneParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
  * @summary List daily tasks
  */
 export const ListTasksQueryParams = zod.object({
@@ -105,6 +177,8 @@ export const ListTasksResponseItem = zod.object({
   suggestedNextStep: zod.string().nullish(),
   status: zod.enum(["pending", "done", "pushed", "passed", "blocked"]),
   pillarId: zod.number().nullish(),
+  milestoneId: zod.number().nullish(),
+  blockerReason: zod.string().nullish(),
   date: zod.string(),
   createdAt: zod.string(),
 });
@@ -120,6 +194,8 @@ export const CreateTaskBody = zod.object({
   doneLooksLike: zod.string().nullish(),
   suggestedNextStep: zod.string().nullish(),
   pillarId: zod.number().nullish(),
+  milestoneId: zod.number().nullish(),
+  blockerReason: zod.string().nullish(),
   date: zod.string(),
 });
 
@@ -140,6 +216,8 @@ export const UpdateTaskBody = zod.object({
     .enum(["pending", "done", "pushed", "passed", "blocked"])
     .optional(),
   pillarId: zod.number().nullish(),
+  milestoneId: zod.number().nullish(),
+  blockerReason: zod.string().nullish(),
 });
 
 export const UpdateTaskResponse = zod.object({
@@ -151,6 +229,8 @@ export const UpdateTaskResponse = zod.object({
   suggestedNextStep: zod.string().nullish(),
   status: zod.enum(["pending", "done", "pushed", "passed", "blocked"]),
   pillarId: zod.number().nullish(),
+  milestoneId: zod.number().nullish(),
+  blockerReason: zod.string().nullish(),
   date: zod.string(),
   createdAt: zod.string(),
 });
@@ -182,6 +262,8 @@ export const ListWeeklyPlansResponseItem = zod.object({
   whatMovedForward: zod.string().nullish(),
   whatGotStuck: zod.string().nullish(),
   whatContinues: zod.string().nullish(),
+  whatToDeprioritize: zod.string().nullish(),
+  nextWeekFocus: zod.string().nullish(),
 });
 export const ListWeeklyPlansResponse = zod.array(ListWeeklyPlansResponseItem);
 
@@ -199,6 +281,8 @@ export const CreateWeeklyPlanBody = zod.object({
   whatMovedForward: zod.string().nullish(),
   whatGotStuck: zod.string().nullish(),
   whatContinues: zod.string().nullish(),
+  whatToDeprioritize: zod.string().nullish(),
+  nextWeekFocus: zod.string().nullish(),
 });
 
 /**
@@ -218,6 +302,8 @@ export const UpdateWeeklyPlanBody = zod.object({
   whatMovedForward: zod.string().nullish(),
   whatGotStuck: zod.string().nullish(),
   whatContinues: zod.string().nullish(),
+  whatToDeprioritize: zod.string().nullish(),
+  nextWeekFocus: zod.string().nullish(),
 });
 
 export const UpdateWeeklyPlanResponse = zod.object({
@@ -233,6 +319,8 @@ export const UpdateWeeklyPlanResponse = zod.object({
   whatMovedForward: zod.string().nullish(),
   whatGotStuck: zod.string().nullish(),
   whatContinues: zod.string().nullish(),
+  whatToDeprioritize: zod.string().nullish(),
+  nextWeekFocus: zod.string().nullish(),
 });
 
 /**
@@ -299,6 +387,8 @@ export const GetDashboardSummaryResponse = zod.object({
       whatMovedForward: zod.string().nullish(),
       whatGotStuck: zod.string().nullish(),
       whatContinues: zod.string().nullish(),
+      whatToDeprioritize: zod.string().nullish(),
+      nextWeekFocus: zod.string().nullish(),
     })
     .nullish(),
   planningStreak: zod
@@ -344,10 +434,29 @@ export const GetReentryTaskResponse = zod.object({
       id: zod.number(),
       title: zod.string(),
       suggestedNextStep: zod.string().nullish(),
+      whyItMatters: zod.string().nullish(),
+      blockerReason: zod.string().nullish(),
+      milestoneTitle: zod.string().nullish(),
       status: zod.string(),
       date: zod.string(),
       category: zod.string(),
       pillarId: zod.number().nullish(),
     })
     .nullish(),
+  guidance: zod.string().nullish(),
 });
+
+/**
+ * @summary Get per-pillar health stats for this week
+ */
+export const GetPillarHealthResponseItem = zod.object({
+  pillarId: zod.number(),
+  pillarName: zod.string(),
+  portfolioStatus: zod.string().nullish(),
+  tasksDoneThisWeek: zod.number(),
+  tasksPushedOrPassedThisWeek: zod.number(),
+  daysSinceLastMovement: zod.number().nullish(),
+  nudge: zod.string().nullish(),
+  warning: zod.string().nullish(),
+});
+export const GetPillarHealthResponse = zod.array(GetPillarHealthResponseItem);

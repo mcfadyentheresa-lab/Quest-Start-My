@@ -42,6 +42,8 @@ router.post("/tasks", async (req, res): Promise<void> => {
     doneLooksLike: parsed.data.doneLooksLike ?? null,
     suggestedNextStep: parsed.data.suggestedNextStep ?? null,
     pillarId: parsed.data.pillarId ?? null,
+    milestoneId: parsed.data.milestoneId ?? null,
+    blockerReason: parsed.data.blockerReason ?? null,
     date: parsed.data.date,
     status: "pending",
   }).returning();
@@ -73,6 +75,8 @@ router.patch("/tasks/:id", async (req, res): Promise<void> => {
   if (parsed.data.suggestedNextStep !== undefined) updates.suggestedNextStep = parsed.data.suggestedNextStep;
   if (parsed.data.status !== undefined) updates.status = parsed.data.status;
   if (parsed.data.pillarId !== undefined) updates.pillarId = parsed.data.pillarId;
+  if (parsed.data.milestoneId !== undefined) updates.milestoneId = parsed.data.milestoneId;
+  if (parsed.data.blockerReason !== undefined) updates.blockerReason = parsed.data.blockerReason;
 
   const [task] = await db
     .update(tasksTable)

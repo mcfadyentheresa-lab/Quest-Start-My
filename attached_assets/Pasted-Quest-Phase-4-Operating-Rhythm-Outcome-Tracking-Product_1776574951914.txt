@@ -1,0 +1,138 @@
+Quest Phase 4 — Operating Rhythm, Outcome Tracking & Productization Layer
+What & Why
+Continue developing the existing Quest Start My Day app.
+Do not rebuild from scratch.  
+Do not remove, reset, recreate, or overwrite existing data, routes, components, milestones, tasks, weekly plans, progress logs, or pillar settings.
+Phase 4 should evolve Quest from a planning-and-guidance tool into a stronger operating rhythm system.
+The goal is to move from:
+“What should I do next?”  
+to  
+“Am I moving the right pillars, toward the right outcomes, in a sustainable rhythm?”
+This phase should improve:
+•	weekly and monthly review,
+•	outcome tracking,
+•	portfolio balance,
+•	and future product readiness.
+Migration Safety
+All schema changes must be additive only:
+•	nullable `ADD COLUMN`s, or
+•	new tables
+Before touching schema:
+•	inspect current schema first
+•	review generated SQL before applying
+•	stop for approval if anything would drop, rename, recreate, or overwrite data
+Preserve all existing Phase 1–3 data.
+Core outcomes
+Phase 4 should help me:
+•	review the week and month more intentionally
+•	see whether milestones are actually progressing
+•	understand which pillars are moving and which are starving
+•	detect repeated friction patterns
+•	distinguish between motion and meaningful progress
+•	begin shaping Quest into a future sellable digital product
+Done looks like
+1. Monthly review layer
+Add a monthly review section that includes:
+•	What moved this month?
+•	Which pillars advanced?
+•	Which milestones completed?
+•	What kept getting delayed?
+•	What should be paused or parked next month?
+•	What are the top 3 priorities next month?
+Persist this to the database.
+2. Outcome tracking
+Add outcome-oriented metrics such as:
+•	milestones completed this week / month
+•	active milestone age
+•	completion rate by pillar
+•	number of blocked tasks by pillar
+•	number of passed tasks by pillar
+•	ratio of P1 progress vs Warm/Parked activity
+Show this in a calm, readable dashboard style.
+3. Portfolio balance view
+Add a portfolio balance section showing:
+•	Core vs Warm vs Parked effort split
+•	where task completions are going
+•	whether actual work matches intended priority
+•	subtle warnings when lower-priority work is dominating attention
+4. Friction patterns
+Add simple detection for patterns like:
+•	same task passed multiple times
+•	same pillar repeatedly blocked
+•	milestones with no movement for too long
+•	many tasks created but few completed
+Show these as gentle nudges, not alarms.
+5. Milestone health
+Enhance milestone tracking to show:
+•	percent complete or progress indicator
+•	days since last movement
+•	overdue target date warning
+•	blocked milestone warning
+•	next suggested action
+6. Productization layer
+Add a lightweight internal section or tagging system for:
+•	personal-only features
+•	future shared/team features
+•	future customer-facing / sellable features
+This is not full SaaS mode yet.
+It is just a way to start separating:
+•	what I need for myself
+•	what could later become a marketable product
+7. Better review flow
+Create a more structured review rhythm with tabs or sections for:
+•	Today
+•	Week
+•	Month
+•	Projects
+•	Health
+Make sure the app still feels calm and not overwhelming.
+Out of scope
+•	Full customer billing
+•	Public marketing site
+•	Multi-user support
+•	Authentication
+•	External AI APIs
+•	Automatic scheduling
+•	Calendar integrations
+•	Native mobile app
+•	Full analytics platform
+•	Major redesign
+Suggested schema / feature direction
+If needed, add support for:
+•	monthly review records
+•	milestone health metadata
+•	review snapshots or summary records
+•	feature tags or productization tags
+Only do this if necessary, and only with additive migrations.
+UX requirements
+Keep the product:
+•	elegant
+•	warm
+•	clear
+•	lightly structured
+•	emotionally supportive
+•	not data-heavy for the sake of it
+Do not turn it into a noisy KPI dashboard.
+The purpose is insight and alignment, not pressure.
+Technical expectations
+•	Reuse existing Phase 1–3 structures where possible
+•	Extend the data model carefully
+•	Keep rules and calculations understandable
+•	Make the system maintainable
+•	Preserve all current records and flows
+Suggested build order
+1.	Review current app structure and Phase 1–3 data
+2.	Design monthly review and outcome-tracking additions
+3.	Add portfolio balance and milestone health calculations
+4.	Add friction-pattern nudges
+5.	Add productization tagging / internal planning layer
+6.	Polish the review experience
+Before coding
+Before implementation, explain:
+1.	what will be preserved
+2.	what new schema or tables are needed
+3.	how monthly review data will be stored
+4.	how outcome and pillar health metrics will be calculated
+5.	how friction patterns will be detected
+6.	how data loss will be prevented
+If anything appears risky, stop and ask first.

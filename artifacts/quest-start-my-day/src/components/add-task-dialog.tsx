@@ -1,8 +1,16 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { useCreateTask, useListPillars, useGetDashboardSummary } from "@workspace/api-client-react";
+import {
+  useCreateTask,
+  useListPillars,
+  useGetDashboardSummary,
+  useListMilestones,
+  getListTasksQueryKey,
+  getGetDashboardSummaryQueryKey,
+  getGetReentryTaskQueryKey,
+  getListMilestonesQueryKey,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getListTasksQueryKey, getGetDashboardSummaryQueryKey, getGetReentryTaskQueryKey } from "@workspace/api-client-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +29,7 @@ interface TaskFormData {
   title: string;
   category: string;
   pillarId: string;
+  milestoneId: string;
   whyItMatters: string;
   doneLooksLike: string;
   suggestedNextStep: string;
@@ -29,7 +38,15 @@ interface TaskFormData {
 export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
   const [open, setOpen] = useState(false);
   const { register, handleSubmit, reset, setValue, watch } = useForm<TaskFormData>({
-    defaultValues: { title: "", category: "business", pillarId: "none", whyItMatters: "", doneLooksLike: "", suggestedNextStep: "" },
+    defaultValues: {
+      title: "",
+      category: "business",
+      pillarId: "none",
+      milestoneId: "none",
+      whyItMatters: "",
+      doneLooksLike: "",
+      suggestedNextStep: "",
+    },
   });
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -38,9 +55,24 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
   const { data: summary } = useGetDashboardSummary();
   const category = watch("category");
   const pillarId = watch("pillarId");
+  const milestoneId = watch("milestoneId");
 
-  // Only show pillars that are active this week in the selector
+  const selectedPillarNumericId = pillarId && pillarId !== "none" ? parseInt(pillarId) : undefined;
+
+  const milestoneParams = selectedPillarNumericId ? { pillarId: selectedPillarNumericId } : undefined;
+  const { data: milestones } = useListMilestones(
+    milestoneParams,
+    {
+      query: {
+        queryKey: getListMilestonesQueryKey(milestoneParams),
+        enabled: !!selectedPillarNumericId,
+      },
+    }
+  );
+
   const activePillars = pillars?.filter(p => p.isActiveThisWeek) ?? [];
+
+  const activeMilestones = milestones?.filter(m => m.status !== "complete" && m.status !== "blocked") ?? [];
 
   const onSubmit = (data: TaskFormData) => {
     createTask.mutate(
@@ -52,6 +84,7 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
           doneLooksLike: data.doneLooksLike || undefined,
           suggestedNextStep: data.suggestedNextStep || undefined,
           pillarId: data.pillarId && data.pillarId !== "none" ? parseInt(data.pillarId) : undefined,
+          milestoneId: data.milestoneId && data.milestoneId !== "none" ? parseInt(data.milestoneId) : undefined,
           date,
         },
       },
@@ -109,7 +142,13 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
             {activePillars.length > 0 && (
               <div className="space-y-1.5">
                 <Label>Pillar</Label>
-                <Select value={pillarId} onValueChange={(v) => setValue("pillarId", v)}>
+                <Select
+                  value={pillarId}
+                  onValueChange={(v) => {
+                    setValue("pillarId", v);
+                    setValue("milestoneId", "none");
+                  }}
+                >
                   <SelectTrigger className="rounded-xl">
                     <SelectValue placeholder="None" />
                   </SelectTrigger>
@@ -126,7 +165,27 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
             )}
           </div>
 
-          {/* Show the weekly priority reminder if a pillar is selected */}
+          {/* Milestone selector — only shown when a pillar is selected and it has milestones */}
+          {selectedPillarNumericId && activeMilestones.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Milestone</Label>
+              <Select value={milestoneId} onValueChange={(v) => setValue("milestoneId", v)}>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue placeholder="No milestone" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No milestone</SelectItem>
+                  {activeMilestones.map(m => (
+                    <SelectItem key={m.id} value={String(m.id)}>
+                      {m.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Weekly priority reminder */}
           {pillarId && pillarId !== "none" && summary?.weeklyPlan?.priorities && summary.weeklyPlan.priorities.length > 0 && (
             <div className="rounded-xl bg-muted/50 p-3">
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">This week's priorities</p>

@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: pillars
     description: Project pillar operations
+  - name: milestones
+    description: Pillar milestone operations
   - name: tasks
     description: Daily task operations
   - name: weekly
@@ -90,6 +92,82 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Pillar"
+
+  /milestones:
+    get:
+      operationId: listMilestones
+      tags: [milestones]
+      summary: List milestones for a pillar
+      parameters:
+        - name: pillarId
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of milestones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Milestone"
+    post:
+      operationId: createMilestone
+      tags: [milestones]
+      summary: Create a milestone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMilestoneBody"
+      responses:
+        "201":
+          description: Created milestone
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Milestone"
+
+  /milestones/{id}:
+    patch:
+      operationId: updateMilestone
+      tags: [milestones]
+      summary: Update a milestone
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMilestoneBody"
+      responses:
+        "200":
+          description: Updated milestone
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Milestone"
+    delete:
+      operationId: deleteMilestone
+      tags: [milestones]
+      summary: Delete a milestone
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
 
   /tasks:
     get:
@@ -293,8 +371,142 @@ paths:
               schema:
                 $ref: "#/components/schemas/ReentryInfo"
 
+  /dashboard/pillar-health:
+    get:
+      operationId: getPillarHealth
+      tags: [dashboard]
+      summary: Get per-pillar health stats for this week
+      responses:
+        "200":
+          description: List of pillar health entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PillarHealthEntry"
+
 components:
   schemas:
+    Milestone:
+      type: object
+      properties:
+        id:
+          type: integer
+        pillarId:
+          type: integer
+        title:
+          type: string
+        status:
+          type: string
+          enum: [planned, active, blocked, complete]
+        priority:
+          type: string
+          nullable: true
+          enum: [P1, P2, P3, P4]
+        targetDate:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        nextAction:
+          type: string
+          nullable: true
+        sortOrder:
+          type: integer
+        createdAt:
+          type: string
+      required:
+        - id
+        - pillarId
+        - title
+        - status
+        - sortOrder
+        - createdAt
+
+    CreateMilestoneBody:
+      type: object
+      properties:
+        pillarId:
+          type: integer
+        title:
+          type: string
+        status:
+          type: string
+          enum: [planned, active, blocked, complete]
+        priority:
+          type: string
+          nullable: true
+          enum: [P1, P2, P3, P4]
+        targetDate:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        nextAction:
+          type: string
+          nullable: true
+        sortOrder:
+          type: integer
+      required:
+        - pillarId
+        - title
+
+    UpdateMilestoneBody:
+      type: object
+      properties:
+        title:
+          type: string
+        status:
+          type: string
+          enum: [planned, active, blocked, complete]
+        priority:
+          type: string
+          nullable: true
+          enum: [P1, P2, P3, P4]
+        targetDate:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        nextAction:
+          type: string
+          nullable: true
+        sortOrder:
+          type: integer
+
+    PillarHealthEntry:
+      type: object
+      properties:
+        pillarId:
+          type: integer
+        pillarName:
+          type: string
+        portfolioStatus:
+          type: string
+          nullable: true
+        tasksDoneThisWeek:
+          type: integer
+        tasksPushedOrPassedThisWeek:
+          type: integer
+        daysSinceLastMovement:
+          type: integer
+          nullable: true
+        nudge:
+          type: string
+          nullable: true
+        warning:
+          type: string
+          nullable: true
+      required:
+        - pillarId
+        - pillarName
+        - tasksDoneThisWeek
+        - tasksPushedOrPassedThisWeek
+
     HealthStatus:
       type: object
       properties:
@@ -444,6 +656,12 @@ components:
         pillarId:
           type: integer
           nullable: true
+        milestoneId:
+          type: integer
+          nullable: true
+        blockerReason:
+          type: string
+          nullable: true
         date:
           type: string
         createdAt:
@@ -476,6 +694,12 @@ components:
         pillarId:
           type: integer
           nullable: true
+        milestoneId:
+          type: integer
+          nullable: true
+        blockerReason:
+          type: string
+          nullable: true
         date:
           type: string
       required:
@@ -505,6 +729,12 @@ components:
           enum: [pending, done, pushed, passed, blocked]
         pillarId:
           type: integer
+          nullable: true
+        milestoneId:
+          type: integer
+          nullable: true
+        blockerReason:
+          type: string
           nullable: true
 
     WeeklyPlan:
@@ -543,6 +773,12 @@ components:
           type: string
           nullable: true
         whatContinues:
+          type: string
+          nullable: true
+        whatToDeprioritize:
+          type: string
+          nullable: true
+        nextWeekFocus:
           type: string
           nullable: true
       required:
@@ -586,6 +822,12 @@ components:
         whatContinues:
           type: string
           nullable: true
+        whatToDeprioritize:
+          type: string
+          nullable: true
+        nextWeekFocus:
+          type: string
+          nullable: true
       required:
         - weekOf
         - priorities
@@ -621,6 +863,12 @@ components:
           type: string
           nullable: true
         whatContinues:
+          type: string
+          nullable: true
+        whatToDeprioritize:
+          type: string
+          nullable: true
+        nextWeekFocus:
           type: string
           nullable: true
 
@@ -766,6 +1014,15 @@ components:
             suggestedNextStep:
               type: string
               nullable: true
+            whyItMatters:
+              type: string
+              nullable: true
+            blockerReason:
+              type: string
+              nullable: true
+            milestoneTitle:
+              type: string
+              nullable: true
             status:
               type: string
             date:
@@ -781,5 +1038,8 @@ components:
             - status
             - date
             - category
+        guidance:
+          type: string
+          nullable: true
       required:
         - type

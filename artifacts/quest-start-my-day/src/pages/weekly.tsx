@@ -62,6 +62,8 @@ export default function WeeklyPage() {
   const [whatMovedForward, setWhatMovedForward] = useState("");
   const [whatGotStuck, setWhatGotStuck] = useState("");
   const [whatContinues, setWhatContinues] = useState("");
+  const [whatToDeprioritize, setWhatToDeprioritize] = useState("");
+  const [nextWeekFocus, setNextWeekFocus] = useState("");
   const [saving, setSaving] = useState(false);
   const [reflectionOpen, setReflectionOpen] = useState(false);
 
@@ -75,8 +77,10 @@ export default function WeeklyPage() {
       setWhatMovedForward(existingPlan.whatMovedForward ?? "");
       setWhatGotStuck(existingPlan.whatGotStuck ?? "");
       setWhatContinues(existingPlan.whatContinues ?? "");
+      setWhatToDeprioritize(existingPlan.whatToDeprioritize ?? "");
+      setNextWeekFocus(existingPlan.nextWeekFocus ?? "");
       // Open reflection if they have content
-      if (existingPlan.whatMovedForward || existingPlan.whatGotStuck || existingPlan.whatContinues) {
+      if (existingPlan.whatMovedForward || existingPlan.whatGotStuck || existingPlan.whatContinues || existingPlan.whatToDeprioritize || existingPlan.nextWeekFocus) {
         setReflectionOpen(true);
       }
     }
@@ -98,6 +102,8 @@ export default function WeeklyPage() {
             whatMovedForward: whatMovedForward || undefined,
             whatGotStuck: whatGotStuck || undefined,
             whatContinues: whatContinues || undefined,
+            whatToDeprioritize: whatToDeprioritize || undefined,
+            nextWeekFocus: nextWeekFocus || undefined,
           },
         });
       } else {
@@ -112,6 +118,8 @@ export default function WeeklyPage() {
             whatMovedForward: whatMovedForward || undefined,
             whatGotStuck: whatGotStuck || undefined,
             whatContinues: whatContinues || undefined,
+            whatToDeprioritize: whatToDeprioritize || undefined,
+            nextWeekFocus: nextWeekFocus || undefined,
             activePillarIds: pillars?.filter(p => p.isActiveThisWeek).map(p => p.id) ?? [],
           },
         });
@@ -345,6 +353,26 @@ export default function WeeklyPage() {
                     value={whatContinues}
                     onChange={e => setWhatContinues(e.target.value)}
                     placeholder="What carries forward?"
+                    className="rounded-xl resize-none"
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>What to deprioritize</Label>
+                  <Textarea
+                    value={whatToDeprioritize}
+                    onChange={e => setWhatToDeprioritize(e.target.value)}
+                    placeholder="What's OK to let go of or slow down?"
+                    className="rounded-xl resize-none"
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Next week's key focus</Label>
+                  <Textarea
+                    value={nextWeekFocus}
+                    onChange={e => setNextWeekFocus(e.target.value)}
+                    placeholder="One sentence: what's the north star next week?"
                     className="rounded-xl resize-none"
                     rows={2}
                   />

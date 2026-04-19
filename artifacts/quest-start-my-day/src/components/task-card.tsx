@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getListTasksQueryKey, getGetDashboardSummaryQueryKey, getGetReentryTaskQueryKey } from "@workspace/api-client-react";
 import { CategoryBadge } from "@/components/category-badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 
 interface Pillar {
@@ -21,6 +22,7 @@ interface Task {
   whyItMatters?: string | null;
   doneLooksLike?: string | null;
   suggestedNextStep?: string | null;
+  blockerReason?: string | null;
   status: string;
   date: string;
   pillarId?: number | null;
@@ -43,6 +45,8 @@ const statusConfig = {
 
 export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardProps) {
   const [expanded, setExpanded] = useState(task.status === "pending");
+  const [blockerDraft, setBlockerDraft] = useState("");
+  const [showBlockerInput, setShowBlockerInput] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const updateTask = useUpdateTask();
@@ -59,12 +63,32 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
   };
 
   const handleAction = (status: "done" | "pushed" | "passed" | "blocked") => {
+    if (status === "blocked") {
+      setShowBlockerInput(true);
+      return;
+    }
     updateTask.mutate(
       { id: task.id, data: { status } },
       {
         onSuccess: () => {
           invalidateAll();
           if (status === "done") setExpanded(false);
+        },
+        onError: () => {
+          toast({ title: "Something went wrong", variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const handleConfirmBlocked = () => {
+    updateTask.mutate(
+      { id: task.id, data: { status: "blocked", blockerReason: blockerDraft.trim() || undefined } },
+      {
+        onSuccess: () => {
+          invalidateAll();
+          setShowBlockerInput(false);
+          setBlockerDraft("");
         },
         onError: () => {
           toast({ title: "Something went wrong", variant: "destructive" });
@@ -92,7 +116,6 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <CategoryBadge category={task.category} />
-            {/* Pillar chip — shown when linked to an active pillar */}
             {pillar && isActivePillar && (
               <span
                 className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border"
@@ -160,9 +183,15 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
                   <p className="text-sm text-foreground/80 leading-relaxed">{task.suggestedNextStep}</p>
                 </div>
               )}
+              {task.status === "blocked" && task.blockerReason && (
+                <div className="rounded-xl bg-rose-50 dark:bg-rose-900/20 px-3 py-2.5">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-rose-600 dark:text-rose-400 mb-1">Blocker</p>
+                  <p className="text-sm text-foreground/80 leading-relaxed">{task.blockerReason}</p>
+                </div>
+              )}
             </div>
 
-            {isPending && (
+            {isPending && !showBlockerInput && (
               <div className="mt-5 grid grid-cols-2 gap-2">
                 <Button
                   size="sm"
@@ -203,6 +232,39 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
                   <AlertCircle className="h-3.5 w-3.5 mr-1.5" />
                   Blocked
                 </Button>
+              </div>
+            )}
+
+            {isPending && showBlockerInput && (
+              <div className="mt-4 space-y-2">
+                <Textarea
+                  value={blockerDraft}
+                  onChange={e => setBlockerDraft(e.target.value)}
+                  placeholder="What's blocking this? (optional)"
+                  className="rounded-xl resize-none text-sm"
+                  rows={2}
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl text-xs"
+                    onClick={() => { setShowBlockerInput(false); setBlockerDraft(""); }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl text-xs flex-1 text-rose-600 border-rose-200 hover:bg-rose-50 dark:text-rose-400 dark:border-rose-800 dark:hover:bg-rose-900/20"
+                    onClick={handleConfirmBlocked}
+                    disabled={updateTask.isPending}
+                  >
+                    <AlertCircle className="h-3.5 w-3.5 mr-1.5" />
+                    Mark blocked
+                  </Button>
+                </div>
               </div>
             )}
 

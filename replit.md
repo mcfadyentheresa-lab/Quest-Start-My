@@ -40,6 +40,15 @@ A personal daily command center — mobile-first web app for morning planning.
 - Task cards: subtle pillar chip shown when task is linked to an active pillar
 - Add-task dialog: pillar selector (filtered to active pillars), weekly priority reminder
 
+**Phase 3 features (added):**
+- Milestones: per-pillar milestone tracking (planned/active/blocked/complete) with title, priority, target date, description, next action — full CRUD in expanded pillar card
+- Re-entry panel enriched: shows milestoneTitle, whyItMatters, blockerReason, and rules-based guidance text
+- Task blocked flow: clicking "Blocked" prompts for a blocker reason before marking (captured in blockerReason field)
+- Add-task dialog: milestone selector shown when a pillar is selected and it has open milestones
+- Pillar Health tab (3rd tab on History): per-pillar activity summary (done count, pushed/passed, days-since-last-move), nudges for stalled pillars, warnings for Warm/Parked absorbing too much effort
+- Weekly reflection: two new fields — "What to deprioritize" and "Next week's key focus"
+- Weekly plan save/restore: new fields persisted to weekly_plans table (whatToDeprioritize, nextWeekFocus)
+
 **Pages:**
 - `/` — Start My Day dashboard
 - `/weekly` — Weekly planning + reflection
@@ -57,8 +66,9 @@ A personal daily command center — mobile-first web app for morning planning.
 ## Database Schema
 
 - `pillars` — project pillars with priority (P1-P4), portfolioStatus (Active/Warm/Parked), detail fields (currentStage, whyItMatters, nowFocus, nextFocus, laterFocus, blockers, lastUpdated)
-- `tasks` — daily tasks with category (business/creative/wellness), status, rich details, pillarId FK
-- `weekly_plans` — weekly priorities, healthFocus, businessFocus, creativeFocus, notes, reflection fields (whatMovedForward, whatGotStuck, whatContinues), activePillarIds
+- `tasks` — daily tasks with category (business/creative/wellness), status, rich details, pillarId FK, milestoneId FK (nullable), blockerReason (nullable)
+- `weekly_plans` — weekly priorities, healthFocus, businessFocus, creativeFocus, notes, reflection fields (whatMovedForward, whatGotStuck, whatContinues, whatToDeprioritize, nextWeekFocus), activePillarIds
+- `milestones` — per-pillar milestones with status (planned/active/blocked/complete), priority (P1-P4), targetDate, description, nextAction, sortOrder
 - `progress_logs` — log of task status changes for history view
 
 ## API Endpoints (key)
@@ -72,7 +82,12 @@ A personal daily command center — mobile-first web app for morning planning.
 - `POST/PATCH /api/weekly/:id` — create/update weekly plan
 - `GET /api/dashboard/summary` — today's dashboard summary
 - `GET /api/dashboard/week-summary` — this week's task stats + pillar activity
-- `GET /api/dashboard/reentry` — re-entry task (last unfinished or last completed)
+- `GET /api/dashboard/reentry` — re-entry task with milestoneTitle, blockerReason, whyItMatters, guidance
+- `GET /api/dashboard/pillar-health` — per-pillar health: done count, days since last move, nudges, warnings
+- `GET /api/milestones?pillarId=X` — milestones for a pillar
+- `POST /api/milestones` — create milestone
+- `PATCH /api/milestones/:id` — update milestone
+- `DELETE /api/milestones/:id` — delete milestone
 - `GET /api/progress?limit=N` — progress log entries
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.

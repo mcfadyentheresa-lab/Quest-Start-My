@@ -16,6 +16,9 @@ export const weeklyPlansTable = pgTable("weekly_plans", {
   whatMovedForward: text("what_moved_forward"),
   whatGotStuck: text("what_got_stuck"),
   whatContinues: text("what_continues"),
+  // Phase 3 additions
+  whatToDeprioritize: text("what_to_deprioritize"),
+  nextWeekFocus: text("next_week_focus"),
 });
 
 export const insertWeeklyPlanSchema = createInsertSchema(weeklyPlansTable).omit({ id: true, createdAt: true });

@@ -5,6 +5,114 @@
  * API specification for Quest Start My Day
  * OpenAPI spec version: 0.1.0
  */
+export type MilestoneStatus =
+  (typeof MilestoneStatus)[keyof typeof MilestoneStatus];
+
+export const MilestoneStatus = {
+  planned: "planned",
+  active: "active",
+  blocked: "blocked",
+  complete: "complete",
+} as const;
+
+export type MilestonePriority =
+  | (typeof MilestonePriority)[keyof typeof MilestonePriority]
+  | null;
+
+export const MilestonePriority = {
+  P1: "P1",
+  P2: "P2",
+  P3: "P3",
+  P4: "P4",
+} as const;
+
+export interface Milestone {
+  id: number;
+  pillarId: number;
+  title: string;
+  status: MilestoneStatus;
+  priority?: MilestonePriority;
+  targetDate?: string | null;
+  description?: string | null;
+  nextAction?: string | null;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export type CreateMilestoneBodyStatus =
+  (typeof CreateMilestoneBodyStatus)[keyof typeof CreateMilestoneBodyStatus];
+
+export const CreateMilestoneBodyStatus = {
+  planned: "planned",
+  active: "active",
+  blocked: "blocked",
+  complete: "complete",
+} as const;
+
+export type CreateMilestoneBodyPriority =
+  | (typeof CreateMilestoneBodyPriority)[keyof typeof CreateMilestoneBodyPriority]
+  | null;
+
+export const CreateMilestoneBodyPriority = {
+  P1: "P1",
+  P2: "P2",
+  P3: "P3",
+  P4: "P4",
+} as const;
+
+export interface CreateMilestoneBody {
+  pillarId: number;
+  title: string;
+  status?: CreateMilestoneBodyStatus;
+  priority?: CreateMilestoneBodyPriority;
+  targetDate?: string | null;
+  description?: string | null;
+  nextAction?: string | null;
+  sortOrder?: number;
+}
+
+export type UpdateMilestoneBodyStatus =
+  (typeof UpdateMilestoneBodyStatus)[keyof typeof UpdateMilestoneBodyStatus];
+
+export const UpdateMilestoneBodyStatus = {
+  planned: "planned",
+  active: "active",
+  blocked: "blocked",
+  complete: "complete",
+} as const;
+
+export type UpdateMilestoneBodyPriority =
+  | (typeof UpdateMilestoneBodyPriority)[keyof typeof UpdateMilestoneBodyPriority]
+  | null;
+
+export const UpdateMilestoneBodyPriority = {
+  P1: "P1",
+  P2: "P2",
+  P3: "P3",
+  P4: "P4",
+} as const;
+
+export interface UpdateMilestoneBody {
+  title?: string;
+  status?: UpdateMilestoneBodyStatus;
+  priority?: UpdateMilestoneBodyPriority;
+  targetDate?: string | null;
+  description?: string | null;
+  nextAction?: string | null;
+  sortOrder?: number;
+}
+
+export interface PillarHealthEntry {
+  pillarId: number;
+  pillarName: string;
+  portfolioStatus?: string | null;
+  tasksDoneThisWeek: number;
+  tasksPushedOrPassedThisWeek: number;
+  daysSinceLastMovement?: number | null;
+  nudge?: string | null;
+  warning?: string | null;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -109,6 +217,8 @@ export interface Task {
   suggestedNextStep?: string | null;
   status: TaskStatus;
   pillarId?: number | null;
+  milestoneId?: number | null;
+  blockerReason?: string | null;
   date: string;
   createdAt: string;
 }
@@ -129,6 +239,8 @@ export interface CreateTaskBody {
   doneLooksLike?: string | null;
   suggestedNextStep?: string | null;
   pillarId?: number | null;
+  milestoneId?: number | null;
+  blockerReason?: string | null;
   date: string;
 }
 
@@ -160,6 +272,8 @@ export interface UpdateTaskBody {
   suggestedNextStep?: string | null;
   status?: UpdateTaskBodyStatus;
   pillarId?: number | null;
+  milestoneId?: number | null;
+  blockerReason?: string | null;
 }
 
 export interface WeeklyPlan {
@@ -175,6 +289,8 @@ export interface WeeklyPlan {
   whatMovedForward?: string | null;
   whatGotStuck?: string | null;
   whatContinues?: string | null;
+  whatToDeprioritize?: string | null;
+  nextWeekFocus?: string | null;
 }
 
 export interface CreateWeeklyPlanBody {
@@ -188,6 +304,8 @@ export interface CreateWeeklyPlanBody {
   whatMovedForward?: string | null;
   whatGotStuck?: string | null;
   whatContinues?: string | null;
+  whatToDeprioritize?: string | null;
+  nextWeekFocus?: string | null;
 }
 
 export interface UpdateWeeklyPlanBody {
@@ -200,6 +318,8 @@ export interface UpdateWeeklyPlanBody {
   whatMovedForward?: string | null;
   whatGotStuck?: string | null;
   whatContinues?: string | null;
+  whatToDeprioritize?: string | null;
+  nextWeekFocus?: string | null;
 }
 
 export interface ProgressLog {
@@ -226,7 +346,7 @@ export interface DashboardSummary {
   planningStreak: number;
 }
 
-export type WeekSummaryPillarActivityTaskItem = {
+export type WeekSummaryPillarActivityItemTasksItem = {
   id: number;
   title: string;
   status: string;
@@ -237,7 +357,7 @@ export type WeekSummaryPillarActivityItem = {
   pillarId: number;
   pillarName: string;
   taskCount: number;
-  tasks: WeekSummaryPillarActivityTaskItem[];
+  tasks: WeekSummaryPillarActivityItemTasksItem[];
 };
 
 export interface WeekSummary {
@@ -264,6 +384,9 @@ export type ReentryInfoTask = {
   id: number;
   title: string;
   suggestedNextStep?: string | null;
+  whyItMatters?: string | null;
+  blockerReason?: string | null;
+  milestoneTitle?: string | null;
   status: string;
   date: string;
   category: string;
@@ -273,7 +396,12 @@ export type ReentryInfoTask = {
 export interface ReentryInfo {
   type: ReentryInfoType;
   task?: ReentryInfoTask;
+  guidance?: string | null;
 }
+
+export type ListMilestonesParams = {
+  pillarId?: number;
+};
 
 export type ListTasksParams = {
   /**

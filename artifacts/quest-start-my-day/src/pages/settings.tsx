@@ -1,6 +1,17 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useListPillars, useCreatePillar, useUpdatePillar, getListPillarsQueryKey, getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
+import {
+  useListPillars,
+  useCreatePillar,
+  useUpdatePillar,
+  useListMilestones,
+  useCreateMilestone,
+  useUpdateMilestone,
+  useDeleteMilestone,
+  getListPillarsQueryKey,
+  getGetDashboardSummaryQueryKey,
+  getListMilestonesQueryKey,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PriorityBadge } from "@/components/priority-badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check } from "lucide-react";
+import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useForm } from "react-hook-form";
@@ -22,6 +33,16 @@ const COLORS = [
 
 const PORTFOLIO_STATUSES = ["Active", "Warm", "Parked"] as const;
 type PortfolioStatus = typeof PORTFOLIO_STATUSES[number];
+
+const MILESTONE_STATUSES = ["planned", "active", "blocked", "complete"] as const;
+type MilestoneStatus = typeof MILESTONE_STATUSES[number];
+
+const milestoneStatusStyles: Record<MilestoneStatus, string> = {
+  planned: "text-sky-700 bg-sky-50 dark:text-sky-400 dark:bg-sky-900/20",
+  active: "text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-900/20",
+  blocked: "text-rose-600 bg-rose-50 dark:text-rose-400 dark:bg-rose-900/20",
+  complete: "text-muted-foreground bg-muted/50",
+};
 
 interface PillarFormData {
   name: string;
@@ -35,6 +56,15 @@ interface PillarFormData {
   nextFocus: string;
   laterFocus: string;
   blockers: string;
+}
+
+interface MilestoneFormData {
+  title: string;
+  status: string;
+  priority: string;
+  targetDate: string;
+  description: string;
+  nextAction: string;
 }
 
 function PillarForm({
@@ -166,6 +196,91 @@ function PillarForm({
   );
 }
 
+function MilestoneForm({
+  defaultValues,
+  onSubmit,
+  loading,
+  submitLabel,
+}: {
+  defaultValues?: Partial<MilestoneFormData>;
+  onSubmit: (data: MilestoneFormData) => void;
+  loading: boolean;
+  submitLabel: string;
+}) {
+  const { register, handleSubmit, setValue, watch } = useForm<MilestoneFormData>({
+    defaultValues: {
+      title: "",
+      status: "planned",
+      priority: "",
+      targetDate: "",
+      description: "",
+      nextAction: "",
+      ...defaultValues,
+    },
+  });
+  const status = watch("status");
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2 max-h-[65vh] overflow-y-auto pr-1">
+      <div className="space-y-1.5">
+        <Label>Milestone title</Label>
+        <Input {...register("title", { required: true })} placeholder="e.g. Launch beta to first 10 users" className="rounded-xl" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label>Status</Label>
+          <Select value={status} onValueChange={v => setValue("status", v)}>
+            <SelectTrigger className="rounded-xl">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="planned">Planned</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="blocked">Blocked</SelectItem>
+              <SelectItem value="complete">Complete</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Priority</Label>
+          <Select value={watch("priority") || "none"} onValueChange={v => setValue("priority", v === "none" ? "" : v)}>
+            <SelectTrigger className="rounded-xl">
+              <SelectValue placeholder="None" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None</SelectItem>
+              <SelectItem value="P1">P1</SelectItem>
+              <SelectItem value="P2">P2</SelectItem>
+              <SelectItem value="P3">P3</SelectItem>
+              <SelectItem value="P4">P4</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Target date (optional)</Label>
+        <Input type="date" {...register("targetDate")} className="rounded-xl" />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Description</Label>
+        <Textarea {...register("description")} placeholder="What does reaching this milestone mean?" className="rounded-xl resize-none" rows={2} />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Next action</Label>
+        <Input {...register("nextAction")} placeholder="First concrete step..." className="rounded-xl" />
+      </div>
+
+      <Button type="submit" className="w-full rounded-xl" disabled={loading}>
+        {submitLabel}
+      </Button>
+    </form>
+  );
+}
+
 const portfolioStatusStyles: Record<PortfolioStatus, string> = {
   Active: "text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-900/20",
   Warm: "text-amber-700 bg-amber-50 dark:text-amber-400 dark:bg-amber-900/20",
@@ -224,6 +339,169 @@ function PortfolioStatusBadge({
   );
 }
 
+function MilestonesSection({ pillarId }: { pillarId: number }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { data: milestones, isLoading } = useListMilestones({ pillarId });
+  const createMilestone = useCreateMilestone();
+  const updateMilestone = useUpdateMilestone();
+  const deleteMilestone = useDeleteMilestone();
+  const [addOpen, setAddOpen] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: getListMilestonesQueryKey({ pillarId }) });
+  };
+
+  const handleCreate = (data: MilestoneFormData) => {
+    createMilestone.mutate(
+      {
+        data: {
+          pillarId,
+          title: data.title,
+          status: data.status as "planned" | "active" | "blocked" | "complete",
+          priority: (data.priority || undefined) as "P1" | "P2" | "P3" | "P4" | undefined,
+          targetDate: data.targetDate || undefined,
+          description: data.description || undefined,
+          nextAction: data.nextAction || undefined,
+        },
+      },
+      {
+        onSuccess: () => { invalidate(); setAddOpen(false); toast({ title: "Milestone added" }); },
+        onError: () => toast({ title: "Failed to add milestone", variant: "destructive" }),
+      }
+    );
+  };
+
+  const handleUpdate = (id: number, data: MilestoneFormData) => {
+    updateMilestone.mutate(
+      {
+        id,
+        data: {
+          title: data.title,
+          status: data.status as "planned" | "active" | "blocked" | "complete",
+          priority: (data.priority || undefined) as "P1" | "P2" | "P3" | "P4" | undefined,
+          targetDate: data.targetDate || undefined,
+          description: data.description || undefined,
+          nextAction: data.nextAction || undefined,
+        },
+      },
+      {
+        onSuccess: () => { invalidate(); setEditId(null); toast({ title: "Milestone updated" }); },
+        onError: () => toast({ title: "Failed to update milestone", variant: "destructive" }),
+      }
+    );
+  };
+
+  const handleDelete = (id: number) => {
+    deleteMilestone.mutate(
+      { id },
+      {
+        onSuccess: () => { invalidate(); toast({ title: "Milestone removed" }); },
+        onError: () => toast({ title: "Failed to delete milestone", variant: "destructive" }),
+      }
+    );
+  };
+
+  if (isLoading) {
+    return <div className="space-y-2"><Skeleton className="h-8 rounded-lg" /></div>;
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Milestones</p>
+        <Dialog open={addOpen} onOpenChange={setAddOpen}>
+          <DialogTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-7 rounded-lg gap-1 text-xs px-2">
+              <Plus className="h-3 w-3" />
+              Add
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="rounded-2xl max-w-sm mx-4">
+            <DialogHeader>
+              <DialogTitle className="font-serif text-lg">New milestone</DialogTitle>
+            </DialogHeader>
+            <MilestoneForm
+              onSubmit={handleCreate}
+              loading={createMilestone.isPending}
+              submitLabel="Create milestone"
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {(!milestones || milestones.length === 0) ? (
+        <p className="text-xs text-muted-foreground/60 italic py-1">No milestones yet. Add one to track progress.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {milestones.map(m => (
+            <div key={m.id} className="rounded-xl bg-background border border-border/60 px-3 py-2.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${milestoneStatusStyles[m.status as MilestoneStatus] ?? milestoneStatusStyles.planned}`}>
+                      {m.status}
+                    </span>
+                    {m.priority && (
+                      <span className="text-xs text-muted-foreground font-medium">{m.priority}</span>
+                    )}
+                    {m.targetDate && (
+                      <span className="text-xs text-muted-foreground">→ {m.targetDate}</span>
+                    )}
+                  </div>
+                  <p className={`text-sm font-medium text-foreground ${m.status === "complete" ? "line-through text-muted-foreground" : ""}`}>
+                    {m.title}
+                  </p>
+                  {m.nextAction && (
+                    <p className="text-xs text-muted-foreground mt-0.5">Next: {m.nextAction}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <Dialog open={editId === m.id} onOpenChange={open => setEditId(open ? m.id : null)}>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="rounded-2xl max-w-sm mx-4">
+                      <DialogHeader>
+                        <DialogTitle className="font-serif text-lg">Edit milestone</DialogTitle>
+                      </DialogHeader>
+                      <MilestoneForm
+                        defaultValues={{
+                          title: m.title,
+                          status: m.status,
+                          priority: m.priority ?? "",
+                          targetDate: m.targetDate ?? "",
+                          description: m.description ?? "",
+                          nextAction: m.nextAction ?? "",
+                        }}
+                        onSubmit={(data) => handleUpdate(m.id, data)}
+                        loading={updateMilestone.isPending}
+                        submitLabel="Save changes"
+                      />
+                    </DialogContent>
+                  </Dialog>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 rounded-lg text-muted-foreground hover:text-rose-600"
+                    onClick={() => handleDelete(m.id)}
+                    disabled={deleteMilestone.isPending}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface PillarCardProps {
   pillar: {
     id: number;
@@ -278,11 +556,9 @@ function PillarCard({ pillar, onEdit, onStatusChange, editLoading, statusLoading
             </div>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
-            {hasDetail && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl" onClick={() => setExpanded(!expanded)}>
-                {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              </Button>
-            )}
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl" onClick={() => setExpanded(!expanded)}>
+              {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </Button>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl">
@@ -318,7 +594,7 @@ function PillarCard({ pillar, onEdit, onStatusChange, editLoading, statusLoading
       </div>
 
       <AnimatePresence initial={false}>
-        {expanded && hasDetail && (
+        {expanded && (
           <motion.div
             key="detail"
             initial={{ opacity: 0, height: 0 }}
@@ -359,6 +635,11 @@ function PillarCard({ pillar, onEdit, onStatusChange, editLoading, statusLoading
                   <p className="text-sm text-foreground/80">{pillar.blockers}</p>
                 </div>
               )}
+
+              {/* Milestones section */}
+              <div className="border-t border-border pt-3">
+                <MilestonesSection pillarId={pillar.id} />
+              </div>
             </div>
           </motion.div>
         )}
