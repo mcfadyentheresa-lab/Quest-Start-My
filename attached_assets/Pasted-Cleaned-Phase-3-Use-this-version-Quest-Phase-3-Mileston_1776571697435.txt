@@ -1,0 +1,216 @@
+Cleaned Phase 3
+Use this version:
+---
+Quest Phase 3 — Milestones, Guidance & Pillar Health
+What & Why
+Evolve Quest Start My Day from a task list into a decision-support layer.
+Phase 3 adds:
+•	milestones per project pillar,
+•	a rules-based “next step” guidance engine using existing data,
+•	a pillar health view,
+•	and a richer weekly review,
+all while preserving every existing record, route, and component.
+Migration Safety
+All schema changes must be additive only:
+•	nullable `ADD COLUMN`s, or
+•	new tables.
+Before touching schema:
+•	run `\\d <table>` and verify current columns,
+•	review the current schema,
+•	inspect the generated SQL before applying it,
+•	and stop for approval if any statement would drop, rename, recreate, or reset data.
+Do not use any command or flag that auto-accepts destructive changes. Drizzle’s `force` behavior is specifically risky here because it auto-accepts data-loss statements.[orm.drizzle]
+No existing data may be dropped, renamed, recreated, or reset.
+Pre-flight
+Before starting:
+•	check which of tasks #2–#8 have recently merged into main,
+•	review their changes to:
+•	settings,
+•	history,
+•	dashboard,
+•	and weekly pages
+before modifying those same files.
+Done looks like
+Milestones
+•	Each pillar on the Projects page can expand to show a list of milestones.
+•	Milestones can be created, edited, and deleted per pillar via a simple modal form.
+•	Each milestone has:
+•	title
+•	status (`Planned`, `Active`, `Blocked`, `Complete`)
+•	priority (`P1`–`P4`)
+•	optional target date
+•	optional description
+•	optional next action
+•	The expanded pillar card shows the Active milestone at the top with its next action, plus a count of total milestones.
+•	Tasks can optionally be linked to a milestone via a selector in the add-task dialog.
+•	Only milestones from the task’s linked pillar are shown in that selector.
+Smarter Re-entry
+•	The dashboard re-entry panel is enhanced to show:
+•	the task’s “Why it matters”
+•	blocker reason, if status = blocked
+•	linked milestone, if present
+•	If a task is blocked, show this guidance:
+•	“Consider clarifying the blocker or trying a smaller version.”
+•	If a task was passed/deferred, show this guidance:
+•	“A smaller first step might unlock this.”
+•	If a task is unfinished and has no next step, show:
+•	“Pick a tiny concrete action to restart momentum.”
+•	These suggestions must be generated server-side using simple rules, with no AI API.
+Blocker reason on tasks
+•	Tasks with status `blocked` can store an optional short blocker reason.
+•	The blocker reason is shown on the card and included in re-entry context.
+Pillar Health view
+•	History page gains a third tab: Pillar Health
+•	Show each pillar with:
+•	number of tasks completed this week
+•	number of tasks pushed or passed this week
+•	days since last movement, computed from `progress_logs`
+•	subtle color indicator: green / amber / red
+•	Show a warning if a Warm or Parked pillar is absorbing more than 30% of completed tasks this week.
+•	If a pillar has had zero movement in 7+ days, show:
+•	“No movement in 7 days — one tiny action?”
+Richer Weekly Review
+•	The weekly reflection section gains:
+•	What should be deprioritized or parked?
+•	What deserves the most attention next week?
+•	These fields persist to `weekly_plans`
+•	They also appear in the History “This Week” tab
+Out of scope
+•	External AI API calls
+•	Full autonomous task generation or scheduling
+•	Calendar integration
+•	Email integration
+•	Push notifications
+•	Multi-user support
+•	Authentication
+•	Any redesign of the existing visual theme
+Steps
+1. Schema migration
+Review current schema with `\\d` before touching anything.
+Add a new `milestones` table linked to pillars with:
+•	`pillarId` FK
+•	`title`
+•	`status`
+•	`priority`
+•	`targetDate`
+•	`description`
+•	`nextAction`
+•	`sortOrder`
+•	`createdAt`
+Add nullable fields to `tasks`:
+•	`milestoneId` (integer)
+•	`blockerReason` (text)
+Add nullable fields to `weekly_plans`:
+•	`whatToDeprioritize`
+•	`nextWeekFocus`
+Seed nothing. Milestone data is user-created.
+Use a safe migration workflow. Review generated SQL before applying. Do not auto-approve destructive statements.[ispirer +2]
+2. Milestone API routes
+Add CRUD routes:
+•	`GET /milestones?pillarId=X`
+•	`POST /milestones`
+•	`PATCH /milestones/:id`
+•	`DELETE /milestones/:id`
+Update the OpenAPI spec with:
+•	Milestone schema
+•	all four operations
+Extend `UpdateTaskBody` and `CreateTaskBody` to include:
+•	`milestoneId` (optional integer)
+•	`blockerReason` (optional string)
+Run codegen after all spec changes.
+3. Enhanced reentry API
+Extend `GET /dashboard/reentry` to include:
+•	`milestoneTitle`
+•	`blockerReason`
+•	`guidance`
+Generate `guidance` with simple server-side rules:
+•	blocked task → “Consider clarifying the blocker or trying a smaller version”
+•	passed task → “A smaller first step might unlock this”
+•	unfinished task with no next step → “Pick a tiny concrete action to restart momentum”
+Update the OpenAPI spec and run codegen.
+4. Pillar health API
+Add:
+•	`GET /dashboard/pillar-health`
+Return per-pillar stats computed from tasks and `progress_logs`:
+•	`tasksDoneThisWeek`
+•	`tasksPushedOrPassedThisWeek`
+•	`daysSinceLastMovement`
+•	`portfolioStatus`
+Add schema to OpenAPI and run codegen.
+5. Weekly plan API extensions
+Extend:
+•	`PATCH /weekly/:id`
+•	`POST /weekly`
+Accept and persist:
+•	`whatToDeprioritize`
+•	`nextWeekFocus`
+Update `UpdateWeeklyPlanBody` and `CreateWeeklyPlanBody` in OpenAPI and run codegen.
+6. Milestone UI in Pillars page
+Inside each expanded pillar card in `settings.tsx`:
+•	add a Milestones section below Now / Next / Later
+•	show milestones in a compact list:
+•	title
+•	status badge
+•	next action
+•	add an Add milestone button that opens a small form dialog
+•	allow editing and deleting milestones inline
+•	show the Active milestone prominently at the top
+7. Enhanced dashboard re-entry UI
+Update `dashboard.tsx` re-entry panel to show:
+•	why it matters
+•	blocker reason
+•	milestone name
+•	rules-based guidance string
+Keep it minimal and warm, not dense.
+8. Blocker reason in task card
+Update `task-card.tsx`:
+•	show blocker reason when status = blocked
+•	add a light optional inline input for blocker reason when a user marks a task blocked
+9. Pillar Health tab in History
+Add a third tab in `history.tsx`:
+•	Pillar Health
+Show:
+•	done count this week
+•	pushed/passed count
+•	days since movement
+•	health indicator
+•	relevant nudge
+•	Warm/Parked warning if applicable
+10. Richer weekly review UI
+Update `weekly.tsx` to add:
+•	What should be deprioritized?
+•	Next week’s focus
+Support both create and update flows.
+11. Milestone selector in add-task dialog
+Update `add-task-dialog.tsx`:
+•	add optional milestone selector
+•	only show it when a pillar is selected
+•	fetch milestones for the selected pillar
+•	use a `"none"` sentinel, not an empty string
+Relevant files
+•	`lib/db/src/schema/pillars.ts`
+•	`lib/db/src/schema/tasks.ts`
+•	`lib/db/src/schema/weekly_plans.ts`
+•	`lib/db/src/schema/index.ts`
+•	`lib/db/src/index.ts`
+•	`lib/api-spec/openapi.yaml`
+•	`artifacts/api-server/src/routes/pillars.ts`
+•	`artifacts/api-server/src/routes/tasks.ts`
+•	`artifacts/api-server/src/routes/weekly.ts`
+•	`artifacts/api-server/src/routes/dashboard.ts`
+•	`artifacts/api-server/src/routes/index.ts`
+•	`artifacts/quest-start-my-day/src/pages/dashboard.tsx`
+•	`artifacts/quest-start-my-day/src/pages/history.tsx`
+•	`artifacts/quest-start-my-day/src/pages/settings.tsx`
+•	`artifacts/quest-start-my-day/src/pages/weekly.tsx`
+•	`artifacts/quest-start-my-day/src/components/task-card.tsx`
+•	`artifacts/quest-start-my-day/src/components/add-task-dialog.tsx`
+•	`lib/db/drizzle.config.ts`
+Before coding
+Before implementation, explain:
+1.	what will be preserved
+2.	what schema changes are needed
+3.	how milestones relate to pillars and tasks
+4.	how guidance will be computed
+5.	how data loss will be prevented
+If any migration appears risky, stop and ask first.
