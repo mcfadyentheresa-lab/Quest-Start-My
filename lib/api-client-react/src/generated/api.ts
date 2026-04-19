@@ -27,6 +27,7 @@ import type {
   ListWeeklyPlansParams,
   Pillar,
   ProgressLog,
+  ReentryInfo,
   Task,
   UpdatePillarBody,
   UpdateTaskBody,
@@ -1222,6 +1223,81 @@ export function useGetWeekSummary<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetWeekSummaryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get re-entry task (last unfinished or last completed)
+ */
+export const getGetReentryTaskUrl = () => {
+  return `/api/dashboard/reentry`;
+};
+
+export const getReentryTask = async (
+  options?: RequestInit,
+): Promise<ReentryInfo> => {
+  return customFetch<ReentryInfo>(getGetReentryTaskUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetReentryTaskQueryKey = () => {
+  return [`/api/dashboard/reentry`] as const;
+};
+
+export const getGetReentryTaskQueryOptions = <
+  TData = Awaited<ReturnType<typeof getReentryTask>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getReentryTask>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetReentryTaskQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getReentryTask>>> = ({
+    signal,
+  }) => getReentryTask({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getReentryTask>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetReentryTaskQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getReentryTask>>
+>;
+export type GetReentryTaskQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get re-entry task (last unfinished or last completed)
+ */
+
+export function useGetReentryTask<
+  TData = Awaited<ReturnType<typeof getReentryTask>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getReentryTask>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetReentryTaskQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

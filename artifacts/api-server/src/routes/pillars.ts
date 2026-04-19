@@ -11,12 +11,16 @@ import {
 
 const router: IRouter = Router();
 
-router.get("/pillars", async (req, res): Promise<void> => {
-  const pillars = await db.select().from(pillarsTable).orderBy(pillarsTable.id);
-  res.json(ListPillarsResponse.parse(pillars.map(p => ({
+function serializePillar(p: typeof pillarsTable.$inferSelect) {
+  return {
     ...p,
     createdAt: p.createdAt.toISOString(),
-  }))));
+  };
+}
+
+router.get("/pillars", async (req, res): Promise<void> => {
+  const pillars = await db.select().from(pillarsTable).orderBy(pillarsTable.id);
+  res.json(ListPillarsResponse.parse(pillars.map(serializePillar)));
 });
 
 router.post("/pillars", async (req, res): Promise<void> => {
@@ -32,12 +36,10 @@ router.post("/pillars", async (req, res): Promise<void> => {
     description: parsed.data.description ?? null,
     isActiveThisWeek: parsed.data.isActiveThisWeek,
     color: parsed.data.color ?? null,
+    portfolioStatus: parsed.data.portfolioStatus ?? null,
   }).returning();
 
-  res.status(201).json({
-    ...pillar,
-    createdAt: pillar.createdAt.toISOString(),
-  });
+  res.status(201).json(serializePillar(pillar!));
 });
 
 router.patch("/pillars/:id", async (req, res): Promise<void> => {
@@ -59,6 +61,14 @@ router.patch("/pillars/:id", async (req, res): Promise<void> => {
   if (parsed.data.description !== undefined) updates.description = parsed.data.description;
   if (parsed.data.isActiveThisWeek !== undefined) updates.isActiveThisWeek = parsed.data.isActiveThisWeek;
   if (parsed.data.color !== undefined) updates.color = parsed.data.color;
+  if (parsed.data.portfolioStatus !== undefined) updates.portfolioStatus = parsed.data.portfolioStatus;
+  if (parsed.data.currentStage !== undefined) updates.currentStage = parsed.data.currentStage;
+  if (parsed.data.whyItMatters !== undefined) updates.whyItMatters = parsed.data.whyItMatters;
+  if (parsed.data.nowFocus !== undefined) updates.nowFocus = parsed.data.nowFocus;
+  if (parsed.data.nextFocus !== undefined) updates.nextFocus = parsed.data.nextFocus;
+  if (parsed.data.laterFocus !== undefined) updates.laterFocus = parsed.data.laterFocus;
+  if (parsed.data.blockers !== undefined) updates.blockers = parsed.data.blockers;
+  if (parsed.data.lastUpdated !== undefined) updates.lastUpdated = parsed.data.lastUpdated;
 
   const [pillar] = await db
     .update(pillarsTable)
@@ -71,10 +81,7 @@ router.patch("/pillars/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(UpdatePillarResponse.parse({
-    ...pillar,
-    createdAt: pillar.createdAt.toISOString(),
-  }));
+  res.json(UpdatePillarResponse.parse(serializePillar(pillar)));
 });
 
 export default router;

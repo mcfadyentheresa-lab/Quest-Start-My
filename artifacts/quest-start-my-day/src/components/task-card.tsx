@@ -1,12 +1,18 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, SkipForward, Pause, AlertCircle, ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, SkipForward, Pause, AlertCircle, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { useUpdateTask, useDeleteTask } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getListTasksQueryKey, getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
+import { getListTasksQueryKey, getGetDashboardSummaryQueryKey, getGetReentryTaskQueryKey } from "@workspace/api-client-react";
 import { CategoryBadge } from "@/components/category-badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+
+interface Pillar {
+  id: number;
+  name: string;
+  color?: string | null;
+}
 
 interface Task {
   id: number;
@@ -17,11 +23,14 @@ interface Task {
   suggestedNextStep?: string | null;
   status: string;
   date: string;
+  pillarId?: number | null;
 }
 
 interface TaskCardProps {
   task: Task;
   date: string;
+  pillarMap?: Map<number, Pillar>;
+  activePillarIds?: number[];
 }
 
 const statusConfig = {
@@ -32,7 +41,7 @@ const statusConfig = {
   pending: { icon: null, label: "Pending", className: "border-border bg-card" },
 };
 
-export function TaskCard({ task, date }: TaskCardProps) {
+export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardProps) {
   const [expanded, setExpanded] = useState(task.status === "pending");
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -40,14 +49,21 @@ export function TaskCard({ task, date }: TaskCardProps) {
   const deleteTask = useDeleteTask();
 
   const statusInfo = statusConfig[task.status as keyof typeof statusConfig] ?? statusConfig.pending;
+  const pillar = task.pillarId && pillarMap ? pillarMap.get(task.pillarId) : undefined;
+  const isActivePillar = pillar && activePillarIds ? activePillarIds.includes(pillar.id) : false;
+
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date }) });
+    queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getGetReentryTaskQueryKey() });
+  };
 
   const handleAction = (status: "done" | "pushed" | "passed" | "blocked") => {
     updateTask.mutate(
       { id: task.id, data: { status } },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date }) });
-          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          invalidateAll();
           if (status === "done") setExpanded(false);
         },
         onError: () => {
@@ -58,15 +74,7 @@ export function TaskCard({ task, date }: TaskCardProps) {
   };
 
   const handleDelete = () => {
-    deleteTask.mutate(
-      { id: task.id },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date }) });
-          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-        },
-      }
-    );
+    deleteTask.mutate({ id: task.id }, { onSuccess: invalidateAll });
   };
 
   const isPending = task.status === "pending";
@@ -84,6 +92,22 @@ export function TaskCard({ task, date }: TaskCardProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <CategoryBadge category={task.category} />
+            {/* Pillar chip — shown when linked to an active pillar */}
+            {pillar && isActivePillar && (
+              <span
+                className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border"
+                style={{
+                  borderColor: pillar.color ? `${pillar.color}55` : undefined,
+                  backgroundColor: pillar.color ? `${pillar.color}18` : undefined,
+                  color: pillar.color ?? undefined,
+                }}
+              >
+                {pillar.color && (
+                  <span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: pillar.color }} />
+                )}
+                {pillar.name}
+              </span>
+            )}
             {task.status !== "pending" && (
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                 task.status === "done" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" :
@@ -188,12 +212,7 @@ export function TaskCard({ task, date }: TaskCardProps) {
                   size="sm"
                   variant="outline"
                   className="rounded-xl text-xs font-medium"
-                  onClick={() => updateTask.mutate({ id: task.id, data: { status: "pending" } }, {
-                    onSuccess: () => {
-                      queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date }) });
-                      queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-                    }
-                  })}
+                  onClick={() => updateTask.mutate({ id: task.id, data: { status: "pending" } }, { onSuccess: invalidateAll })}
                 >
                   Undo
                 </Button>

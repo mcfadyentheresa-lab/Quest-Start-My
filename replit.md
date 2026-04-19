@@ -22,20 +22,29 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 ### Quest Start My Day (`artifacts/quest-start-my-day`)
 A personal daily command center — mobile-first web app for morning planning.
 
-**Features:**
+**Phase 1 features:**
 - Start My Day dashboard with greeting, active pillars, weekly focus, daily tasks, progress summary
 - Daily task cards (business/creative/wellness) with Done/Push/Pass/Blocked actions
-- Weekly planning with priorities, health focus, pillar active/inactive toggles
+- Task detail: Why / Done looks like / Next step
 - Progress log history view
-- Pillar project management (4 pillars: Aster & Spruce Connect P1, Quest Workday P1, Circadian App P2, AI Assistant Helper P3)
 - Dark mode toggle
 - PostgreSQL persistence via shared API server
 
+**Phase 2 features (added):**
+- Weekly Control Panel: business focus, creative focus, health focus, priorities, notes — all persisted
+- Weekly Reflection section (collapsible): what moved forward / what got stuck / what continues next week
+- Portfolio grouping on Projects page: Active / Warm / Parked sections with P1-P4 legend
+- Pillar detail view: expandable per-pillar cards showing Now / Next / Later / Blockers / Stage / Why it matters
+- Re-entry panel on dashboard: "Pick up where you left off" showing last unfinished task + suggested next step
+- History page: tab switcher between Activity Log and This Week summary (done/pushed/passed/blocked counts, completion rate, pillar activity)
+- Task cards: subtle pillar chip shown when task is linked to an active pillar
+- Add-task dialog: pillar selector (filtered to active pillars), weekly priority reminder
+
 **Pages:**
 - `/` — Start My Day dashboard
-- `/weekly` — Weekly planning
-- `/history` — Progress log
-- `/settings` — Pillar project management
+- `/weekly` — Weekly planning + reflection
+- `/history` — Progress log + weekly summary tab
+- `/settings` — Pillar project management (portfolio view)
 
 ## Key Commands
 
@@ -47,9 +56,23 @@ A personal daily command center — mobile-first web app for morning planning.
 
 ## Database Schema
 
-- `pillars` — project pillar projects with priority (P1-P4), color, active status
-- `tasks` — daily tasks with category (business/creative/wellness), status, rich details
-- `weekly_plans` — weekly priorities, health focus, active pillar IDs
+- `pillars` — project pillars with priority (P1-P4), portfolioStatus (Active/Warm/Parked), detail fields (currentStage, whyItMatters, nowFocus, nextFocus, laterFocus, blockers, lastUpdated)
+- `tasks` — daily tasks with category (business/creative/wellness), status, rich details, pillarId FK
+- `weekly_plans` — weekly priorities, healthFocus, businessFocus, creativeFocus, notes, reflection fields (whatMovedForward, whatGotStuck, whatContinues), activePillarIds
 - `progress_logs` — log of task status changes for history view
+
+## API Endpoints (key)
+
+- `GET /api/pillars` — list all pillars
+- `POST /api/pillars` — create pillar
+- `PATCH /api/pillars/:id` — update pillar (incl. detail fields)
+- `GET /api/tasks?date=YYYY-MM-DD` — list tasks for date
+- `POST/PATCH/DELETE /api/tasks/:id` — manage tasks
+- `GET /api/weekly?weekOf=YYYY-MM-DD` — get weekly plan
+- `POST/PATCH /api/weekly/:id` — create/update weekly plan
+- `GET /api/dashboard/summary` — today's dashboard summary
+- `GET /api/dashboard/week-summary` — this week's task stats + pillar activity
+- `GET /api/dashboard/reentry` — re-entry task (last unfinished or last completed)
+- `GET /api/progress?limit=N` — progress log entries
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.

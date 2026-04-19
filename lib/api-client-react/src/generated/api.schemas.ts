@@ -27,6 +27,14 @@ export interface Pillar {
   isActiveThisWeek: boolean;
   color?: string | null;
   createdAt: string;
+  portfolioStatus?: string | null;
+  currentStage?: string | null;
+  whyItMatters?: string | null;
+  nowFocus?: string | null;
+  nextFocus?: string | null;
+  laterFocus?: string | null;
+  blockers?: string | null;
+  lastUpdated?: string | null;
 }
 
 export type CreatePillarBodyPriority =
@@ -45,6 +53,7 @@ export interface CreatePillarBody {
   description?: string | null;
   isActiveThisWeek: boolean;
   color?: string | null;
+  portfolioStatus?: string | null;
 }
 
 export type UpdatePillarBodyPriority =
@@ -63,6 +72,14 @@ export interface UpdatePillarBody {
   description?: string | null;
   isActiveThisWeek?: boolean;
   color?: string | null;
+  portfolioStatus?: string | null;
+  currentStage?: string | null;
+  whyItMatters?: string | null;
+  nowFocus?: string | null;
+  nextFocus?: string | null;
+  laterFocus?: string | null;
+  blockers?: string | null;
+  lastUpdated?: string | null;
 }
 
 export type TaskCategory = (typeof TaskCategory)[keyof typeof TaskCategory];
@@ -153,6 +170,11 @@ export interface WeeklyPlan {
   notes?: string | null;
   activePillarIds: number[];
   createdAt: string;
+  businessFocus?: string | null;
+  creativeFocus?: string | null;
+  whatMovedForward?: string | null;
+  whatGotStuck?: string | null;
+  whatContinues?: string | null;
 }
 
 export interface CreateWeeklyPlanBody {
@@ -161,6 +183,8 @@ export interface CreateWeeklyPlanBody {
   healthFocus?: string | null;
   notes?: string | null;
   activePillarIds: number[];
+  businessFocus?: string | null;
+  creativeFocus?: string | null;
 }
 
 export interface UpdateWeeklyPlanBody {
@@ -168,6 +192,11 @@ export interface UpdateWeeklyPlanBody {
   healthFocus?: string | null;
   notes?: string | null;
   activePillarIds?: number[];
+  businessFocus?: string | null;
+  creativeFocus?: string | null;
+  whatMovedForward?: string | null;
+  whatGotStuck?: string | null;
+  whatContinues?: string | null;
 }
 
 export interface ProgressLog {
@@ -192,6 +221,12 @@ export interface DashboardSummary {
   weeklyPlan?: WeeklyPlan | null;
 }
 
+export type WeekSummaryPillarActivityItem = {
+  pillarId: number;
+  pillarName: string;
+  taskCount: number;
+};
+
 export interface WeekSummary {
   weekOf: string;
   totalTasks: number;
@@ -200,6 +235,31 @@ export interface WeekSummary {
   passedCount: number;
   blockedCount: number;
   completionRate: number;
+  pillarActivity: WeekSummaryPillarActivityItem[];
+}
+
+export type ReentryInfoType =
+  (typeof ReentryInfoType)[keyof typeof ReentryInfoType];
+
+export const ReentryInfoType = {
+  unfinished: "unfinished",
+  completed: "completed",
+  none: "none",
+} as const;
+
+export type ReentryInfoTask = {
+  id: number;
+  title: string;
+  suggestedNextStep?: string | null;
+  status: string;
+  date: string;
+  category: string;
+  pillarId?: number | null;
+} | null;
+
+export interface ReentryInfo {
+  type: ReentryInfoType;
+  task?: ReentryInfoTask;
 }
 
 export type ListTasksParams = {

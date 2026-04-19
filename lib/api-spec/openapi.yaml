@@ -280,6 +280,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/WeekSummary"
 
+  /dashboard/reentry:
+    get:
+      operationId: getReentryTask
+      tags: [dashboard]
+      summary: Get re-entry task (last unfinished or last completed)
+      responses:
+        "200":
+          description: Re-entry task or null
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReentryInfo"
+
 components:
   schemas:
     HealthStatus:
@@ -310,6 +323,30 @@ components:
           nullable: true
         createdAt:
           type: string
+        portfolioStatus:
+          type: string
+          nullable: true
+        currentStage:
+          type: string
+          nullable: true
+        whyItMatters:
+          type: string
+          nullable: true
+        nowFocus:
+          type: string
+          nullable: true
+        nextFocus:
+          type: string
+          nullable: true
+        laterFocus:
+          type: string
+          nullable: true
+        blockers:
+          type: string
+          nullable: true
+        lastUpdated:
+          type: string
+          nullable: true
       required:
         - id
         - name
@@ -333,6 +370,9 @@ components:
         color:
           type: string
           nullable: true
+        portfolioStatus:
+          type: string
+          nullable: true
       required:
         - name
         - priority
@@ -352,6 +392,30 @@ components:
         isActiveThisWeek:
           type: boolean
         color:
+          type: string
+          nullable: true
+        portfolioStatus:
+          type: string
+          nullable: true
+        currentStage:
+          type: string
+          nullable: true
+        whyItMatters:
+          type: string
+          nullable: true
+        nowFocus:
+          type: string
+          nullable: true
+        nextFocus:
+          type: string
+          nullable: true
+        laterFocus:
+          type: string
+          nullable: true
+        blockers:
+          type: string
+          nullable: true
+        lastUpdated:
           type: string
           nullable: true
 
@@ -466,6 +530,21 @@ components:
             type: integer
         createdAt:
           type: string
+        businessFocus:
+          type: string
+          nullable: true
+        creativeFocus:
+          type: string
+          nullable: true
+        whatMovedForward:
+          type: string
+          nullable: true
+        whatGotStuck:
+          type: string
+          nullable: true
+        whatContinues:
+          type: string
+          nullable: true
       required:
         - id
         - weekOf
@@ -492,6 +571,12 @@ components:
           type: array
           items:
             type: integer
+        businessFocus:
+          type: string
+          nullable: true
+        creativeFocus:
+          type: string
+          nullable: true
       required:
         - weekOf
         - priorities
@@ -514,6 +599,21 @@ components:
           type: array
           items:
             type: integer
+        businessFocus:
+          type: string
+          nullable: true
+        creativeFocus:
+          type: string
+          nullable: true
+        whatMovedForward:
+          type: string
+          nullable: true
+        whatGotStuck:
+          type: string
+          nullable: true
+        whatContinues:
+          type: string
+          nullable: true
 
     ProgressLog:
       type: object
@@ -592,6 +692,21 @@ components:
           type: integer
         completionRate:
           type: number
+        pillarActivity:
+          type: array
+          items:
+            type: object
+            properties:
+              pillarId:
+                type: integer
+              pillarName:
+                type: string
+              taskCount:
+                type: integer
+            required:
+              - pillarId
+              - pillarName
+              - taskCount
       required:
         - weekOf
         - totalTasks
@@ -600,3 +715,39 @@ components:
         - passedCount
         - blockedCount
         - completionRate
+        - pillarActivity
+
+    ReentryInfo:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [unfinished, completed, none]
+        task:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            title:
+              type: string
+            suggestedNextStep:
+              type: string
+              nullable: true
+            status:
+              type: string
+            date:
+              type: string
+            category:
+              type: string
+            pillarId:
+              type: integer
+              nullable: true
+          required:
+            - id
+            - title
+            - status
+            - date
+            - category
+      required:
+        - type

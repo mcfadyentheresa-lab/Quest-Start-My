@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   useListWeeklyPlans,
   useCreateWeeklyPlan,
@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { PriorityBadge } from "@/components/priority-badge";
-import { Plus, Trash2, Check, Loader2 } from "lucide-react";
+import { Plus, Trash2, Check, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -54,14 +54,29 @@ export default function WeeklyPage() {
 
   const [priorities, setPriorities] = useState<string[]>([""]);
   const [healthFocus, setHealthFocus] = useState("");
+  const [businessFocus, setBusinessFocus] = useState("");
+  const [creativeFocus, setCreativeFocus] = useState("");
   const [notes, setNotes] = useState("");
+  const [whatMovedForward, setWhatMovedForward] = useState("");
+  const [whatGotStuck, setWhatGotStuck] = useState("");
+  const [whatContinues, setWhatContinues] = useState("");
   const [saving, setSaving] = useState(false);
+  const [reflectionOpen, setReflectionOpen] = useState(false);
 
   useEffect(() => {
     if (existingPlan) {
       setPriorities(existingPlan.priorities.length > 0 ? existingPlan.priorities : [""]);
       setHealthFocus(existingPlan.healthFocus ?? "");
+      setBusinessFocus(existingPlan.businessFocus ?? "");
+      setCreativeFocus(existingPlan.creativeFocus ?? "");
       setNotes(existingPlan.notes ?? "");
+      setWhatMovedForward(existingPlan.whatMovedForward ?? "");
+      setWhatGotStuck(existingPlan.whatGotStuck ?? "");
+      setWhatContinues(existingPlan.whatContinues ?? "");
+      // Open reflection if they have content
+      if (existingPlan.whatMovedForward || existingPlan.whatGotStuck || existingPlan.whatContinues) {
+        setReflectionOpen(true);
+      }
     }
   }, [existingPlan]);
 
@@ -72,7 +87,16 @@ export default function WeeklyPage() {
       if (existingPlan) {
         await updatePlan.mutateAsync({
           id: existingPlan.id,
-          data: { priorities: cleanPriorities, healthFocus: healthFocus || undefined, notes: notes || undefined },
+          data: {
+            priorities: cleanPriorities,
+            healthFocus: healthFocus || undefined,
+            businessFocus: businessFocus || undefined,
+            creativeFocus: creativeFocus || undefined,
+            notes: notes || undefined,
+            whatMovedForward: whatMovedForward || undefined,
+            whatGotStuck: whatGotStuck || undefined,
+            whatContinues: whatContinues || undefined,
+          },
         });
       } else {
         await createPlan.mutateAsync({
@@ -80,6 +104,8 @@ export default function WeeklyPage() {
             weekOf,
             priorities: cleanPriorities,
             healthFocus: healthFocus || undefined,
+            businessFocus: businessFocus || undefined,
+            creativeFocus: creativeFocus || undefined,
             notes: notes || undefined,
             activePillarIds: pillars?.filter(p => p.isActiveThisWeek).map(p => p.id) ?? [],
           },
@@ -162,10 +188,13 @@ export default function WeeklyPage() {
         </div>
       </section>
 
-      {/* Weekly priorities */}
+      {/* Weekly plan form */}
       <section className="rounded-2xl bg-card border border-card-border p-5 space-y-4">
-        <h2 className="font-serif text-base font-medium text-foreground">Weekly priorities</h2>
+        <h2 className="font-serif text-base font-medium text-foreground">Weekly plan</h2>
+
+        {/* Priorities */}
         <div className="space-y-2">
+          <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Top priorities</Label>
           {priorities.map((p, i) => (
             <div key={i} className="flex gap-2">
               <Input
@@ -201,31 +230,118 @@ export default function WeeklyPage() {
           </Button>
         </div>
 
-        <div className="space-y-1.5">
-          <Label>Health focus this week</Label>
-          <Input
-            value={healthFocus}
-            onChange={e => setHealthFocus(e.target.value)}
-            placeholder="e.g. Morning walks, 8h sleep..."
-            className="rounded-xl"
-          />
-        </div>
+        {/* Focus fields */}
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Health focus</Label>
+            <Input
+              value={healthFocus}
+              onChange={e => setHealthFocus(e.target.value)}
+              placeholder="e.g. Morning walks, 8h sleep..."
+              className="rounded-xl"
+            />
+          </div>
 
-        <div className="space-y-1.5">
-          <Label>Notes</Label>
-          <Textarea
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            placeholder="Anything else to keep in mind this week..."
-            className="rounded-xl resize-none"
-            rows={3}
-          />
+          <div className="space-y-1.5">
+            <Label>Business focus</Label>
+            <Input
+              value={businessFocus}
+              onChange={e => setBusinessFocus(e.target.value)}
+              placeholder="e.g. Finish the onboarding flow..."
+              className="rounded-xl"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Creative / build focus</Label>
+            <Input
+              value={creativeFocus}
+              onChange={e => setCreativeFocus(e.target.value)}
+              placeholder="e.g. Design the landing page..."
+              className="rounded-xl"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Notes</Label>
+            <Textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Anything else to keep in mind this week..."
+              className="rounded-xl resize-none"
+              rows={2}
+            />
+          </div>
         </div>
 
         <Button className="w-full rounded-xl" onClick={save} disabled={saving}>
           {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
           Save weekly plan
         </Button>
+      </section>
+
+      {/* Weekly reflection */}
+      <section className="rounded-2xl bg-card border border-card-border overflow-hidden">
+        <button
+          onClick={() => setReflectionOpen(!reflectionOpen)}
+          className="w-full flex items-center justify-between p-5 text-left"
+        >
+          <div>
+            <h2 className="font-serif text-base font-medium text-foreground">Weekly reflection</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Review what happened this week</p>
+          </div>
+          {reflectionOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        </button>
+
+        <AnimatePresence initial={false}>
+          {reflectionOpen && (
+            <motion.div
+              key="reflection"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="px-5 pb-5 space-y-3 border-t border-border pt-4">
+                <div className="space-y-1.5">
+                  <Label>What moved forward?</Label>
+                  <Textarea
+                    value={whatMovedForward}
+                    onChange={e => setWhatMovedForward(e.target.value)}
+                    placeholder="What made real progress this week?"
+                    className="rounded-xl resize-none"
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>What got stuck?</Label>
+                  <Textarea
+                    value={whatGotStuck}
+                    onChange={e => setWhatGotStuck(e.target.value)}
+                    placeholder="What felt blocked or stalled?"
+                    className="rounded-xl resize-none"
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>What continues next week?</Label>
+                  <Textarea
+                    value={whatContinues}
+                    onChange={e => setWhatContinues(e.target.value)}
+                    placeholder="What carries forward?"
+                    className="rounded-xl resize-none"
+                    rows={2}
+                  />
+                </div>
+                <Button className="w-full rounded-xl" onClick={save} disabled={saving}>
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Save reflection
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </section>
     </div>
   );

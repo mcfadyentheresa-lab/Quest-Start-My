@@ -25,6 +25,14 @@ export const ListPillarsResponseItem = zod.object({
   isActiveThisWeek: zod.boolean(),
   color: zod.string().nullish(),
   createdAt: zod.string(),
+  portfolioStatus: zod.string().nullish(),
+  currentStage: zod.string().nullish(),
+  whyItMatters: zod.string().nullish(),
+  nowFocus: zod.string().nullish(),
+  nextFocus: zod.string().nullish(),
+  laterFocus: zod.string().nullish(),
+  blockers: zod.string().nullish(),
+  lastUpdated: zod.string().nullish(),
 });
 export const ListPillarsResponse = zod.array(ListPillarsResponseItem);
 
@@ -37,6 +45,7 @@ export const CreatePillarBody = zod.object({
   description: zod.string().nullish(),
   isActiveThisWeek: zod.boolean(),
   color: zod.string().nullish(),
+  portfolioStatus: zod.string().nullish(),
 });
 
 /**
@@ -52,6 +61,14 @@ export const UpdatePillarBody = zod.object({
   description: zod.string().nullish(),
   isActiveThisWeek: zod.boolean().optional(),
   color: zod.string().nullish(),
+  portfolioStatus: zod.string().nullish(),
+  currentStage: zod.string().nullish(),
+  whyItMatters: zod.string().nullish(),
+  nowFocus: zod.string().nullish(),
+  nextFocus: zod.string().nullish(),
+  laterFocus: zod.string().nullish(),
+  blockers: zod.string().nullish(),
+  lastUpdated: zod.string().nullish(),
 });
 
 export const UpdatePillarResponse = zod.object({
@@ -62,6 +79,14 @@ export const UpdatePillarResponse = zod.object({
   isActiveThisWeek: zod.boolean(),
   color: zod.string().nullish(),
   createdAt: zod.string(),
+  portfolioStatus: zod.string().nullish(),
+  currentStage: zod.string().nullish(),
+  whyItMatters: zod.string().nullish(),
+  nowFocus: zod.string().nullish(),
+  nextFocus: zod.string().nullish(),
+  laterFocus: zod.string().nullish(),
+  blockers: zod.string().nullish(),
+  lastUpdated: zod.string().nullish(),
 });
 
 /**
@@ -152,6 +177,11 @@ export const ListWeeklyPlansResponseItem = zod.object({
   notes: zod.string().nullish(),
   activePillarIds: zod.array(zod.number()),
   createdAt: zod.string(),
+  businessFocus: zod.string().nullish(),
+  creativeFocus: zod.string().nullish(),
+  whatMovedForward: zod.string().nullish(),
+  whatGotStuck: zod.string().nullish(),
+  whatContinues: zod.string().nullish(),
 });
 export const ListWeeklyPlansResponse = zod.array(ListWeeklyPlansResponseItem);
 
@@ -164,6 +194,8 @@ export const CreateWeeklyPlanBody = zod.object({
   healthFocus: zod.string().nullish(),
   notes: zod.string().nullish(),
   activePillarIds: zod.array(zod.number()),
+  businessFocus: zod.string().nullish(),
+  creativeFocus: zod.string().nullish(),
 });
 
 /**
@@ -178,6 +210,11 @@ export const UpdateWeeklyPlanBody = zod.object({
   healthFocus: zod.string().nullish(),
   notes: zod.string().nullish(),
   activePillarIds: zod.array(zod.number()).optional(),
+  businessFocus: zod.string().nullish(),
+  creativeFocus: zod.string().nullish(),
+  whatMovedForward: zod.string().nullish(),
+  whatGotStuck: zod.string().nullish(),
+  whatContinues: zod.string().nullish(),
 });
 
 export const UpdateWeeklyPlanResponse = zod.object({
@@ -188,6 +225,11 @@ export const UpdateWeeklyPlanResponse = zod.object({
   notes: zod.string().nullish(),
   activePillarIds: zod.array(zod.number()),
   createdAt: zod.string(),
+  businessFocus: zod.string().nullish(),
+  creativeFocus: zod.string().nullish(),
+  whatMovedForward: zod.string().nullish(),
+  whatGotStuck: zod.string().nullish(),
+  whatContinues: zod.string().nullish(),
 });
 
 /**
@@ -230,6 +272,14 @@ export const GetDashboardSummaryResponse = zod.object({
       isActiveThisWeek: zod.boolean(),
       color: zod.string().nullish(),
       createdAt: zod.string(),
+      portfolioStatus: zod.string().nullish(),
+      currentStage: zod.string().nullish(),
+      whyItMatters: zod.string().nullish(),
+      nowFocus: zod.string().nullish(),
+      nextFocus: zod.string().nullish(),
+      laterFocus: zod.string().nullish(),
+      blockers: zod.string().nullish(),
+      lastUpdated: zod.string().nullish(),
     }),
   ),
   weeklyPlan: zod
@@ -241,6 +291,11 @@ export const GetDashboardSummaryResponse = zod.object({
       notes: zod.string().nullish(),
       activePillarIds: zod.array(zod.number()),
       createdAt: zod.string(),
+      businessFocus: zod.string().nullish(),
+      creativeFocus: zod.string().nullish(),
+      whatMovedForward: zod.string().nullish(),
+      whatGotStuck: zod.string().nullish(),
+      whatContinues: zod.string().nullish(),
     })
     .nullish(),
 });
@@ -256,4 +311,29 @@ export const GetWeekSummaryResponse = zod.object({
   passedCount: zod.number(),
   blockedCount: zod.number(),
   completionRate: zod.number(),
+  pillarActivity: zod.array(
+    zod.object({
+      pillarId: zod.number(),
+      pillarName: zod.string(),
+      taskCount: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Get re-entry task (last unfinished or last completed)
+ */
+export const GetReentryTaskResponse = zod.object({
+  type: zod.enum(["unfinished", "completed", "none"]),
+  task: zod
+    .object({
+      id: zod.number(),
+      title: zod.string(),
+      suggestedNextStep: zod.string().nullish(),
+      status: zod.string(),
+      date: zod.string(),
+      category: zod.string(),
+      pillarId: zod.number().nullish(),
+    })
+    .nullish(),
 });

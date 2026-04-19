@@ -51,9 +51,11 @@ router.post("/weekly", async (req, res): Promise<void> => {
     healthFocus: parsed.data.healthFocus ?? null,
     notes: parsed.data.notes ?? null,
     activePillarIds: parsed.data.activePillarIds.map(String),
+    businessFocus: parsed.data.businessFocus ?? null,
+    creativeFocus: parsed.data.creativeFocus ?? null,
   }).returning();
 
-  res.status(201).json(serializePlan(plan));
+  res.status(201).json(serializePlan(plan!));
 });
 
 router.patch("/weekly/:id", async (req, res): Promise<void> => {
@@ -74,6 +76,11 @@ router.patch("/weekly/:id", async (req, res): Promise<void> => {
   if (parsed.data.healthFocus !== undefined) updates.healthFocus = parsed.data.healthFocus;
   if (parsed.data.notes !== undefined) updates.notes = parsed.data.notes;
   if (parsed.data.activePillarIds !== undefined) updates.activePillarIds = parsed.data.activePillarIds.map(String);
+  if (parsed.data.businessFocus !== undefined) updates.businessFocus = parsed.data.businessFocus;
+  if (parsed.data.creativeFocus !== undefined) updates.creativeFocus = parsed.data.creativeFocus;
+  if (parsed.data.whatMovedForward !== undefined) updates.whatMovedForward = parsed.data.whatMovedForward;
+  if (parsed.data.whatGotStuck !== undefined) updates.whatGotStuck = parsed.data.whatGotStuck;
+  if (parsed.data.whatContinues !== undefined) updates.whatContinues = parsed.data.whatContinues;
 
   const [plan] = await db
     .update(weeklyPlansTable)
