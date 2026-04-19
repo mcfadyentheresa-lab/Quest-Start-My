@@ -239,9 +239,11 @@ function ProportionBar({
 export default function HistoryPage() {
   const [tab, setTab] = useState<Tab>("log");
   const [selectedWeek, setSelectedWeek] = useState<string>(() => getCurrentWeekStart());
+  const [frictionWeek, setFrictionWeek] = useState<string>(() => getCurrentWeekStart());
 
   const currentWeek = getCurrentWeekStart();
   const isCurrentWeek = selectedWeek === currentWeek;
+  const isFrictionCurrentWeek = frictionWeek === currentWeek;
 
   const { data: logs, isLoading: logsLoading } = useListProgressLogs(
     { limit: 60 },
@@ -251,10 +253,11 @@ export default function HistoryPage() {
   const { data: pillarHealth, isLoading: healthLoading } = useGetPillarHealth();
   const { data: dashSummary } = useGetDashboardSummary();
   const { data: outcomes, isLoading: outcomesLoading } = useGetOutcomeMetrics({ weekOf: selectedWeek });
-  const { data: friction, isLoading: frictionLoading } = useGetFrictionSignals();
+  const { data: friction, isLoading: frictionLoading } = useGetFrictionSignals({ weekOf: frictionWeek });
 
   const pastWeeks = useMemo(() => getPastWeeks(12), []);
   const isWeekInDropdown = pastWeeks.includes(selectedWeek);
+  const isFrictionWeekInDropdown = pastWeeks.includes(frictionWeek);
 
   const SPARKLINE_WEEK_COUNT = 6;
   const sparklineWeeks = useMemo(() => {
@@ -818,7 +821,46 @@ export default function HistoryPage() {
       )}
 
       {tab === "friction" && (
-        frictionLoading ? (
+        <div className="space-y-4">
+          {/* Week selector */}
+          <div className="flex items-center gap-2 rounded-2xl bg-card border border-card-border px-3 py-3">
+            <button
+              type="button"
+              onClick={() => setFrictionWeek(w => shiftWeek(w, -1))}
+              className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex-shrink-0"
+              aria-label="Previous week"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="flex-1 min-w-0">
+              <select
+                value={isFrictionWeekInDropdown ? frictionWeek : ""}
+                onChange={e => { if (e.target.value) setFrictionWeek(e.target.value); }}
+                className="w-full bg-transparent text-sm font-medium text-foreground text-center appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/30 rounded-lg py-1 px-2 hover:bg-muted transition-colors"
+                aria-label="Select week"
+              >
+                {!isFrictionWeekInDropdown && (
+                  <option value="">{formatWeekRange(frictionWeek)}</option>
+                )}
+                {pastWeeks.map((week, i) => (
+                  <option key={week} value={week}>
+                    {i === 0 ? `This week (${formatWeekRange(week)})` : formatWeekRange(week)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFrictionWeek(w => shiftWeek(w, 1))}
+              disabled={isFrictionCurrentWeek}
+              className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
+              aria-label="Next week"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          {frictionLoading ? (
           <div className="space-y-3">
             <Skeleton className="h-20 rounded-2xl" />
             <Skeleton className="h-20 rounded-2xl" />
@@ -867,7 +909,8 @@ export default function HistoryPage() {
               );
             })}
           </div>
-        )
+        )}
+        </div>
       )}
     </div>
   );

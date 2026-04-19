@@ -1,34 +1,63 @@
 import { Router, type IRouter } from "express";
-import { and, gte, ne, eq, desc, inArray } from "drizzle-orm";
+import { and, lte, ne, eq, desc } from "drizzle-orm";
 import { db, tasksTable, pillarsTable, milestonesTable, progressLogsTable } from "@workspace/db";
 import { GetFrictionSignalsResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
-function daysAgo(n: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
-}
-
-/** First moment of the current calendar month, UTC */
-function monthStartDate(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+/** First moment of a calendar month, UTC */
+function monthStartFromDate(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 }
 
 router.get("/dashboard/friction", async (req, res): Promise<void> => {
-  const fourteenDaysAgo = daysAgo(14);
-  const monthStart = monthStartDate();
+  const weekOfParam = typeof req.query.weekOf === "string" ? req.query.weekOf : null;
+  if (weekOfParam !== null) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(weekOfParam) || isNaN(Date.parse(weekOfParam + "T00:00:00"))) {
+      res.status(400).json({ error: "weekOf must be a valid date in YYYY-MM-DD format" });
+      return;
+    }
+  }
 
-  // Fetch base data — no arbitrary time windows on repeated_pass / repeated_block
+  // Anchor: end of the selected week (weekOf + 6 days). Defaults to today.
+  let weekEndStr: string;
+  let anchorDate: Date;
+  if (weekOfParam) {
+    anchorDate = new Date(weekOfParam + "T00:00:00");
+    const weekEndDate = new Date(weekOfParam + "T00:00:00");
+    weekEndDate.setDate(weekEndDate.getDate() + 6);
+    weekEndStr = weekEndDate.toISOString().slice(0, 10);
+  } else {
+    anchorDate = new Date();
+    weekEndStr = anchorDate.toISOString().slice(0, 10);
+  }
+
+  // "14 days ago" relative to the week end
+  const fourteenDaysBeforeAnchor = new Date(weekEndStr + "T00:00:00");
+  fourteenDaysBeforeAnchor.setDate(fourteenDaysBeforeAnchor.getDate() - 14);
+  const fourteenDaysAgo = fourteenDaysBeforeAnchor.toISOString().slice(0, 10);
+
+  // Month start of the selected week
+  const monthStart = monthStartFromDate(anchorDate);
+  // End of month boundary for task creation filter
+  const weekEndTimestamp = new Date(weekEndStr + "T23:59:59.999Z");
+
+  // Fetch base data — filter logs by week end when a past week is selected
+  const passedLogsCondition = weekOfParam
+    ? and(eq(progressLogsTable.status, "passed"), lte(progressLogsTable.date, weekEndStr))
+    : eq(progressLogsTable.status, "passed");
+
+  const allLogsCondition = weekOfParam
+    ? lte(progressLogsTable.date, weekEndStr)
+    : undefined;
+
   const [pillars, openMilestones, allPassedLogs, allLogs] = await Promise.all([
     db.select().from(pillarsTable),
     db.select().from(milestonesTable).where(ne(milestonesTable.status, "complete")),
-    // All-time passed logs (repeated_pass has no specified time window in spec)
-    db.select().from(progressLogsTable).where(eq(progressLogsTable.status, "passed")),
-    // All-time logs ordered newest-first (for repeated_block per-pillar most-recent check)
-    db.select().from(progressLogsTable).orderBy(desc(progressLogsTable.loggedAt)),
+    db.select().from(progressLogsTable).where(passedLogsCondition),
+    allLogsCondition
+      ? db.select().from(progressLogsTable).where(allLogsCondition).orderBy(desc(progressLogsTable.loggedAt))
+      : db.select().from(progressLogsTable).orderBy(desc(progressLogsTable.loggedAt)),
   ]);
 
   const pillarMap = new Map(pillars.map(p => [p.id, p]));
@@ -47,7 +76,10 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
   const taskPillarMap = new Map(allTaskRows.map(t => [t.id, t.pillarId]));
 
   // Tasks created this calendar month — use createdAt (creation timestamp), not date (scheduled date)
-  const tasksCreatedThisMonth = allTaskRows.filter(t => t.createdAt >= monthStart);
+  // When a past week is selected, also bound by the week end so we only count tasks created by then.
+  const tasksCreatedThisMonth = allTaskRows.filter(t =>
+    t.createdAt >= monthStart && t.createdAt <= weekEndTimestamp
+  );
 
   const signals: {
     type: string;
@@ -173,8 +205,9 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
     const isStalled = !lastActivity || lastActivity < fourteenDaysAgo;
     if (isStalled) {
       const pillar = milestone.pillarId ? pillarMap.get(milestone.pillarId) : null;
+      const anchorMs = weekEndTimestamp.getTime();
       const daysSince = lastActivity
-        ? Math.floor((Date.now() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24))
+        ? Math.floor((anchorMs - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24))
         : null;
       const detail = daysSince !== null
         ? `Milestone "${milestone.title}" has had no task activity for ${daysSince} days — review next action or scope.`
