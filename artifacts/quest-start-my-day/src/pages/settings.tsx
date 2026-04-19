@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { useForm } from "react-hook-form";
 
 const COLORS = [
@@ -405,7 +406,8 @@ export default function SettingsPage() {
     );
   };
 
-  const handleStatusChange = (id: number, status: PortfolioStatus) => {
+  const handleStatusChange = (id: number, status: PortfolioStatus, previousStatus?: PortfolioStatus) => {
+    const prevStatus = previousStatus ?? ((pillars?.find(p => p.id === id)?.portfolioStatus ?? "Active") as PortfolioStatus);
     updatePillar.mutate(
       {
         id,
@@ -417,7 +419,17 @@ export default function SettingsPage() {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListPillarsQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-          toast({ title: `Moved to ${status}` });
+          toast({
+            title: `Moved to ${status}`,
+            action: (
+              <ToastAction
+                altText="Undo status change"
+                onClick={() => handleStatusChange(id, prevStatus, status)}
+              >
+                Undo
+              </ToastAction>
+            ),
+          });
         },
         onError: () => toast({ title: "Failed to update status", variant: "destructive" }),
       }
