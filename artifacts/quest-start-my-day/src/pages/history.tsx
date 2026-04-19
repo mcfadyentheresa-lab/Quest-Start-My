@@ -239,11 +239,9 @@ function ProportionBar({
 export default function HistoryPage() {
   const [tab, setTab] = useState<Tab>("log");
   const [selectedWeek, setSelectedWeek] = useState<string>(() => getCurrentWeekStart());
-  const [frictionWeek, setFrictionWeek] = useState<string>(() => getCurrentWeekStart());
 
   const currentWeek = getCurrentWeekStart();
   const isCurrentWeek = selectedWeek === currentWeek;
-  const isFrictionCurrentWeek = frictionWeek === currentWeek;
 
   const { data: logs, isLoading: logsLoading } = useListProgressLogs(
     { limit: 60 },
@@ -253,11 +251,10 @@ export default function HistoryPage() {
   const { data: pillarHealth, isLoading: healthLoading } = useGetPillarHealth();
   const { data: dashSummary } = useGetDashboardSummary();
   const { data: outcomes, isLoading: outcomesLoading } = useGetOutcomeMetrics({ weekOf: selectedWeek });
-  const { data: friction, isLoading: frictionLoading } = useGetFrictionSignals({ weekOf: frictionWeek });
+  const { data: friction, isLoading: frictionLoading } = useGetFrictionSignals({ weekOf: selectedWeek });
 
   const pastWeeks = useMemo(() => getPastWeeks(12), []);
   const isWeekInDropdown = pastWeeks.includes(selectedWeek);
-  const isFrictionWeekInDropdown = pastWeeks.includes(frictionWeek);
 
   const SPARKLINE_WEEK_COUNT = 6;
   const sparklineWeeks = useMemo(() => {
@@ -826,7 +823,7 @@ export default function HistoryPage() {
           <div className="flex items-center gap-2 rounded-2xl bg-card border border-card-border px-3 py-3">
             <button
               type="button"
-              onClick={() => setFrictionWeek(w => shiftWeek(w, -1))}
+              onClick={() => setSelectedWeek(w => shiftWeek(w, -1))}
               className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex-shrink-0"
               aria-label="Previous week"
             >
@@ -834,13 +831,13 @@ export default function HistoryPage() {
             </button>
             <div className="flex-1 min-w-0">
               <select
-                value={isFrictionWeekInDropdown ? frictionWeek : ""}
-                onChange={e => { if (e.target.value) setFrictionWeek(e.target.value); }}
+                value={isWeekInDropdown ? selectedWeek : ""}
+                onChange={e => { if (e.target.value) setSelectedWeek(e.target.value); }}
                 className="w-full bg-transparent text-sm font-medium text-foreground text-center appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/30 rounded-lg py-1 px-2 hover:bg-muted transition-colors"
                 aria-label="Select week"
               >
-                {!isFrictionWeekInDropdown && (
-                  <option value="">{formatWeekRange(frictionWeek)}</option>
+                {!isWeekInDropdown && (
+                  <option value="">{formatWeekRange(selectedWeek)}</option>
                 )}
                 {pastWeeks.map((week, i) => (
                   <option key={week} value={week}>
@@ -851,8 +848,8 @@ export default function HistoryPage() {
             </div>
             <button
               type="button"
-              onClick={() => setFrictionWeek(w => shiftWeek(w, 1))}
-              disabled={isFrictionCurrentWeek}
+              onClick={() => setSelectedWeek(w => shiftWeek(w, 1))}
+              disabled={isCurrentWeek}
               className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
               aria-label="Next week"
             >
