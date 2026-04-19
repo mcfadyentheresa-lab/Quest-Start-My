@@ -161,12 +161,15 @@ function PillarTrendIndicator({ rates }: { rates: number[] }) {
   );
 }
 
-function PillarSparkline({ rates, weeks }: { rates: number[]; weeks: string[] }) {
+function PillarSparkline({ rates, weeks, selectedWeek }: { rates: number[]; weeks: string[]; selectedWeek?: string }) {
   const barCount = rates.length;
   const barWidth = 8;
   const barGap = 3;
   const maxH = 28;
   const svgW = barCount * barWidth + (barCount - 1) * barGap;
+
+  const selectedIndex = selectedWeek ? weeks.indexOf(selectedWeek) : -1;
+  const highlightIndex = selectedIndex !== -1 ? selectedIndex : barCount - 1;
 
   return (
     <div className="flex flex-col items-end gap-0.5 shrink-0">
@@ -175,7 +178,7 @@ function PillarSparkline({ rates, weeks }: { rates: number[]; weeks: string[] })
           const barH = Math.max(2, Math.round(rate * maxH));
           const x = i * (barWidth + barGap);
           const y = maxH - barH;
-          const isLast = i === barCount - 1;
+          const isHighlighted = i === highlightIndex;
           return (
             <g key={i}>
               <rect
@@ -184,7 +187,7 @@ function PillarSparkline({ rates, weeks }: { rates: number[]; weeks: string[] })
                 width={barWidth}
                 height={barH}
                 rx={2}
-                className={isLast ? "fill-emerald-500" : "fill-muted-foreground/25"}
+                className={isHighlighted ? "fill-emerald-500" : "fill-muted-foreground/25"}
               />
               <title>{weeks[i] ? `Week of ${weeks[i]}: ${Math.round(rate * 100)}%` : `${Math.round(rate * 100)}%`}</title>
             </g>
@@ -744,6 +747,7 @@ export default function HistoryPage() {
                               <PillarSparkline
                                 rates={sparklineEntry.rates}
                                 weeks={sparklineEntry.weeks}
+                                selectedWeek={selectedWeek}
                               />
                             </>
                           ) : null}
