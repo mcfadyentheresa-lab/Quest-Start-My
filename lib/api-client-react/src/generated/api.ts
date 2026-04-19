@@ -1840,6 +1840,115 @@ export function useGetOutcomeMetrics<
 }
 
 /**
+ * @summary Get per-pillar completion rates for the last N weeks
+ */
+export const getGetPillarCompletionHistoryUrl = (
+  params?: GetPillarCompletionHistoryParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/dashboard/pillar-completion-history?${stringifiedParams}`
+    : `/api/dashboard/pillar-completion-history`;
+};
+
+export const getPillarCompletionHistory = async (
+  params?: GetPillarCompletionHistoryParams,
+  options?: RequestInit,
+): Promise<PillarCompletionHistory> => {
+  return customFetch<PillarCompletionHistory>(
+    getGetPillarCompletionHistoryUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetPillarCompletionHistoryQueryKey = (
+  params?: GetPillarCompletionHistoryParams,
+) => {
+  return [
+    `/api/dashboard/pillar-completion-history`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetPillarCompletionHistoryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPillarCompletionHistory>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetPillarCompletionHistoryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPillarCompletionHistory>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPillarCompletionHistoryQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPillarCompletionHistory>>
+  > = ({ signal }) =>
+    getPillarCompletionHistory(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPillarCompletionHistory>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPillarCompletionHistoryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPillarCompletionHistory>>
+>;
+export type GetPillarCompletionHistoryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get per-pillar completion rates for the last N weeks
+ */
+
+export function useGetPillarCompletionHistory<
+  TData = Awaited<ReturnType<typeof getPillarCompletionHistory>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetPillarCompletionHistoryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPillarCompletionHistory>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPillarCompletionHistoryQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Get detected friction signals across pillars, tasks, and milestones
  */
 export const getGetFrictionSignalsUrl = () => {
@@ -2138,97 +2247,6 @@ export type UpdateMonthlyReviewMutationResult = NonNullable<
 >;
 export type UpdateMonthlyReviewMutationBody = BodyType<UpdateMonthlyReviewBody>;
 export type UpdateMonthlyReviewMutationError = ErrorType<void>;
-
-/**
- * @summary Get per-pillar completion rates for the last N weeks
- */
-export const getGetPillarCompletionHistoryUrl = (
-  params?: GetPillarCompletionHistoryParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-  if (params?.weeks !== undefined) {
-    normalizedParams.append("weeks", params.weeks.toString());
-  }
-  return `/api/dashboard/pillar-completion-history${normalizedParams.toString() ? `?${normalizedParams.toString()}` : ""}`;
-};
-
-export const getPillarCompletionHistory = async (
-  params?: GetPillarCompletionHistoryParams,
-  options?: RequestInit,
-): Promise<PillarCompletionHistory> => {
-  return customFetch<PillarCompletionHistory>(
-    getGetPillarCompletionHistoryUrl(params),
-    {
-      ...options,
-      method: "GET",
-    },
-  );
-};
-
-export const getGetPillarCompletionHistoryQueryKey = (
-  params?: GetPillarCompletionHistoryParams,
-) => {
-  return [`/api/dashboard/pillar-completion-history`, ...(params ? [params] : [])] as const;
-};
-
-export const getGetPillarCompletionHistoryQueryOptions = <
-  TData = Awaited<ReturnType<typeof getPillarCompletionHistory>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetPillarCompletionHistoryParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getPillarCompletionHistory>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions } = options ?? {};
-  const queryKey =
-    queryOptions?.queryKey ?? getGetPillarCompletionHistoryQueryKey(params);
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getPillarCompletionHistory>>
-  > = ({ signal }) => getPillarCompletionHistory(params, { signal });
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getPillarCompletionHistory>>,
-    TError,
-    TData
-  >;
-};
-
-export type GetPillarCompletionHistoryQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getPillarCompletionHistory>>
->;
-export type GetPillarCompletionHistoryQueryError = ErrorType<unknown>;
-
-/**
- * @summary Get per-pillar completion rates for the last N weeks
- */
-export function useGetPillarCompletionHistory<
-  TData = Awaited<ReturnType<typeof getPillarCompletionHistory>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetPillarCompletionHistoryParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getPillarCompletionHistory>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetPillarCompletionHistoryQueryOptions(
-    params,
-    options,
-  );
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-  return { ...query, queryKey: queryOptions.queryKey };
-}
 
 /**
  * @summary Update a monthly review

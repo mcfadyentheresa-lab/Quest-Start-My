@@ -542,12 +542,19 @@ export const GetOutcomeMetricsResponse = zod.object({
 /**
  * @summary Get per-pillar completion rates for the last N weeks
  */
-export const GetPillarCompletionHistoryParams = zod.object({
-  weeks: zod.coerce.number().optional(),
+export const getPillarCompletionHistoryQueryWeeksDefault = 4;
+
+export const GetPillarCompletionHistoryQueryParams = zod.object({
+  weeks: zod.coerce
+    .number()
+    .default(getPillarCompletionHistoryQueryWeeksDefault)
+    .describe("Number of past weeks to include (default 4)"),
 });
 
 export const GetPillarCompletionHistoryResponse = zod.object({
-  weeks: zod.array(zod.string()).describe("Week start dates (YYYY-MM-DD), oldest to newest"),
+  weeks: zod
+    .array(zod.string())
+    .describe("Week start dates (YYYY-MM-DD), oldest to newest"),
   pillars: zod.array(
     zod.object({
       pillarId: zod.number(),

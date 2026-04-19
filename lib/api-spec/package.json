@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "codegen": "orval --config ./orval.config.ts && echo 'export * from \"./generated/api\";' > ../api-zod/src/index.ts && pnpm -w run typecheck:libs"
+    "codegen": "orval --config ./orval.config.ts && echo 'export * from \"./generated/api\";' > ../api-zod/src/index.ts && pnpm -w run typecheck:libs",
+    "codegen:check": "orval --config ./orval.config.ts && echo 'export * from \"./generated/api\";' > ../api-zod/src/index.ts && git diff --exit-code -- ../api-zod/src ../api-client-react/src/generated || (echo 'ERROR: Generated API files are out of sync with the OpenAPI spec. Run pnpm --filter @workspace/api-spec run codegen to regenerate.' && exit 1)"
   },
   "devDependencies": {
     "orval": "^8.5.2"

@@ -525,6 +525,19 @@ export interface OutcomeMetrics {
   p1VsWarmParkedRatio?: number | null;
 }
 
+export type PillarCompletionHistoryPillarsItem = {
+  pillarId: number;
+  pillarName: string;
+  /** Completion rate (0–1) per week, same order as weeks[] */
+  weeklyRates: number[];
+};
+
+export interface PillarCompletionHistory {
+  /** Week start dates (YYYY-MM-DD), oldest to newest */
+  weeks: string[];
+  pillars: PillarCompletionHistoryPillarsItem[];
+}
+
 export type FrictionSignalType =
   (typeof FrictionSignalType)[keyof typeof FrictionSignalType];
 
@@ -547,24 +560,6 @@ export interface FrictionSignal {
   /** Most recent relevant date for this signal (YYYY-MM-DD) */
   lastSeenDate?: string | null;
 }
-
-export type PillarCompletionHistoryPillarsItem = {
-  pillarId: number;
-  pillarName: string;
-  /** Completion rate (0–1) per week, same order as weeks[] */
-  weeklyRates: number[];
-};
-
-export interface PillarCompletionHistory {
-  /** Week start dates (YYYY-MM-DD), oldest to newest */
-  weeks: string[];
-  pillars: PillarCompletionHistoryPillarsItem[];
-}
-
-export type GetPillarCompletionHistoryParams = {
-  /** Number of past weeks to include (default 4) */
-  weeks?: number;
-};
 
 export type ListMilestonesParams = {
   pillarId?: number;
@@ -593,4 +588,11 @@ export type GetOutcomeMetricsParams = {
    * Week start date YYYY-MM-DD (Monday). Defaults to current week.
    */
   weekOf?: string;
+};
+
+export type GetPillarCompletionHistoryParams = {
+  /**
+   * Number of past weeks to include (default 4)
+   */
+  weeks?: number;
 };
