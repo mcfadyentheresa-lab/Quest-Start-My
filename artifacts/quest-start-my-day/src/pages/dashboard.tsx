@@ -62,6 +62,33 @@ export default function Dashboard() {
   const pendingTasks = tasks?.filter(t => t.status === "pending") ?? [];
   const completedTasks = tasks?.filter(t => t.status !== "pending") ?? [];
 
+  // Group tasks by pillar. Returns ordered groups: pillar groups first (sorted by pillar name), then unassigned.
+  function groupByPillar(taskList: typeof pendingTasks) {
+    if (!pillars || pillars.length === 0) return null;
+    const pillarIds = new Set(pillars.map(p => p.id));
+    const groups = new Map<number | null, typeof pendingTasks>();
+    for (const task of taskList) {
+      // Treat tasks whose pillarId is missing from the current pillar list as Unassigned
+      const key = (task.pillarId && pillarIds.has(task.pillarId)) ? task.pillarId : null;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(task);
+    }
+    // Build ordered list: pillar groups in pillar order, then unassigned
+    const result: { pillarId: number | null; label: string; color?: string | null; tasks: typeof pendingTasks }[] = [];
+    for (const pillar of pillars) {
+      if (groups.has(pillar.id)) {
+        result.push({ pillarId: pillar.id, label: pillar.name, color: pillar.color, tasks: groups.get(pillar.id)! });
+      }
+    }
+    if (groups.has(null)) {
+      result.push({ pillarId: null, label: "Unassigned", color: null, tasks: groups.get(null)! });
+    }
+    return result.length > 0 ? result : null;
+  }
+
+  const pendingGroups = groupByPillar(pendingTasks);
+  const completedGroups = groupByPillar(completedTasks);
+
   const handleJumpToTask = () => {
     if (!reentry?.task) return;
     setDateParam(reentry.task.date);
@@ -369,20 +396,64 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="space-y-3">
-            <AnimatePresence mode="popLayout">
-              {pendingTasks.map(task => (
-                <TaskCard key={task.id} task={task} date={viewDate} pillarMap={pillarMap} activePillarIds={summary?.activePillars?.map(p => p.id) ?? []} />
-              ))}
-            </AnimatePresence>
+            {pendingGroups ? (
+              pendingGroups.map((group) => (
+                <div key={group.pillarId ?? "unassigned"} className="space-y-2">
+                  {(pendingGroups.length > 1 || group.pillarId === null) && (
+                    <div className="flex items-center gap-2 px-1 pt-1">
+                      {group.color && (
+                        <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
+                      )}
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {group.label}
+                      </p>
+                    </div>
+                  )}
+                  <AnimatePresence mode="popLayout">
+                    {group.tasks.map(task => (
+                      <TaskCard key={task.id} task={task} date={viewDate} pillarMap={pillarMap} activePillarIds={summary?.activePillars?.map(p => p.id) ?? []} />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              ))
+            ) : (
+              <AnimatePresence mode="popLayout">
+                {pendingTasks.map(task => (
+                  <TaskCard key={task.id} task={task} date={viewDate} pillarMap={pillarMap} activePillarIds={summary?.activePillars?.map(p => p.id) ?? []} />
+                ))}
+              </AnimatePresence>
+            )}
             {completedTasks.length > 0 && (
               <>
                 {pendingTasks.length > 0 && <div className="border-t border-dashed border-border my-2" />}
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">Completed</p>
-                <AnimatePresence mode="popLayout">
-                  {completedTasks.map(task => (
-                    <TaskCard key={task.id} task={task} date={viewDate} pillarMap={pillarMap} activePillarIds={summary?.activePillars?.map(p => p.id) ?? []} />
-                  ))}
-                </AnimatePresence>
+                {completedGroups ? (
+                  completedGroups.map((group) => (
+                    <div key={group.pillarId ?? "unassigned"} className="space-y-2">
+                      {(completedGroups.length > 1 || group.pillarId === null) && (
+                        <div className="flex items-center gap-2 px-1 pt-1">
+                          {group.color && (
+                            <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
+                          )}
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            {group.label}
+                          </p>
+                        </div>
+                      )}
+                      <AnimatePresence mode="popLayout">
+                        {group.tasks.map(task => (
+                          <TaskCard key={task.id} task={task} date={viewDate} pillarMap={pillarMap} activePillarIds={summary?.activePillars?.map(p => p.id) ?? []} />
+                        ))}
+                      </AnimatePresence>
+                    </div>
+                  ))
+                ) : (
+                  <AnimatePresence mode="popLayout">
+                    {completedTasks.map(task => (
+                      <TaskCard key={task.id} task={task} date={viewDate} pillarMap={pillarMap} activePillarIds={summary?.activePillars?.map(p => p.id) ?? []} />
+                    ))}
+                  </AnimatePresence>
+                )}
               </>
             )}
           </div>
