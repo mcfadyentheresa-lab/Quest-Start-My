@@ -7,6 +7,8 @@ import {
   GetReentryTaskResponse,
   GetPillarHealthResponse,
   GetOutcomeMetricsResponse,
+  GetPillarCompletionHistoryResponse,
+  GetPillarCompletionHistoryParams,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -414,6 +416,57 @@ router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
     warmParkedCompletedThisWeek,
     p1VsWarmParkedRatio,
   }));
+});
+
+function getPastWeekStarts(n: number, fromWeekStart: string): string[] {
+  const weeks: string[] = [];
+  let cursor = fromWeekStart;
+  for (let i = 0; i < n; i++) {
+    weeks.unshift(cursor);
+    const d = new Date(cursor + "T00:00:00");
+    d.setDate(d.getDate() - 7);
+    cursor = d.toISOString().slice(0, 10);
+  }
+  return weeks;
+}
+
+router.get("/dashboard/pillar-completion-history", async (req, res): Promise<void> => {
+  const parsed = GetPillarCompletionHistoryParams.safeParse(req.query);
+  const weekCount = parsed.success && parsed.data.weeks !== undefined
+    ? Math.min(Math.max(parsed.data.weeks, 1), 52)
+    : 4;
+
+  const currentWeekOf = getWeekStart();
+  const weeks = getPastWeekStarts(weekCount, currentWeekOf);
+
+  const oldestWeekStart = weeks[0];
+  const newestWeekEnd = getWeekEnd(weeks[weeks.length - 1]);
+
+  const [allTasks, pillars] = await Promise.all([
+    db.select().from(tasksTable).where(and(
+      gte(tasksTable.date, oldestWeekStart),
+      lte(tasksTable.date, newestWeekEnd),
+    )),
+    db.select().from(pillarsTable).orderBy(pillarsTable.id),
+  ]);
+
+  const pillarData = pillars.map(pillar => {
+    const weeklyRates = weeks.map(weekStart => {
+      const weekEnd = getWeekEnd(weekStart);
+      const pillarTasks = allTasks.filter(t =>
+        t.pillarId === pillar.id &&
+        t.date >= weekStart &&
+        t.date <= weekEnd &&
+        t.status !== "pending"
+      );
+      if (pillarTasks.length === 0) return 0;
+      const doneCount = pillarTasks.filter(t => t.status === "done").length;
+      return doneCount / pillarTasks.length;
+    });
+    return { pillarId: pillar.id, pillarName: pillar.name, weeklyRates };
+  });
+
+  res.json(GetPillarCompletionHistoryResponse.parse({ weeks, pillars: pillarData }));
 });
 
 export default router;

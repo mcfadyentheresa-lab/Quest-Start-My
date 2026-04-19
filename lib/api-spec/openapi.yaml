@@ -399,6 +399,27 @@ paths:
               schema:
                 $ref: "#/components/schemas/OutcomeMetrics"
 
+  /dashboard/pillar-completion-history:
+    get:
+      operationId: getPillarCompletionHistory
+      tags: [dashboard]
+      summary: Get per-pillar completion rates for the last N weeks
+      parameters:
+        - name: weeks
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 4
+          description: Number of past weeks to include (default 4)
+      responses:
+        "200":
+          description: Pillar completion history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PillarCompletionHistory"
+
   /dashboard/friction:
     get:
       operationId: getFrictionSignals
@@ -1325,6 +1346,36 @@ components:
         - pillarMetrics
         - p1CompletedThisWeek
         - warmParkedCompletedThisWeek
+
+    PillarCompletionHistory:
+      type: object
+      properties:
+        weeks:
+          type: array
+          items:
+            type: string
+          description: Week start dates (YYYY-MM-DD), oldest to newest
+        pillars:
+          type: array
+          items:
+            type: object
+            properties:
+              pillarId:
+                type: integer
+              pillarName:
+                type: string
+              weeklyRates:
+                type: array
+                items:
+                  type: number
+                description: Completion rate (0–1) per week, same order as weeks[]
+            required:
+              - pillarId
+              - pillarName
+              - weeklyRates
+      required:
+        - weeks
+        - pillars
 
     FrictionSignal:
       type: object

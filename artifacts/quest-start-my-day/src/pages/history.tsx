@@ -8,6 +8,7 @@ import {
   useGetDashboardSummary,
   useGetOutcomeMetrics,
   useGetFrictionSignals,
+  useGetPillarCompletionHistory,
 } from "@workspace/api-client-react";
 import { CategoryBadge } from "@/components/category-badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -99,6 +100,41 @@ function CollapsibleSection({
   );
 }
 
+function PillarSparkline({ rates, weeks }: { rates: number[]; weeks: string[] }) {
+  const barCount = rates.length;
+  const barWidth = 8;
+  const barGap = 3;
+  const maxH = 28;
+  const svgW = barCount * barWidth + (barCount - 1) * barGap;
+
+  return (
+    <div className="flex flex-col items-end gap-0.5 shrink-0">
+      <svg width={svgW} height={maxH} className="overflow-visible">
+        {rates.map((rate, i) => {
+          const barH = Math.max(2, Math.round(rate * maxH));
+          const x = i * (barWidth + barGap);
+          const y = maxH - barH;
+          const isLast = i === barCount - 1;
+          return (
+            <g key={i}>
+              <rect
+                x={x}
+                y={y}
+                width={barWidth}
+                height={barH}
+                rx={2}
+                className={isLast ? "fill-emerald-500" : "fill-muted-foreground/25"}
+              />
+              <title>{weeks[i] ? `Week of ${weeks[i]}: ${Math.round(rate * 100)}%` : `${Math.round(rate * 100)}%`}</title>
+            </g>
+          );
+        })}
+      </svg>
+      <span className="text-[10px] text-muted-foreground leading-none">4w trend</span>
+    </div>
+  );
+}
+
 function ProportionBar({
   segments,
 }: {
@@ -150,6 +186,7 @@ export default function HistoryPage() {
   const { data: pillarHealth, isLoading: healthLoading } = useGetPillarHealth();
   const { data: dashSummary } = useGetDashboardSummary();
   const { data: outcomes, isLoading: outcomesLoading } = useGetOutcomeMetrics();
+  const { data: pillarHistory } = useGetPillarCompletionHistory({ weeks: 4 });
   const { data: friction, isLoading: frictionLoading } = useGetFrictionSignals();
 
   const grouped = (logs ?? []).reduce<Record<string, typeof logs>>((acc, log) => {
@@ -500,14 +537,23 @@ export default function HistoryPage() {
                   const passedCount = pm.passedCount ?? 0;
                   const otherCount = Math.max(0, pm.totalCount - pm.doneCount - pm.blockedCount - passedCount);
                   const hasActivity = pm.totalCount > 0;
+                  const historyEntry = pillarHistory?.pillars.find(p => p.pillarId === pm.pillarId);
                   return (
                     <div key={pm.pillarId} className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-foreground truncate max-w-[60%]">{pm.pillarName}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {pm.doneCount}/{pm.totalCount} done
-                          {pm.blockedCount > 0 && ` · ${pm.blockedCount} blocked`}
-                        </span>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-foreground truncate min-w-0">{pm.pillarName}</span>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="text-xs text-muted-foreground">
+                            {pm.doneCount}/{pm.totalCount} done
+                            {pm.blockedCount > 0 && ` · ${pm.blockedCount} blocked`}
+                          </span>
+                          {historyEntry && pillarHistory && (
+                            <PillarSparkline
+                              rates={historyEntry.weeklyRates}
+                              weeks={pillarHistory.weeks}
+                            />
+                          )}
+                        </div>
                       </div>
                       {hasActivity ? (
                         <ProportionBar

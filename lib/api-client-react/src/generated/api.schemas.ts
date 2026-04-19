@@ -535,6 +535,24 @@ export interface FrictionSignal {
   lastSeenDate?: string | null;
 }
 
+export type PillarCompletionHistoryPillarsItem = {
+  pillarId: number;
+  pillarName: string;
+  /** Completion rate (0–1) per week, same order as weeks[] */
+  weeklyRates: number[];
+};
+
+export interface PillarCompletionHistory {
+  /** Week start dates (YYYY-MM-DD), oldest to newest */
+  weeks: string[];
+  pillars: PillarCompletionHistoryPillarsItem[];
+}
+
+export type GetPillarCompletionHistoryParams = {
+  /** Number of past weeks to include (default 4) */
+  weeks?: number;
+};
+
 export type ListMilestonesParams = {
   pillarId?: number;
 };

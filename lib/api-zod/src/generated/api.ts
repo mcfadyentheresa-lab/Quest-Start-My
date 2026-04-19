@@ -539,6 +539,26 @@ export const GetOutcomeMetricsResponse = zod.object({
 });
 
 /**
+ * @summary Get per-pillar completion rates for the last N weeks
+ */
+export const GetPillarCompletionHistoryParams = zod.object({
+  weeks: zod.coerce.number().optional(),
+});
+
+export const GetPillarCompletionHistoryResponse = zod.object({
+  weeks: zod.array(zod.string()).describe("Week start dates (YYYY-MM-DD), oldest to newest"),
+  pillars: zod.array(
+    zod.object({
+      pillarId: zod.number(),
+      pillarName: zod.string(),
+      weeklyRates: zod
+        .array(zod.number())
+        .describe("Completion rate (0–1) per week, same order as weeks[]"),
+    }),
+  ),
+});
+
+/**
  * @summary Get detected friction signals across pillars, tasks, and milestones
  */
 export const GetFrictionSignalsResponseItem = zod.object({
