@@ -191,7 +191,7 @@ function PillarSparkline({ rates, weeks }: { rates: number[]; weeks: string[] })
           );
         })}
       </svg>
-      <span className="text-[10px] text-muted-foreground leading-none">{barCount}w trend</span>
+      <span className="text-[10px] text-muted-foreground leading-none">last {barCount}w</span>
     </div>
   );
 }
@@ -260,13 +260,13 @@ export default function HistoryPage() {
   const SPARKLINE_WEEK_COUNT = 6;
   const sparklineWeeks = useMemo(() => {
     const weeks: string[] = [];
-    let cursor = selectedWeek;
+    let cursor = currentWeek;
     for (let i = 0; i < SPARKLINE_WEEK_COUNT; i++) {
       weeks.unshift(cursor);
       cursor = shiftWeek(cursor, -1);
     }
     return weeks;
-  }, [selectedWeek]);
+  }, [currentWeek]);
 
   const weeklyOutcomeResults = useQueries({
     queries: sparklineWeeks.map(week => ({
