@@ -734,6 +734,11 @@ components:
         portfolioStatus:
           type: string
           nullable: true
+        featureTag:
+          type: string
+          nullable: true
+          enum: [personal, shared, sellable]
+          description: Optional product/feature label for productization tracking
       required:
         - name
         - priority

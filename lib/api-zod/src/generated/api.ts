@@ -50,7 +50,10 @@ export const CreatePillarBody = zod.object({
   isActiveThisWeek: zod.boolean(),
   color: zod.string().nullish(),
   portfolioStatus: zod.string().nullish(),
-  featureTag: zod.enum(["personal", "shared", "sellable"]).nullish(),
+  featureTag: zod
+    .enum(["personal", "shared", "sellable"])
+    .nullish()
+    .describe("Optional product\/feature label for productization tracking"),
 });
 
 /**
@@ -117,7 +120,6 @@ export const ListMilestonesResponseItem = zod.object({
   nextAction: zod.string().nullish(),
   sortOrder: zod.number(),
   createdAt: zod.string(),
-  updatedAt: zod.string(),
 });
 export const ListMilestonesResponse = zod.array(ListMilestonesResponseItem);
 
@@ -163,7 +165,6 @@ export const UpdateMilestoneResponse = zod.object({
   nextAction: zod.string().nullish(),
   sortOrder: zod.number(),
   createdAt: zod.string(),
-  updatedAt: zod.string(),
 });
 
 /**
@@ -575,7 +576,10 @@ export const GetFrictionSignalsResponseItem = zod.object({
   milestoneId: zod.number().nullish(),
   milestoneTitle: zod.string().nullish(),
   detail: zod.string(),
-  lastSeenDate: zod.string().nullish().describe("Most recent relevant date for this signal (YYYY-MM-DD)"),
+  lastSeenDate: zod.coerce
+    .date()
+    .nullish()
+    .describe("Most recent relevant date for this signal (YYYY-MM-DD)"),
 });
 export const GetFrictionSignalsResponse = zod.array(
   GetFrictionSignalsResponseItem,

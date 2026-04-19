@@ -225,7 +225,16 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
     }
   }
 
-  res.json(GetFrictionSignalsResponse.parse(signals));
+  const parsed = GetFrictionSignalsResponse.parse(signals);
+  res.json(
+    parsed.map((s) => ({
+      ...s,
+      lastSeenDate:
+        s.lastSeenDate instanceof Date
+          ? s.lastSeenDate.toISOString().slice(0, 10)
+          : (s.lastSeenDate ?? null),
+    })),
+  );
 });
 
 export default router;

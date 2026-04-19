@@ -37,7 +37,6 @@ export interface Milestone {
   nextAction?: string | null;
   sortOrder: number;
   createdAt: string;
-  updatedAt: string;
 }
 
 export type CreateMilestoneBodyStatus =
@@ -187,6 +186,19 @@ export const CreatePillarBodyPriority = {
   P4: "P4",
 } as const;
 
+/**
+ * Optional product/feature label for productization tracking
+ */
+export type CreatePillarBodyFeatureTag =
+  | (typeof CreatePillarBodyFeatureTag)[keyof typeof CreatePillarBodyFeatureTag]
+  | null;
+
+export const CreatePillarBodyFeatureTag = {
+  personal: "personal",
+  shared: "shared",
+  sellable: "sellable",
+} as const;
+
 export interface CreatePillarBody {
   name: string;
   priority: CreatePillarBodyPriority;
@@ -194,7 +206,8 @@ export interface CreatePillarBody {
   isActiveThisWeek: boolean;
   color?: string | null;
   portfolioStatus?: string | null;
-  featureTag?: PillarFeatureTag;
+  /** Optional product/feature label for productization tracking */
+  featureTag?: CreatePillarBodyFeatureTag;
 }
 
 export type UpdatePillarBodyPriority =
