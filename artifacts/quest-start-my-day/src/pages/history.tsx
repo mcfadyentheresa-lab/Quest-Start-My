@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
@@ -238,8 +238,20 @@ function ProportionBar({
 
 export default function HistoryPage() {
   const [tab, setTab] = useState<Tab>("log");
-  const [selectedWeek, setSelectedWeek] = useState<string>(() => getCurrentWeekStart());
+  const [selectedWeek, setSelectedWeek] = useState<string>(() => {
+    try {
+      const saved = sessionStorage.getItem("history_friction_week");
+      if (saved && /^\d{4}-\d{2}-\d{2}$/.test(saved)) return saved;
+    } catch {}
+    return getCurrentWeekStart();
+  });
   const [frictionTypeFilter, setFrictionTypeFilter] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("history_friction_week", selectedWeek);
+    } catch {}
+  }, [selectedWeek]);
 
   const currentWeek = getCurrentWeekStart();
   const isCurrentWeek = selectedWeek === currentWeek;
