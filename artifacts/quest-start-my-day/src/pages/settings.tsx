@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   useListPillars,
@@ -11,8 +11,9 @@ import {
   getListPillarsQueryKey,
   getGetDashboardSummaryQueryKey,
   getListMilestonesQueryKey,
+  getGetOutcomeMetricsQueryOptions,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQueries } from "@tanstack/react-query";
 import { PriorityBadge } from "@/components/priority-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -691,6 +692,99 @@ const featureTagLabels: Record<string, string> = {
   sellable: "Sellable",
 };
 
+const SPARKLINE_WEEK_COUNT = 6;
+
+function getCurrentWeekStart(): string {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  return d.toISOString().slice(0, 10);
+}
+
+function shiftWeek(weekOf: string, delta: number): string {
+  const d = new Date(weekOf + "T00:00:00");
+  d.setDate(d.getDate() + delta * 7);
+  return d.toISOString().slice(0, 10);
+}
+
+function PillarSparkline({ rates, weeks }: { rates: number[]; weeks: string[] }) {
+  const barCount = rates.length;
+  const barWidth = 8;
+  const barGap = 3;
+  const maxH = 28;
+  const svgW = barCount * barWidth + (barCount - 1) * barGap;
+
+  return (
+    <div className="flex flex-col items-end gap-0.5 shrink-0">
+      <svg width={svgW} height={maxH} className="overflow-visible">
+        {rates.map((rate, i) => {
+          const barH = Math.max(2, Math.round(rate * maxH));
+          const x = i * (barWidth + barGap);
+          const y = maxH - barH;
+          const isLast = i === barCount - 1;
+          return (
+            <g key={i}>
+              <rect
+                x={x}
+                y={y}
+                width={barWidth}
+                height={barH}
+                rx={2}
+                className={isLast ? "fill-emerald-500" : "fill-muted-foreground/25"}
+              />
+              <title>{weeks[i] ? `Week of ${weeks[i]}: ${Math.round(rate * 100)}%` : `${Math.round(rate * 100)}%`}</title>
+            </g>
+          );
+        })}
+      </svg>
+      <span className="text-[10px] text-muted-foreground leading-none">{barCount}w trend</span>
+    </div>
+  );
+}
+
+function PillarSparklineWidget({ pillarId }: { pillarId: number }) {
+  const sparklineWeeks = useMemo(() => {
+    const current = getCurrentWeekStart();
+    const weeks: string[] = [];
+    let cursor = current;
+    for (let i = 0; i < SPARKLINE_WEEK_COUNT; i++) {
+      weeks.unshift(cursor);
+      cursor = shiftWeek(cursor, -1);
+    }
+    return weeks;
+  }, []);
+
+  const weeklyOutcomeResults = useQueries({
+    queries: sparklineWeeks.map(week => ({
+      ...getGetOutcomeMetricsQueryOptions({ weekOf: week }),
+    })),
+  });
+
+  const isLoading = weeklyOutcomeResults.some(r => r.isLoading);
+
+  const sparklineData = useMemo(() => {
+    const rates: number[] = new Array(SPARKLINE_WEEK_COUNT).fill(0);
+    let hasAnyData = false;
+    sparklineWeeks.forEach((week, i) => {
+      const data = weeklyOutcomeResults[i]?.data;
+      if (!data) return;
+      const pm = data.pillarMetrics.find(p => p.pillarId === pillarId);
+      if (pm) {
+        rates[i] = pm.completionRate;
+        hasAnyData = true;
+      }
+    });
+    return hasAnyData ? { rates, weeks: sparklineWeeks } : null;
+  }, [weeklyOutcomeResults, sparklineWeeks, pillarId]);
+
+  if (isLoading) {
+    return <Skeleton className="h-7 w-16 rounded" />;
+  }
+  if (!sparklineData) return null;
+  return <PillarSparkline rates={sparklineData.rates} weeks={sparklineData.weeks} />;
+}
+
 interface PillarCardProps {
   pillar: {
     id: number;
@@ -750,7 +844,8 @@ function PillarCard({ pillar, onEdit, onStatusChange, editLoading, statusLoading
               )}
             </div>
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <PillarSparklineWidget pillarId={pillar.id} />
             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl" onClick={() => setExpanded(!expanded)}>
               {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             </Button>
