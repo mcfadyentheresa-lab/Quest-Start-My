@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useQueries } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   useListProgressLogs,
@@ -8,7 +9,7 @@ import {
   useGetDashboardSummary,
   useGetOutcomeMetrics,
   useGetFrictionSignals,
-  useGetPillarCompletionHistory,
+  getGetOutcomeMetricsQueryOptions,
 } from "@workspace/api-client-react";
 import { CategoryBadge } from "@/components/category-badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -162,7 +163,7 @@ function PillarSparkline({ rates, weeks }: { rates: number[]; weeks: string[] })
           );
         })}
       </svg>
-      <span className="text-[10px] text-muted-foreground leading-none">4w trend</span>
+      <span className="text-[10px] text-muted-foreground leading-none">{barCount}w trend</span>
     </div>
   );
 }
@@ -222,11 +223,43 @@ export default function HistoryPage() {
   const { data: pillarHealth, isLoading: healthLoading } = useGetPillarHealth();
   const { data: dashSummary } = useGetDashboardSummary();
   const { data: outcomes, isLoading: outcomesLoading } = useGetOutcomeMetrics({ weekOf: selectedWeek });
-  const { data: pillarHistory } = useGetPillarCompletionHistory({ weeks: 4 });
   const { data: friction, isLoading: frictionLoading } = useGetFrictionSignals();
 
   const pastWeeks = useMemo(() => getPastWeeks(12), []);
   const isWeekInDropdown = pastWeeks.includes(selectedWeek);
+
+  const SPARKLINE_WEEK_COUNT = 6;
+  const sparklineWeeks = useMemo(() => {
+    const weeks: string[] = [];
+    let cursor = selectedWeek;
+    for (let i = 0; i < SPARKLINE_WEEK_COUNT; i++) {
+      weeks.unshift(cursor);
+      cursor = shiftWeek(cursor, -1);
+    }
+    return weeks;
+  }, [selectedWeek]);
+
+  const weeklyOutcomeResults = useQueries({
+    queries: sparklineWeeks.map(week => ({
+      ...getGetOutcomeMetricsQueryOptions({ weekOf: week }),
+      enabled: tab === "outcomes",
+    })),
+  });
+
+  const pillarSparklineData = useMemo(() => {
+    const map = new Map<string, { rates: number[]; weeks: string[] }>();
+    sparklineWeeks.forEach((week, i) => {
+      const data = weeklyOutcomeResults[i]?.data;
+      if (!data) return;
+      data.pillarMetrics.forEach(pm => {
+        if (!map.has(pm.pillarId)) {
+          map.set(pm.pillarId, { rates: new Array(SPARKLINE_WEEK_COUNT).fill(0), weeks: sparklineWeeks });
+        }
+        map.get(pm.pillarId)!.rates[i] = pm.completionRate;
+      });
+    });
+    return map;
+  }, [weeklyOutcomeResults, sparklineWeeks]);
 
   const grouped = (logs ?? []).reduce<Record<string, typeof logs>>((acc, log) => {
     if (!log) return acc;
@@ -615,7 +648,7 @@ export default function HistoryPage() {
                   const passedCount = pm.passedCount ?? 0;
                   const otherCount = Math.max(0, pm.totalCount - pm.doneCount - pm.blockedCount - passedCount);
                   const hasActivity = pm.totalCount > 0;
-                  const historyEntry = pillarHistory?.pillars.find(p => p.pillarId === pm.pillarId);
+                  const sparklineEntry = pillarSparklineData.get(pm.pillarId);
                   return (
                     <div key={pm.pillarId} className="space-y-1">
                       <div className="flex items-center justify-between gap-2">
@@ -625,10 +658,10 @@ export default function HistoryPage() {
                             {pm.doneCount}/{pm.totalCount} done
                             {pm.blockedCount > 0 && ` · ${pm.blockedCount} blocked`}
                           </span>
-                          {historyEntry && pillarHistory && (
+                          {sparklineEntry && (
                             <PillarSparkline
-                              rates={historyEntry.weeklyRates}
-                              weeks={pillarHistory.weeks}
+                              rates={sparklineEntry.rates}
+                              weeks={sparklineEntry.weeks}
                             />
                           )}
                         </div>
