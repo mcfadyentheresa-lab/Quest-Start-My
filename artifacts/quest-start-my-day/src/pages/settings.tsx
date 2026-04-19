@@ -407,10 +407,14 @@ function MilestonesSection({ pillarId }: { pillarId: number }) {
     return <div className="space-y-2"><Skeleton className="h-8 rounded-lg" /></div>;
   }
 
+  const activeMilestone = milestones?.find(m => m.status === "active") ?? null;
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Milestones</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Milestones{milestones && milestones.length > 0 ? ` · ${milestones.length}` : ""}
+        </p>
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger asChild>
             <Button variant="ghost" size="sm" className="h-7 rounded-lg gap-1 text-xs px-2">
@@ -430,6 +434,19 @@ function MilestonesSection({ pillarId }: { pillarId: number }) {
           </DialogContent>
         </Dialog>
       </div>
+
+      {activeMilestone && (
+        <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200/60 dark:border-emerald-700/30 px-3 py-2.5">
+          <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-1">Active now</p>
+          <p className="text-sm font-medium text-foreground">{activeMilestone.title}</p>
+          {activeMilestone.nextAction && (
+            <p className="text-xs text-emerald-700/70 dark:text-emerald-400/70 mt-0.5">Next: {activeMilestone.nextAction}</p>
+          )}
+          {activeMilestone.targetDate && (
+            <p className="text-xs text-muted-foreground mt-0.5">Target: {activeMilestone.targetDate}</p>
+          )}
+        </div>
+      )}
 
       {(!milestones || milestones.length === 0) ? (
         <p className="text-xs text-muted-foreground/60 italic py-1">No milestones yet. Add one to track progress.</p>

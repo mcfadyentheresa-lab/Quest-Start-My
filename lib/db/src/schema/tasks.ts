@@ -1,6 +1,7 @@
 import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { milestonesTable } from "./milestones";
 
 export const tasksTable = pgTable("tasks", {
   id: serial("id").primaryKey(),
@@ -11,7 +12,7 @@ export const tasksTable = pgTable("tasks", {
   suggestedNextStep: text("suggested_next_step"),
   status: text("status").notNull().default("pending"),
   pillarId: integer("pillar_id"),
-  milestoneId: integer("milestone_id"),
+  milestoneId: integer("milestone_id").references(() => milestonesTable.id),
   blockerReason: text("blocker_reason"),
   date: text("date").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -5,12 +5,13 @@ import {
   getListProgressLogsQueryKey,
   useGetWeekSummary,
   useGetPillarHealth,
+  useGetDashboardSummary,
 } from "@workspace/api-client-react";
 import { CategoryBadge } from "@/components/category-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   CheckCircle2, SkipForward, Pause, AlertCircle, History, TrendingUp, Layers, Clock,
-  Activity, AlertTriangle, Info,
+  Activity, AlertTriangle, Info, ArrowDown, Target,
 } from "lucide-react";
 
 function formatDate(dateStr: string) {
@@ -49,6 +50,7 @@ export default function HistoryPage() {
   );
   const { data: weekSummary, isLoading: weekLoading } = useGetWeekSummary();
   const { data: pillarHealth, isLoading: healthLoading } = useGetPillarHealth();
+  const { data: dashSummary } = useGetDashboardSummary();
 
   const grouped = (logs ?? []).reduce<Record<string, typeof logs>>((acc, log) => {
     if (!log) return acc;
@@ -220,6 +222,31 @@ export default function HistoryPage() {
                 <p className="text-xs text-muted-foreground mt-1">Add tasks on the Today page to start tracking</p>
               </div>
             )}
+
+            {/* Weekly reflection fields */}
+            {dashSummary?.weeklyPlan && (dashSummary.weeklyPlan.whatToDeprioritize || dashSummary.weeklyPlan.nextWeekFocus) && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground px-1">Reflection</p>
+                {dashSummary.weeklyPlan.whatToDeprioritize && (
+                  <div className="rounded-2xl bg-card border border-card-border p-4">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <ArrowDown className="h-3.5 w-3.5 text-amber-500" />
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">What to deprioritize</p>
+                    </div>
+                    <p className="text-sm text-foreground/80">{dashSummary.weeklyPlan.whatToDeprioritize}</p>
+                  </div>
+                )}
+                {dashSummary.weeklyPlan.nextWeekFocus && (
+                  <div className="rounded-2xl bg-card border border-card-border p-4">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Target className="h-3.5 w-3.5 text-primary/70" />
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Next week's focus</p>
+                    </div>
+                    <p className="text-sm text-foreground/80">{dashSummary.weeklyPlan.nextWeekFocus}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : null
       )}
@@ -239,7 +266,24 @@ export default function HistoryPage() {
         ) : (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground px-1">Pillar momentum this week</p>
-            {pillarHealth.map((entry, i) => (
+            {pillarHealth.map((entry, i) => {
+              const healthStatus: "green" | "amber" | "red" =
+                entry.warning ? "red"
+                : entry.nudge || (entry.tasksPushedOrPassedThisWeek > entry.tasksDoneThisWeek && entry.tasksDoneThisWeek === 0) ? "amber"
+                : "green";
+
+              const healthDot: Record<"green" | "amber" | "red", string> = {
+                green: "bg-emerald-500",
+                amber: "bg-amber-400",
+                red: "bg-rose-500",
+              };
+              const healthLabel: Record<"green" | "amber" | "red", string> = {
+                green: "Healthy",
+                amber: "Attention",
+                red: "Concern",
+              };
+
+              return (
               <motion.div
                 key={entry.pillarId}
                 initial={{ opacity: 0, y: 8 }}
@@ -250,6 +294,7 @@ export default function HistoryPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`inline-block h-2 w-2 rounded-full flex-shrink-0 ${healthDot[healthStatus]}`} title={healthLabel[healthStatus]} />
                       <span className="font-serif font-medium text-foreground">{entry.pillarName}</span>
                       {entry.portfolioStatus && (
                         <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${portfolioStatusColors[entry.portfolioStatus] ?? "text-muted-foreground bg-muted/50"}`}>
@@ -257,6 +302,9 @@ export default function HistoryPage() {
                         </span>
                       )}
                     </div>
+                    <p className={`text-xs mt-0.5 ${healthStatus === "green" ? "text-emerald-600 dark:text-emerald-400" : healthStatus === "amber" ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400"}`}>
+                      {healthLabel[healthStatus]}
+                    </p>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-lg font-serif font-medium text-emerald-600 dark:text-emerald-400">{entry.tasksDoneThisWeek}</p>
@@ -294,7 +342,8 @@ export default function HistoryPage() {
                   </div>
                 )}
               </motion.div>
-            ))}
+              );
+            })}
           </div>
         )
       )}
