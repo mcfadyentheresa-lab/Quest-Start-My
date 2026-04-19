@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, SkipForward, Pause, AlertCircle, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { CheckCircle2, SkipForward, Pause, AlertCircle, ChevronDown, ChevronUp, Trash2, Pencil } from "lucide-react";
 import { useUpdateTask, useDeleteTask } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getListTasksQueryKey, getGetDashboardSummaryQueryKey, getGetReentryTaskQueryKey } from "@workspace/api-client-react";
@@ -8,6 +8,7 @@ import { CategoryBadge } from "@/components/category-badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { TaskDetailSheet } from "@/components/task-detail-sheet";
 
 interface Pillar {
   id: number;
@@ -26,6 +27,7 @@ interface Task {
   status: string;
   date: string;
   pillarId?: number | null;
+  milestoneId?: number | null;
 }
 
 interface TaskCardProps {
@@ -47,6 +49,7 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
   const [expanded, setExpanded] = useState(task.status === "pending");
   const [blockerDraft, setBlockerDraft] = useState("");
   const [showBlockerInput, setShowBlockerInput] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const updateTask = useUpdateTask();
@@ -142,16 +145,31 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
               </span>
             )}
           </div>
-          <h3 className={`font-serif text-lg font-medium leading-snug ${task.status === "done" ? "line-through text-muted-foreground" : "text-foreground"}`}>
-            {task.title}
-          </h3>
+          <button
+            className="text-left w-full group"
+            onClick={() => setDetailOpen(true)}
+            aria-label="View and edit task details"
+          >
+            <h3 className={`font-serif text-lg font-medium leading-snug group-hover:underline decoration-dotted underline-offset-2 ${task.status === "done" ? "line-through text-muted-foreground" : "text-foreground"}`}>
+              {task.title}
+            </h3>
+          </button>
         </div>
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 mt-1"
-        >
-          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </button>
+        <div className="flex items-center gap-1 flex-shrink-0 mt-1">
+          <button
+            onClick={() => setDetailOpen(true)}
+            className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
+            aria-label="Edit task"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
 
       <AnimatePresence initial={false}>
@@ -291,6 +309,8 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
           </motion.div>
         )}
       </AnimatePresence>
+
+      <TaskDetailSheet task={task} open={detailOpen} onOpenChange={setDetailOpen} />
     </motion.div>
   );
 }
