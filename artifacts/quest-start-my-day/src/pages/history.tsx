@@ -13,6 +13,12 @@ import {
 } from "@workspace/api-client-react";
 import type { FrictionSignal } from "@workspace/api-client-react";
 import { CategoryBadge } from "@/components/category-badge";
+import {
+  getCurrentWeekStart,
+  shiftWeek,
+  PillarSparkline,
+  SPARKLINE_WEEK_COUNT,
+} from "@/components/pillar-sparkline";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Drawer,
@@ -69,20 +75,6 @@ const frictionTypeConfig: Record<string, { icon: React.ElementType; label: strin
 };
 
 type Tab = "log" | "week" | "health" | "outcomes" | "friction";
-
-function getCurrentWeekStart(): string {
-  const d = new Date();
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().slice(0, 10);
-}
-
-function shiftWeek(weekOf: string, delta: number): string {
-  const d = new Date(weekOf + "T00:00:00");
-  d.setDate(d.getDate() + delta * 7);
-  return d.toISOString().slice(0, 10);
-}
 
 function formatWeekRange(weekOf: string): string {
   const start = new Date(weekOf + "T00:00:00");
@@ -170,43 +162,6 @@ function PillarTrendIndicator({ rates }: { rates: number[] }) {
   );
 }
 
-function PillarSparkline({ rates, weeks, selectedWeek }: { rates: number[]; weeks: string[]; selectedWeek?: string }) {
-  const barCount = rates.length;
-  const barWidth = 8;
-  const barGap = 3;
-  const maxH = 28;
-  const svgW = barCount * barWidth + (barCount - 1) * barGap;
-
-  const selectedIndex = selectedWeek ? weeks.indexOf(selectedWeek) : -1;
-  const highlightIndex = selectedIndex !== -1 ? selectedIndex : barCount - 1;
-
-  return (
-    <div className="flex flex-col items-end gap-0.5 shrink-0">
-      <svg width={svgW} height={maxH} className="overflow-visible">
-        {rates.map((rate, i) => {
-          const barH = Math.max(2, Math.round(rate * maxH));
-          const x = i * (barWidth + barGap);
-          const y = maxH - barH;
-          const isHighlighted = i === highlightIndex;
-          return (
-            <g key={i}>
-              <rect
-                x={x}
-                y={y}
-                width={barWidth}
-                height={barH}
-                rx={2}
-                className={isHighlighted ? "fill-emerald-500" : "fill-muted-foreground/25"}
-              />
-              <title>{weeks[i] ? `Week of ${weeks[i]}: ${Math.round(rate * 100)}%` : `${Math.round(rate * 100)}%`}</title>
-            </g>
-          );
-        })}
-      </svg>
-      <span className="text-[10px] text-muted-foreground leading-none">last {barCount}w</span>
-    </div>
-  );
-}
 
 function ProportionBar({
   segments,
@@ -317,7 +272,6 @@ export default function HistoryPage() {
   const pastWeeks = useMemo(() => getPastWeeks(12), []);
   const isWeekInDropdown = pastWeeks.includes(selectedWeek);
 
-  const SPARKLINE_WEEK_COUNT = 6;
   const sparklineWeeks = useMemo(() => {
     const weeks: string[] = [];
     let cursor = currentWeek;
@@ -758,7 +712,6 @@ export default function HistoryPage() {
                               <PillarSparkline
                                 rates={sparklineEntry.rates}
                                 weeks={sparklineEntry.weeks}
-                                selectedWeek={selectedWeek}
                               />
                             </>
                           ) : null}
