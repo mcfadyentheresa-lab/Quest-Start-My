@@ -245,13 +245,28 @@ export default function HistoryPage() {
     } catch {}
     return getCurrentWeekStart();
   });
-  const [frictionTypeFilter, setFrictionTypeFilter] = useState<string | null>(null);
+  const [frictionTypeFilter, setFrictionTypeFilter] = useState<string | null>(() => {
+    try {
+      return sessionStorage.getItem("history_friction_type_filter") || null;
+    } catch {}
+    return null;
+  });
 
   useEffect(() => {
     try {
       sessionStorage.setItem("history_friction_week", selectedWeek);
     } catch {}
   }, [selectedWeek]);
+
+  useEffect(() => {
+    try {
+      if (frictionTypeFilter) {
+        sessionStorage.setItem("history_friction_type_filter", frictionTypeFilter);
+      } else {
+        sessionStorage.removeItem("history_friction_type_filter");
+      }
+    } catch {}
+  }, [frictionTypeFilter]);
 
   const currentWeek = getCurrentWeekStart();
   const isCurrentWeek = selectedWeek === currentWeek;
