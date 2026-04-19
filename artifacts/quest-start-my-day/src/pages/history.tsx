@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   CheckCircle2, SkipForward, Pause, AlertCircle, History, TrendingUp, Layers, Clock,
   Activity, AlertTriangle, Info, ArrowDown, Target, BarChart2, Zap,
-  ChevronDown, ChevronUp, Repeat2, Ban, Timer, MinusCircle, ShieldCheck,
+  ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Repeat2, Ban, Timer, MinusCircle, ShieldCheck,
 } from "lucide-react";
 
 function formatDate(dateStr: string) {
@@ -59,6 +59,28 @@ const frictionTypeConfig: Record<string, { icon: React.ElementType; label: strin
 };
 
 type Tab = "log" | "week" | "health" | "outcomes" | "friction";
+
+function getCurrentWeekStart(): string {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  return d.toISOString().slice(0, 10);
+}
+
+function shiftWeek(weekOf: string, delta: number): string {
+  const d = new Date(weekOf + "T00:00:00");
+  d.setDate(d.getDate() + delta * 7);
+  return d.toISOString().slice(0, 10);
+}
+
+function formatWeekRange(weekOf: string): string {
+  const start = new Date(weekOf + "T00:00:00");
+  const end = new Date(weekOf + "T00:00:00");
+  end.setDate(end.getDate() + 6);
+  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+  return `${start.toLocaleDateString("en-US", opts)} – ${end.toLocaleDateString("en-US", opts)}`;
+}
 
 function CollapsibleSection({
   title,
@@ -177,6 +199,10 @@ function ProportionBar({
 
 export default function HistoryPage() {
   const [tab, setTab] = useState<Tab>("log");
+  const [selectedWeek, setSelectedWeek] = useState<string>(() => getCurrentWeekStart());
+
+  const currentWeek = getCurrentWeekStart();
+  const isCurrentWeek = selectedWeek === currentWeek;
 
   const { data: logs, isLoading: logsLoading } = useListProgressLogs(
     { limit: 60 },
@@ -185,7 +211,7 @@ export default function HistoryPage() {
   const { data: weekSummary, isLoading: weekLoading } = useGetWeekSummary();
   const { data: pillarHealth, isLoading: healthLoading } = useGetPillarHealth();
   const { data: dashSummary } = useGetDashboardSummary();
-  const { data: outcomes, isLoading: outcomesLoading } = useGetOutcomeMetrics();
+  const { data: outcomes, isLoading: outcomesLoading } = useGetOutcomeMetrics({ weekOf: selectedWeek });
   const { data: pillarHistory } = useGetPillarCompletionHistory({ weeks: 4 });
   const { data: friction, isLoading: frictionLoading } = useGetFrictionSignals();
 
@@ -489,7 +515,35 @@ export default function HistoryPage() {
       )}
 
       {tab === "outcomes" && (
-        outcomesLoading ? (
+        <div className="space-y-4">
+          {/* Week selector */}
+          <div className="flex items-center justify-between rounded-2xl bg-card border border-card-border px-4 py-3">
+            <button
+              type="button"
+              onClick={() => setSelectedWeek(w => shiftWeek(w, -1))}
+              className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              aria-label="Previous week"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="text-center">
+              <p className="text-sm font-medium text-foreground">{formatWeekRange(selectedWeek)}</p>
+              {isCurrentWeek && (
+                <p className="text-xs text-primary font-medium mt-0.5">This week</p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedWeek(w => shiftWeek(w, 1))}
+              disabled={isCurrentWeek}
+              className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              aria-label="Next week"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          {outcomesLoading ? (
           <div className="space-y-3">
             <Skeleton className="h-24 rounded-2xl" />
             <Skeleton className="h-36 rounded-2xl" />
@@ -667,7 +721,8 @@ export default function HistoryPage() {
               </CollapsibleSection>
             )}
           </div>
-        )
+        )}
+        </div>
       )}
 
       {tab === "friction" && (

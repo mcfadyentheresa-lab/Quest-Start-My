@@ -346,11 +346,17 @@ router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
 });
 
 router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
-  const weekOf = getWeekStart();
+  const weekOfParam = typeof req.query.weekOf === "string" ? req.query.weekOf : null;
+  if (weekOfParam !== null) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(weekOfParam) || isNaN(Date.parse(weekOfParam + "T00:00:00"))) {
+      res.status(400).json({ error: "weekOf must be a valid date in YYYY-MM-DD format" });
+      return;
+    }
+  }
+  const weekOf = weekOfParam ?? getWeekStart();
   const weekEnd = getWeekEnd(weekOf);
-  // Use today's actual date to derive current month (not weekOf, which can be prior month)
-  const today = new Date().toISOString().slice(0, 10);
-  const monthStart = today.slice(0, 7) + "-01";
+  // Derive month start from the selected week's start date
+  const monthStart = weekOf.slice(0, 7) + "-01";
 
   const [weekTasks, pillars, allMilestones] = await Promise.all([
     db.select().from(tasksTable).where(and(
@@ -368,11 +374,11 @@ router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
     return created >= weekOf && created <= weekEnd;
   }).length;
 
-  // Milestones completed this month: status=complete AND createdAt within current calendar month
+  // Milestones completed this month: status=complete AND createdAt from start of month through end of selected week
   const milestonesCompletedThisMonth = allMilestones.filter(m => {
     if (m.status !== "complete") return false;
     const created = m.createdAt.toISOString().slice(0, 10);
-    return created >= monthStart && created <= today;
+    return created >= monthStart && created <= weekEnd;
   }).length;
 
   // Average age in days of milestones with status active OR planned

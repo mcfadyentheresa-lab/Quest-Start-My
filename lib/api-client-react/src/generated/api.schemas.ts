@@ -587,3 +587,10 @@ export type ListWeeklyPlansParams = {
 export type ListProgressLogsParams = {
   limit?: number;
 };
+
+export type GetOutcomeMetricsParams = {
+  /**
+   * Week start date YYYY-MM-DD (Monday). Defaults to current week.
+   */
+  weekOf?: string;
+};
