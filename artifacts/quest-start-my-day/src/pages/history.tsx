@@ -133,6 +133,34 @@ function CollapsibleSection({
   );
 }
 
+function PillarTrendIndicator({ rates }: { rates: number[] }) {
+  if (rates.length < 2) return null;
+  const current = rates[rates.length - 1];
+  const prior = rates[rates.length - 2];
+  const delta = current - prior;
+  const threshold = 0.01;
+
+  if (delta > threshold) {
+    return (
+      <span className="text-emerald-500 text-sm font-bold leading-none" title={`Up ${Math.round(delta * 100)}% vs prior week`}>
+        ↑
+      </span>
+    );
+  }
+  if (delta < -threshold) {
+    return (
+      <span className="text-rose-500 text-sm font-bold leading-none" title={`Down ${Math.round(Math.abs(delta) * 100)}% vs prior week`}>
+        ↓
+      </span>
+    );
+  }
+  return (
+    <span className="text-muted-foreground text-sm font-bold leading-none" title="No change vs prior week">
+      —
+    </span>
+  );
+}
+
 function PillarSparkline({ rates, weeks }: { rates: number[]; weeks: string[] }) {
   const barCount = rates.length;
   const barWidth = 8;
@@ -659,10 +687,13 @@ export default function HistoryPage() {
                             {pm.blockedCount > 0 && ` · ${pm.blockedCount} blocked`}
                           </span>
                           {sparklineEntry && (
-                            <PillarSparkline
-                              rates={sparklineEntry.rates}
-                              weeks={sparklineEntry.weeks}
-                            />
+                            <>
+                              <PillarTrendIndicator rates={sparklineEntry.rates} />
+                              <PillarSparkline
+                                rates={sparklineEntry.rates}
+                                weeks={sparklineEntry.weeks}
+                              />
+                            </>
                           )}
                         </div>
                       </div>
