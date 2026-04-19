@@ -447,9 +447,8 @@ function SortableMilestoneRow({
                   {(() => {
                     if (m.status === "complete" || !m.updatedAt) return null;
                     const days = Math.floor((Date.now() - new Date(m.updatedAt).getTime()) / 86400000);
-                    if (days < 7) return null;
                     return (
-                      <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                      <span className={`text-xs font-medium ${days >= 7 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
                         {days}d no movement
                       </span>
                     );

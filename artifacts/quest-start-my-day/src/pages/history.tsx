@@ -171,12 +171,12 @@ export default function HistoryPage() {
       </motion.div>
 
       {/* Tab switcher */}
-      <div className="flex rounded-xl bg-muted p-1 gap-0.5 overflow-x-auto">
+      <div className="grid grid-cols-5 rounded-xl bg-muted p-1 gap-0.5">
         {tabs.map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex-1 flex items-center justify-center gap-1 py-2 px-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap min-w-0 ${
+            className={`flex items-center justify-center gap-1 py-2 px-1 rounded-lg text-[11px] font-medium transition-all min-w-0 overflow-hidden ${
               tab === t.id
                 ? "bg-card text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
