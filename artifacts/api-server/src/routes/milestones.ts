@@ -17,6 +17,7 @@ function serializeMilestone(m: typeof milestonesTable.$inferSelect) {
   return {
     ...m,
     createdAt: m.createdAt.toISOString(),
+    updatedAt: m.updatedAt.toISOString(),
   };
 }
 
@@ -75,6 +76,7 @@ router.patch("/milestones/:id", async (req, res): Promise<void> => {
   if (parsed.data.description !== undefined) updates.description = parsed.data.description;
   if (parsed.data.nextAction !== undefined) updates.nextAction = parsed.data.nextAction;
   if (parsed.data.sortOrder !== undefined) updates.sortOrder = parsed.data.sortOrder;
+  updates.updatedAt = new Date();
 
   const [milestone] = await db
     .update(milestonesTable)

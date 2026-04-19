@@ -60,10 +60,18 @@ A personal daily command center — mobile-first web app for morning planning.
 - `GET /dashboard/pillar-health` — response restructured to `{ pillars, portfolioBalance }` with `portfolioSharePercent` per entry and aggregate `{ activeShare, warmShare, parkedShare, otherShare }` balance
 - History.tsx: minimal compatibility patch to handle new pillar-health response shape (Phase 4-B will add full UI)
 
+**Phase 4-B features (operating rhythm UI — added):**
+- Monthly Review page (`/review`): 12-month picker, 6 reflection fields, 3 top-priority inputs, POST+invalidate on first save then PATCH thereafter, "Saved" badge when record exists
+- History rewritten with 5 tabs: Activity, This week, Pillar health, Outcomes (outcome metrics + portfolio balance), Friction (friction signal cards)
+- Settings: featureTag (personal/shared/sellable) wired into pillar create AND update; badge shown on PillarCard; milestone rows now show "Overdue" and "Xd no movement" (using `updatedAt` column); "X / Y complete" milestone summary row; drag-to-reorder milestones
+- Month nav tab (BookOpen icon) added between History and Pillars in bottom nav
+- Milestone `updatedAt` column added to DB; set on every PATCH; included in API responses
+
 **Pages:**
 - `/` — Start My Day dashboard
 - `/weekly` — Weekly planning + reflection
-- `/history` — Progress log + weekly summary tab
+- `/history` — Progress log (5 tabs: Activity, This week, Pillar health, Outcomes, Friction)
+- `/review` — Monthly Review (reflections + top priorities)
 - `/settings` — Pillar project management (portfolio view)
 
 ## Key Commands

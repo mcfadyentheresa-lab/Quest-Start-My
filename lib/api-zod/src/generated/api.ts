@@ -50,6 +50,7 @@ export const CreatePillarBody = zod.object({
   isActiveThisWeek: zod.boolean(),
   color: zod.string().nullish(),
   portfolioStatus: zod.string().nullish(),
+  featureTag: zod.enum(["personal", "shared", "sellable"]).nullish(),
 });
 
 /**
@@ -116,6 +117,7 @@ export const ListMilestonesResponseItem = zod.object({
   nextAction: zod.string().nullish(),
   sortOrder: zod.number(),
   createdAt: zod.string(),
+  updatedAt: zod.string(),
 });
 export const ListMilestonesResponse = zod.array(ListMilestonesResponseItem);
 
@@ -161,6 +163,7 @@ export const UpdateMilestoneResponse = zod.object({
   nextAction: zod.string().nullish(),
   sortOrder: zod.number(),
   createdAt: zod.string(),
+  updatedAt: zod.string(),
 });
 
 /**

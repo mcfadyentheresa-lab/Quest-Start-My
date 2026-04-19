@@ -37,6 +37,7 @@ export interface Milestone {
   nextAction?: string | null;
   sortOrder: number;
   createdAt: string;
+  updatedAt: string;
 }
 
 export type CreateMilestoneBodyStatus =
@@ -193,6 +194,7 @@ export interface CreatePillarBody {
   isActiveThisWeek: boolean;
   color?: string | null;
   portfolioStatus?: string | null;
+  featureTag?: PillarFeatureTag;
 }
 
 export type UpdatePillarBodyPriority =

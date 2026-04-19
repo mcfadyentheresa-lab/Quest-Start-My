@@ -37,6 +37,7 @@ router.post("/pillars", async (req, res): Promise<void> => {
     isActiveThisWeek: parsed.data.isActiveThisWeek,
     color: parsed.data.color ?? null,
     portfolioStatus: parsed.data.portfolioStatus ?? null,
+    featureTag: parsed.data.featureTag ?? null,
   }).returning();
 
   res.status(201).json(serializePillar(pillar!));

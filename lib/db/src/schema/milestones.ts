@@ -14,6 +14,7 @@ export const milestonesTable = pgTable("milestones", {
   nextAction: text("next_action"),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const insertMilestoneSchema = createInsertSchema(milestonesTable).omit({ id: true, createdAt: true });

@@ -383,6 +383,7 @@ type MilestoneItem = {
   description?: string | null;
   nextAction?: string | null;
   sortOrder?: number | null;
+  updatedAt?: string | null;
 };
 
 function SortableMilestoneRow({
@@ -443,6 +444,16 @@ function SortableMilestoneRow({
                       Overdue
                     </span>
                   )}
+                  {(() => {
+                    if (m.status === "complete" || !m.updatedAt) return null;
+                    const days = Math.floor((Date.now() - new Date(m.updatedAt).getTime()) / 86400000);
+                    if (days < 7) return null;
+                    return (
+                      <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                        {days}d no movement
+                      </span>
+                    );
+                  })()}
                 </div>
                 <p className={`text-sm font-medium text-foreground ${m.status === "complete" ? "line-through text-muted-foreground" : ""}`}>
                   {m.title}
@@ -859,6 +870,7 @@ export default function SettingsPage() {
           isActiveThisWeek: data.portfolioStatus === "Active",
           color: data.color,
           portfolioStatus: data.portfolioStatus,
+          featureTag: (data.featureTag as "personal" | "shared" | "sellable") || undefined,
         },
       },
       {

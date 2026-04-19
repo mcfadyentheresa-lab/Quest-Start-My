@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useListMonthlyReviews,
   useCreateMonthlyReview,
   useUpdateMonthlyReview,
+  getListMonthlyReviewsQueryKey,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -46,6 +48,7 @@ function formatMonth(monthOf: string): string {
 
 export default function ReviewPage() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const months = getRecentMonths();
   const currentMonth = months[0]!;
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
@@ -119,7 +122,10 @@ export default function ReviewPage() {
       createReview.mutate(
         { data: { monthOf: selectedMonth, ...payload } },
         {
-          onSuccess: () => toast({ title: "Review saved" }),
+          onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: getListMonthlyReviewsQueryKey() });
+            toast({ title: "Review saved" });
+          },
           onError: () => toast({ title: "Failed to save", variant: "destructive" }),
         }
       );
