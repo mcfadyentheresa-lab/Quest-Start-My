@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   useListProgressLogs,
@@ -80,6 +80,16 @@ function formatWeekRange(weekOf: string): string {
   end.setDate(end.getDate() + 6);
   const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
   return `${start.toLocaleDateString("en-US", opts)} – ${end.toLocaleDateString("en-US", opts)}`;
+}
+
+function getPastWeeks(count: number): string[] {
+  const weeks: string[] = [];
+  let current = getCurrentWeekStart();
+  for (let i = 0; i < count; i++) {
+    weeks.push(current);
+    current = shiftWeek(current, -1);
+  }
+  return weeks;
 }
 
 function CollapsibleSection({
@@ -214,6 +224,9 @@ export default function HistoryPage() {
   const { data: outcomes, isLoading: outcomesLoading } = useGetOutcomeMetrics({ weekOf: selectedWeek });
   const { data: pillarHistory } = useGetPillarCompletionHistory({ weeks: 4 });
   const { data: friction, isLoading: frictionLoading } = useGetFrictionSignals();
+
+  const pastWeeks = useMemo(() => getPastWeeks(12), []);
+  const isWeekInDropdown = pastWeeks.includes(selectedWeek);
 
   const grouped = (logs ?? []).reduce<Record<string, typeof logs>>((acc, log) => {
     if (!log) return acc;
@@ -517,26 +530,37 @@ export default function HistoryPage() {
       {tab === "outcomes" && (
         <div className="space-y-4">
           {/* Week selector */}
-          <div className="flex items-center justify-between rounded-2xl bg-card border border-card-border px-4 py-3">
+          <div className="flex items-center gap-2 rounded-2xl bg-card border border-card-border px-3 py-3">
             <button
               type="button"
               onClick={() => setSelectedWeek(w => shiftWeek(w, -1))}
-              className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex-shrink-0"
               aria-label="Previous week"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <div className="text-center">
-              <p className="text-sm font-medium text-foreground">{formatWeekRange(selectedWeek)}</p>
-              {isCurrentWeek && (
-                <p className="text-xs text-primary font-medium mt-0.5">This week</p>
-              )}
+            <div className="flex-1 min-w-0">
+              <select
+                value={isWeekInDropdown ? selectedWeek : ""}
+                onChange={e => { if (e.target.value) setSelectedWeek(e.target.value); }}
+                className="w-full bg-transparent text-sm font-medium text-foreground text-center appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/30 rounded-lg py-1 px-2 hover:bg-muted transition-colors"
+                aria-label="Select week"
+              >
+                {!isWeekInDropdown && (
+                  <option value="">{formatWeekRange(selectedWeek)}</option>
+                )}
+                {pastWeeks.map((week, i) => (
+                  <option key={week} value={week}>
+                    {i === 0 ? `This week (${formatWeekRange(week)})` : formatWeekRange(week)}
+                  </option>
+                ))}
+              </select>
             </div>
             <button
               type="button"
               onClick={() => setSelectedWeek(w => shiftWeek(w, 1))}
               disabled={isCurrentWeek}
-              className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
               aria-label="Next week"
             >
               <ChevronRight className="h-4 w-4" />
