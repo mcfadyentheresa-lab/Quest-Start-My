@@ -274,6 +274,8 @@ export default function HistoryPage() {
     })),
   });
 
+  const sparklineLoading = weeklyOutcomeResults.some(r => r.isLoading);
+
   const pillarSparklineData = useMemo(() => {
     const map = new Map<string, { rates: number[]; weeks: string[] }>();
     sparklineWeeks.forEach((week, i) => {
@@ -686,7 +688,9 @@ export default function HistoryPage() {
                             {pm.doneCount}/{pm.totalCount} done
                             {pm.blockedCount > 0 && ` · ${pm.blockedCount} blocked`}
                           </span>
-                          {sparklineEntry && (
+                          {sparklineLoading ? (
+                            <Skeleton className="h-7 w-16 rounded" />
+                          ) : sparklineEntry ? (
                             <>
                               <PillarTrendIndicator rates={sparklineEntry.rates} />
                               <PillarSparkline
@@ -694,7 +698,7 @@ export default function HistoryPage() {
                                 weeks={sparklineEntry.weeks}
                               />
                             </>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                       {hasActivity ? (
