@@ -58,6 +58,7 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
     milestoneId: number | null;
     milestoneTitle: string | null;
     detail: string;
+    lastSeenDate: string | null;
   }[] = [];
 
   // ─────────────────────────────────────────────────────────────────
@@ -66,21 +67,25 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
   // Primary key: taskId (not null); fallback: taskTitle for null-id logs.
   // No time window — spec does not restrict to any window.
   // ─────────────────────────────────────────────────────────────────
-  const passedByTaskId = new Map<number, { dates: Set<string>; taskTitle: string }>();
-  const passedByTitleNullId = new Map<string, { dates: Set<string> }>();
+  const passedByTaskId = new Map<number, { dates: Set<string>; taskTitle: string; maxDate: string }>();
+  const passedByTitleNullId = new Map<string, { dates: Set<string>; maxDate: string }>();
 
   for (const log of allPassedLogs) {
     if (log.taskId !== null) {
       if (!passedByTaskId.has(log.taskId)) {
-        passedByTaskId.set(log.taskId, { dates: new Set(), taskTitle: log.taskTitle });
+        passedByTaskId.set(log.taskId, { dates: new Set(), taskTitle: log.taskTitle, maxDate: log.date });
       }
-      passedByTaskId.get(log.taskId)!.dates.add(log.date);
+      const entry = passedByTaskId.get(log.taskId)!;
+      entry.dates.add(log.date);
+      if (log.date > entry.maxDate) entry.maxDate = log.date;
     } else {
-      if (!passedByTitleNullId.has(log.taskTitle)) passedByTitleNullId.set(log.taskTitle, { dates: new Set() });
-      passedByTitleNullId.get(log.taskTitle)!.dates.add(log.date);
+      if (!passedByTitleNullId.has(log.taskTitle)) passedByTitleNullId.set(log.taskTitle, { dates: new Set(), maxDate: log.date });
+      const entry = passedByTitleNullId.get(log.taskTitle)!;
+      entry.dates.add(log.date);
+      if (log.date > entry.maxDate) entry.maxDate = log.date;
     }
   }
-  for (const [taskId, { dates, taskTitle }] of passedByTaskId.entries()) {
+  for (const [taskId, { dates, taskTitle, maxDate }] of passedByTaskId.entries()) {
     if (dates.size >= 2) {
       const pillarId = taskPillarMap.get(taskId) ?? null;
       const pillar = pillarId ? pillarMap.get(pillarId) : null;
@@ -93,10 +98,11 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
         milestoneId: null,
         milestoneTitle: null,
         detail: `"${taskTitle}" has been passed (deferred) on ${dates.size} separate days — consider tackling it directly or dropping it.`,
+        lastSeenDate: maxDate,
       });
     }
   }
-  for (const [taskTitle, { dates }] of passedByTitleNullId.entries()) {
+  for (const [taskTitle, { dates, maxDate }] of passedByTitleNullId.entries()) {
     if (dates.size >= 2) {
       signals.push({
         type: "repeated_pass",
@@ -107,6 +113,7 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
         milestoneId: null,
         milestoneTitle: null,
         detail: `"${taskTitle}" has been passed (deferred) on ${dates.size} separate days — consider tackling it directly or dropping it.`,
+        lastSeenDate: maxDate,
       });
     }
   }
@@ -115,15 +122,17 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
   // repeated_block: a pillar's last 2+ progress_logs entries are all
   // blocked. Checks most-recent entries across all time (no window).
   // ─────────────────────────────────────────────────────────────────
-  const logsByPillar = new Map<number, string[]>(); // pillarId -> statuses, newest first
+  const logsByPillar = new Map<number, { statuses: string[]; mostRecentDate: string | null }>(); // pillarId -> statuses/date, newest first
   for (const log of allLogs) {
     const pillarId = log.taskId ? (taskPillarMap.get(log.taskId) ?? null) : null;
     if (pillarId !== null) {
-      if (!logsByPillar.has(pillarId)) logsByPillar.set(pillarId, []);
-      logsByPillar.get(pillarId)!.push(log.status);
+      if (!logsByPillar.has(pillarId)) logsByPillar.set(pillarId, { statuses: [], mostRecentDate: null });
+      const entry = logsByPillar.get(pillarId)!;
+      entry.statuses.push(log.status);
+      if (entry.mostRecentDate === null) entry.mostRecentDate = log.date;
     }
   }
-  for (const [pillarId, statuses] of logsByPillar.entries()) {
+  for (const [pillarId, { statuses, mostRecentDate }] of logsByPillar.entries()) {
     if (statuses.length >= 2 && statuses.slice(0, 2).every(s => s === "blocked")) {
       const pillar = pillarMap.get(pillarId);
       signals.push({
@@ -135,6 +144,7 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
         milestoneId: null,
         milestoneTitle: null,
         detail: `The last 2 logged activities in "${pillar?.name ?? "this pillar"}" are all blocked — something may need resolving before continuing.`,
+        lastSeenDate: mostRecentDate,
       });
     }
   }
@@ -178,6 +188,7 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
         milestoneId: milestone.id,
         milestoneTitle: milestone.title,
         detail,
+        lastSeenDate: lastActivity ?? null,
       });
     }
   }
@@ -196,6 +207,10 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
     const isHighDefer = doneCount === 0 ? deferCount >= 3 : deferCount > 3 * doneCount;
     if (isHighDefer) {
       const ratio = doneCount > 0 ? `${(deferCount / doneCount).toFixed(1)}:1` : `${deferCount}:0`;
+      const mostRecentTaskDate = pillarMonthTasks.reduce<string | null>((max, t) => {
+        const d = t.createdAt.toISOString().slice(0, 10);
+        return max === null || d > max ? d : max;
+      }, null);
       signals.push({
         type: "low_completion_ratio",
         pillarId: pillar.id,
@@ -205,6 +220,7 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
         milestoneId: null,
         milestoneTitle: null,
         detail: `"${pillar.name}" has a pass/push-to-done ratio of ${ratio} this month (${deferCount} deferred vs ${doneCount} done) — tasks may need to be smaller or reprioritised.`,
+        lastSeenDate: mostRecentTaskDate,
       });
     }
   }

@@ -555,6 +555,7 @@ export const GetFrictionSignalsResponseItem = zod.object({
   milestoneId: zod.number().nullish(),
   milestoneTitle: zod.string().nullish(),
   detail: zod.string(),
+  lastSeenDate: zod.string().nullish().describe("Most recent relevant date for this signal (YYYY-MM-DD)"),
 });
 export const GetFrictionSignalsResponse = zod.array(
   GetFrictionSignalsResponseItem,

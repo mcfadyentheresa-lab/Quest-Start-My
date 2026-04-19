@@ -531,6 +531,8 @@ export interface FrictionSignal {
   milestoneId?: number | null;
   milestoneTitle?: string | null;
   detail: string;
+  /** Most recent relevant date for this signal (YYYY-MM-DD) */
+  lastSeenDate?: string | null;
 }
 
 export type ListMilestonesParams = {

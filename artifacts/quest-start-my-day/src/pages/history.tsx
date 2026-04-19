@@ -26,6 +26,14 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 }
 
+function formatShortDate(dateStr: string): string {
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  if (dateStr === today) return "Today";
+  if (dateStr === yesterday) return "Yesterday";
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 const statusConfig: Record<string, { icon: React.ElementType; className: string; label: string }> = {
   done: { icon: CheckCircle2, className: "text-emerald-600 dark:text-emerald-400", label: "Done" },
   pushed: { icon: SkipForward, className: "text-amber-600 dark:text-amber-400", label: "Pushed" },
@@ -488,24 +496,37 @@ export default function HistoryPage() {
                   </p>
                 }
               >
-                {outcomes.pillarMetrics.map(pm => (
-                  <div key={pm.pillarId} className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground truncate max-w-[60%]">{pm.pillarName}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {pm.doneCount}/{pm.totalCount} done
-                        {pm.blockedCount > 0 && ` · ${pm.blockedCount} blocked`}
-                      </span>
+                {outcomes.pillarMetrics.map(pm => {
+                  const passedCount = pm.passedCount ?? 0;
+                  const otherCount = Math.max(0, pm.totalCount - pm.doneCount - pm.blockedCount - passedCount);
+                  const hasActivity = pm.totalCount > 0;
+                  return (
+                    <div key={pm.pillarId} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-foreground truncate max-w-[60%]">{pm.pillarName}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {pm.doneCount}/{pm.totalCount} done
+                          {pm.blockedCount > 0 && ` · ${pm.blockedCount} blocked`}
+                        </span>
+                      </div>
+                      {hasActivity ? (
+                        <ProportionBar
+                          segments={[
+                            { label: "Done", value: pm.doneCount, color: "bg-emerald-500", textColor: "text-emerald-700 dark:text-emerald-400" },
+                            { label: "Blocked", value: pm.blockedCount, color: "bg-rose-400", textColor: "text-rose-600 dark:text-rose-400" },
+                            { label: "Passed", value: passedCount, color: "bg-sky-400", textColor: "text-sky-600 dark:text-sky-400" },
+                            ...(otherCount > 0 ? [{ label: "Other", value: otherCount, color: "bg-muted-foreground/30", textColor: "text-muted-foreground" }] : []),
+                          ].filter(s => s.value > 0)}
+                        />
+                      ) : (
+                        <div className="h-2 rounded-full bg-muted" />
+                      )}
+                      {!hasActivity && (
+                        <p className="text-xs text-muted-foreground italic">No tasks this week</p>
+                      )}
                     </div>
-                    <div className="h-2 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-emerald-500 transition-all"
-                        style={{ width: `${pm.completionRate * 100}%` }}
-                      />
-                    </div>
-                    <p className="text-right text-xs text-muted-foreground">{Math.round(pm.completionRate * 100)}%</p>
-                  </div>
-                ))}
+                  );
+                })}
               </CollapsibleSection>
             )}
 
@@ -580,6 +601,23 @@ export default function HistoryPage() {
                     </p>
                   </div>
                 )}
+                {(() => {
+                  const overPillars = (pillarHealth?.pillars ?? []).filter(p => (p.portfolioSharePercent ?? 0) > 30);
+                  if (overPillars.length === 0) return null;
+                  return (
+                    <div className="space-y-1.5 mt-1">
+                      <p className="text-xs font-medium text-muted-foreground">Individual pillars over 30%:</p>
+                      {overPillars.map(p => (
+                        <div key={p.pillarId} className="flex items-center justify-between text-xs">
+                          <span className="text-foreground/80 truncate max-w-[65%]">{p.pillarName}</span>
+                          <span className="font-medium text-amber-600 dark:text-amber-400 flex-shrink-0">
+                            {p.portfolioSharePercent}% of done work
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </CollapsibleSection>
             )}
           </div>
@@ -627,6 +665,11 @@ export default function HistoryPage() {
                     </p>
                   )}
                   <p className="text-xs text-foreground/70 leading-relaxed">{signal.detail}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {signal.lastSeenDate
+                      ? `Last seen: ${formatShortDate(signal.lastSeenDate)}`
+                      : "Last seen: never"}
+                  </p>
                 </motion.div>
               );
             })}

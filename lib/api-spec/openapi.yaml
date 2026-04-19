@@ -1352,6 +1352,11 @@ components:
           nullable: true
         detail:
           type: string
+        lastSeenDate:
+          type: string
+          format: date
+          nullable: true
+          description: Most recent relevant date for this signal (YYYY-MM-DD)
       required:
         - type
         - detail
