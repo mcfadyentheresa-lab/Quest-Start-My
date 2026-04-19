@@ -12,7 +12,7 @@ export const tasksTable = pgTable("tasks", {
   suggestedNextStep: text("suggested_next_step"),
   status: text("status").notNull().default("pending"),
   pillarId: integer("pillar_id"),
-  milestoneId: integer("milestone_id").references(() => milestonesTable.id),
+  milestoneId: integer("milestone_id").references(() => milestonesTable.id, { onDelete: "set null" }),
   blockerReason: text("blocker_reason"),
   date: text("date").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

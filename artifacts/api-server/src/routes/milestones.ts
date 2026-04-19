@@ -97,17 +97,26 @@ router.delete("/milestones/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [milestone] = await db
-    .delete(milestonesTable)
-    .where(eq(milestonesTable.id, params.data.id))
-    .returning();
+  try {
+    const [milestone] = await db
+      .delete(milestonesTable)
+      .where(eq(milestonesTable.id, params.data.id))
+      .returning();
 
-  if (!milestone) {
-    res.status(404).json({ error: "Milestone not found" });
-    return;
+    if (!milestone) {
+      res.status(404).json({ error: "Milestone not found" });
+      return;
+    }
+
+    res.sendStatus(204);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("foreign key") || msg.includes("violates")) {
+      res.status(409).json({ error: "Cannot delete milestone: it is still referenced by tasks." });
+    } else {
+      res.status(500).json({ error: "Failed to delete milestone" });
+    }
   }
-
-  res.sendStatus(204);
 });
 
 export default router;
