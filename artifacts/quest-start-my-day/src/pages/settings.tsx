@@ -196,12 +196,13 @@ interface PillarCardProps {
     laterFocus?: string | null;
     blockers?: string | null;
   };
-  onEdit: (id: number) => void;
-  editId: number | null;
+  onEdit: (id: number, data: PillarFormData) => void;
+  editLoading: boolean;
 }
 
-function PillarCard({ pillar, onEdit, editId }: PillarCardProps) {
+function PillarCard({ pillar, onEdit, editLoading }: PillarCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const hasDetail = pillar.whyItMatters || pillar.nowFocus || pillar.nextFocus || pillar.laterFocus || pillar.blockers || pillar.currentStage;
 
   return (
@@ -232,12 +233,35 @@ function PillarCard({ pillar, onEdit, editId }: PillarCardProps) {
                 {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </Button>
             )}
-            <Dialog open={editId === pillar.id} onOpenChange={open => onEdit(open ? pillar.id : -1)}>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl">
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
               </DialogTrigger>
+              <DialogContent className="rounded-2xl max-w-md mx-4">
+                <DialogHeader>
+                  <DialogTitle className="font-serif text-xl">Edit pillar</DialogTitle>
+                </DialogHeader>
+                <PillarForm
+                  defaultValues={{
+                    name: pillar.name,
+                    priority: pillar.priority,
+                    description: pillar.description ?? "",
+                    color: pillar.color ?? COLORS[0]!,
+                    portfolioStatus: pillar.portfolioStatus ?? "Active",
+                    currentStage: pillar.currentStage ?? "",
+                    whyItMatters: pillar.whyItMatters ?? "",
+                    nowFocus: pillar.nowFocus ?? "",
+                    nextFocus: pillar.nextFocus ?? "",
+                    laterFocus: pillar.laterFocus ?? "",
+                    blockers: pillar.blockers ?? "",
+                  }}
+                  onSubmit={(data) => { onEdit(pillar.id, data); setDialogOpen(false); }}
+                  loading={editLoading}
+                  submitLabel="Save changes"
+                />
+              </DialogContent>
             </Dialog>
           </div>
         </div>
@@ -307,7 +331,6 @@ export default function SettingsPage() {
   const createPillar = useCreatePillar();
   const updatePillar = useUpdatePillar();
   const [addOpen, setAddOpen] = useState(false);
-  const [editId, setEditId] = useState<number>(-1);
 
   const handleCreate = (data: PillarFormData) => {
     createPillar.mutate(
@@ -357,7 +380,6 @@ export default function SettingsPage() {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListPillarsQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-          setEditId(-1);
           toast({ title: "Pillar updated" });
         },
         onError: () => toast({ title: "Failed to update", variant: "destructive" }),
@@ -439,39 +461,12 @@ export default function SettingsPage() {
               <h2 className="font-serif text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wide">{group.label}</h2>
               <div className="space-y-3">
                 {group.items.map(pillar => (
-                  <div key={pillar.id}>
-                    <PillarCard
-                      pillar={pillar}
-                      onEdit={(id) => setEditId(id)}
-                      editId={editId}
-                    />
-                    {/* Edit dialog rendered per pillar */}
-                    <Dialog open={editId === pillar.id} onOpenChange={open => setEditId(open ? pillar.id : -1)}>
-                      <DialogContent className="rounded-2xl max-w-md mx-4">
-                        <DialogHeader>
-                          <DialogTitle className="font-serif text-xl">Edit pillar</DialogTitle>
-                        </DialogHeader>
-                        <PillarForm
-                          defaultValues={{
-                            name: pillar.name,
-                            priority: pillar.priority,
-                            description: pillar.description ?? "",
-                            color: pillar.color ?? COLORS[0]!,
-                            portfolioStatus: pillar.portfolioStatus ?? "Active",
-                            currentStage: pillar.currentStage ?? "",
-                            whyItMatters: pillar.whyItMatters ?? "",
-                            nowFocus: pillar.nowFocus ?? "",
-                            nextFocus: pillar.nextFocus ?? "",
-                            laterFocus: pillar.laterFocus ?? "",
-                            blockers: pillar.blockers ?? "",
-                          }}
-                          onSubmit={data => handleEdit(pillar.id, data)}
-                          loading={updatePillar.isPending}
-                          submitLabel="Save changes"
-                        />
-                      </DialogContent>
-                    </Dialog>
-                  </div>
+                  <PillarCard
+                    key={pillar.id}
+                    pillar={pillar}
+                    onEdit={handleEdit}
+                    editLoading={updatePillar.isPending}
+                  />
                 ))}
               </div>
             </motion.section>

@@ -577,6 +577,15 @@ components:
         creativeFocus:
           type: string
           nullable: true
+        whatMovedForward:
+          type: string
+          nullable: true
+        whatGotStuck:
+          type: string
+          nullable: true
+        whatContinues:
+          type: string
+          nullable: true
       required:
         - weekOf
         - priorities

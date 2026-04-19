@@ -107,6 +107,9 @@ export default function WeeklyPage() {
             businessFocus: businessFocus || undefined,
             creativeFocus: creativeFocus || undefined,
             notes: notes || undefined,
+            whatMovedForward: whatMovedForward || undefined,
+            whatGotStuck: whatGotStuck || undefined,
+            whatContinues: whatContinues || undefined,
             activePillarIds: pillars?.filter(p => p.isActiveThisWeek).map(p => p.id) ?? [],
           },
         });

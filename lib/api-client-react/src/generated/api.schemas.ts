@@ -185,6 +185,9 @@ export interface CreateWeeklyPlanBody {
   activePillarIds: number[];
   businessFocus?: string | null;
   creativeFocus?: string | null;
+  whatMovedForward?: string | null;
+  whatGotStuck?: string | null;
+  whatContinues?: string | null;
 }
 
 export interface UpdateWeeklyPlanBody {

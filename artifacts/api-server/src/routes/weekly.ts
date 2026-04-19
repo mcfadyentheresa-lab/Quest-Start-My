@@ -53,6 +53,9 @@ router.post("/weekly", async (req, res): Promise<void> => {
     activePillarIds: parsed.data.activePillarIds.map(String),
     businessFocus: parsed.data.businessFocus ?? null,
     creativeFocus: parsed.data.creativeFocus ?? null,
+    whatMovedForward: parsed.data.whatMovedForward ?? null,
+    whatGotStuck: parsed.data.whatGotStuck ?? null,
+    whatContinues: parsed.data.whatContinues ?? null,
   }).returning();
 
   res.status(201).json(serializePlan(plan!));

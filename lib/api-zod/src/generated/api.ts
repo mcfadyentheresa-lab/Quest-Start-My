@@ -196,6 +196,9 @@ export const CreateWeeklyPlanBody = zod.object({
   activePillarIds: zod.array(zod.number()),
   businessFocus: zod.string().nullish(),
   creativeFocus: zod.string().nullish(),
+  whatMovedForward: zod.string().nullish(),
+  whatGotStuck: zod.string().nullish(),
+  whatContinues: zod.string().nullish(),
 });
 
 /**
