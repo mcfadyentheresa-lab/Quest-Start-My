@@ -1,0 +1,303 @@
+Absolutely — here’s a clean prompt you can paste into Replit. It adds the optional ADHD home/cleaning micro-task module while explicitly protecting your existing Quest data. Microtask-based task breakdown is especially useful for ADHD because it lowers resistance, creates a clear starting point, and makes broad chores feel doable. Backward-compatible, additive changes are also the safest way to extend an app without breaking populated data.
+
+Replit prompt
+Build an optional ADHD Home / Cleaning micro-task module inside Quest Workday.
+
+Important: preserve all existing data
+This feature must not remove, overwrite, reset, corrupt, or replace any data already populated in Quest.
+
+Data protection requirements:
+
+Preserve all existing tasks, milestones, pillars, projects, notes, statuses, task history, and relationships.
+
+Do not wipe the database.
+
+Do not replace live records with demo or seeded data.
+
+Any schema changes must be backward-compatible and additive only.
+
+Add new optional fields with safe defaults instead of changing or deleting existing required fields.
+
+If migrations are needed, back up data first and migrate in place without losing IDs or relationships.
+
+If test/demo data is added, keep it separate from the user’s real workspace and only available in dev/test mode.
+
+Data preservation is more important than speed. Do not ship a destructive rewrite. Backward-compatible schema changes are the preferred approach for safe upgrades.
+
+Context:
+Quest is already built and already has populated information.
+Quest currently supports structured task cards and task adjustments.
+I want to add a separate optional support layer for ADHD-friendly home and cleaning tasks.
+
+Core product decision:
+Do not mix home/cleaning tasks into the main business task stream by default.
+Instead, create a separate optional lane, module, category, or toggleable section for home/life support.
+
+Possible naming:
+
+Home
+
+Home Reset
+
+ADHD Home Support
+
+Home Micro Tasks
+
+Goal:
+Help the user start and complete tiny home or cleaning tasks without overwhelm.
+The module should reduce resistance by offering very small, concrete, easy-to-start tasks rather than broad chores like “clean the kitchen.” ADHD microtasks are useful because they make starting easier and lower the mental load of vague chores.
+
+What to build:
+
+Separate optional module
+
+Add a separate Home / Cleaning module or lane in Quest
+
+It should be easy to hide or toggle off
+
+It should not clutter the main business workflow
+
+Micro-task bank
+Create a reusable bank of tiny home/cleaning tasks.
+Tasks should be specific, visible, and easy to complete in a few minutes.
+
+Seed examples by area:
+
+Kitchen:
+
+Put dirty dishes in sink
+
+Empty dishwasher
+
+Load 5 dishes
+
+Wipe one counter
+
+Throw out old food from fridge
+
+Take out kitchen garbage
+
+Put groceries away
+
+Clear one hotspot
+
+Bathroom:
+
+Wipe sink
+
+Wipe mirror
+
+Replace hand towel
+
+Clean toilet seat
+
+Empty bathroom garbage
+
+Put products back in place
+
+Laundry:
+
+Collect laundry from floor
+
+Start one load
+
+Move clothes to dryer
+
+Fold 5 items
+
+Put away one category of clothing
+
+Match socks for 2 minutes
+
+Living area:
+
+Gather cups
+
+Clear coffee table
+
+Fold one blanket
+
+Put remotes together
+
+Put 5 things away
+
+Clear one chair
+
+Throw out visible trash
+
+Bedroom:
+
+Make bed
+
+Put clothes in hamper
+
+Reset bedside table
+
+Put away shoes
+
+Clear one surface
+
+Hang up 3 items
+
+General reset:
+
+Put 5 things away
+
+Carry one item back to its room
+
+Throw out visible trash
+
+Open a window
+
+Do a 5-minute room reset
+
+Clear one small surface
+
+Fill dishwasher for 2 minutes
+
+Energy filters
+Allow the user to request tasks by energy level:
+
+Low energy
+
+Medium energy
+
+High energy
+
+Examples:
+
+low energy = wipe one counter, gather cups, put 5 things away
+
+medium energy = empty dishwasher, start laundry, clear coffee table
+
+high energy = reset kitchen, fold laundry pile, bathroom refresh
+
+Time filters
+Allow the user to request tasks by available time:
+
+2-minute
+
+5-minute
+
+10-minute
+
+15-minute
+
+Sprint modes
+Add optional quick-start modes:
+
+5-minute reset
+
+10-minute cleaning sprint
+
+one-song cleanup
+
+Card structure
+Use the existing Quest task-card structure:
+
+Title
+
+Why this matters
+
+Done looks like
+
+Suggested next step
+
+Example card:
+Title: Wipe one kitchen counter
+Why this matters: A tiny visible reset lowers overwhelm and makes the kitchen feel more manageable.
+Done looks like: One counter is wiped and clear enough to use.
+Suggested next step: Grab a cloth and clear that counter before wiping it.
+
+Smart task generation
+Support prompts like:
+
+give me one tiny home task
+
+give me a low-energy cleaning task
+
+give me a 5-minute reset
+
+give me one kitchen micro task
+
+give me a home task I can do when overwhelmed
+
+The system should choose a micro-task, not a broad chore.
+
+Optional logic
+If the user is overwhelmed or low energy, bias toward:
+
+smallest visible win
+
+low setup
+
+low decision load
+
+quick completion
+
+If the user has more energy or more time, offer:
+
+grouped micro-sprints
+
+small sequences of 2–3 related tasks
+
+UI behavior
+
+Add a way to open the Home / Cleaning module without switching away from the main Quest experience
+
+Keep it visually separate from work priorities
+
+Make it feel supportive, calm, and optional
+
+Allow the user to mark tasks done, pass for now, or generate another micro-task
+
+Integration rules
+
+Do not automatically inject home tasks into work priorities unless the user explicitly chooses to include them
+
+Keep Home / Cleaning tasks tagged separately
+
+Preserve compatibility with existing Quest logic and data models
+
+If needed, add new task tags, task source fields, or module fields in a backward-compatible way
+
+Technical requirements
+
+Clean readable implementation
+
+Backward-compatible data model updates only
+
+No destructive migrations
+
+No breaking changes to existing tasks or screens
+
+Handle empty and populated states gracefully
+
+Seed examples only in a safe way that does not overwrite real user data
+
+Product principle
+Quest should feel like a calm workday and life support partner.
+This module should reduce friction, lower the activation energy required to start chores, and help the user get a visible win quickly through microtasking and structured decomposition.
+
+Deliverable:
+Return the feature integrated into the existing Quest app with:
+
+optional Home / Cleaning module
+
+micro-task bank
+
+energy filters
+
+time filters
+
+sprint modes
+
+compatible UI
+
+preservation of all existing populated Quest data
+
+Small add-on
+If you want the prompt to be even stronger, add this last line:
+
+“If implementation choices conflict, prioritize preserving existing Quest data and keeping home tasks optional over adding extra complexity.”
+

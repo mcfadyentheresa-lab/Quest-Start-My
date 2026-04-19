@@ -9,6 +9,7 @@ import WeeklyPage from "@/pages/weekly";
 import HistoryPage from "@/pages/history";
 import ReviewPage from "@/pages/review";
 import SettingsPage from "@/pages/settings";
+import HomeModulePage from "@/pages/home-module";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -27,6 +28,7 @@ function Router() {
         <Route path="/" component={Dashboard} />
         <Route path="/weekly" component={WeeklyPage} />
         <Route path="/history" component={HistoryPage} />
+        <Route path="/home" component={HomeModulePage} />
         <Route path="/review" component={ReviewPage} />
         <Route path="/settings" component={SettingsPage} />
         <Route component={NotFound} />

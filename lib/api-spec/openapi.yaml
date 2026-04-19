@@ -183,6 +183,12 @@ paths:
           schema:
             type: string
             description: Date in YYYY-MM-DD format, defaults to today
+        - name: source
+          in: query
+          required: false
+          schema:
+            type: string
+            description: Filter by taskSource (e.g. 'home'). Omit to get all tasks.
       responses:
         "200":
           description: List of daily tasks
@@ -870,6 +876,10 @@ components:
         adjustmentReason:
           type: string
           nullable: true
+        taskSource:
+          type: string
+          nullable: true
+          description: Source module (e.g. 'home' for ADHD home tasks). Null = regular work task.
       required:
         - id
         - title
@@ -905,6 +915,10 @@ components:
         blockerReason:
           type: string
           nullable: true
+        taskSource:
+          type: string
+          nullable: true
+          description: Source module (e.g. 'home'). Null = regular work task.
         date:
           type: string
       required:
@@ -948,6 +962,10 @@ components:
         adjustmentReason:
           type: string
           nullable: true
+        taskSource:
+          type: string
+          nullable: true
+          description: Source module (e.g. 'home'). Null = regular work task.
 
     StepBackTaskResponse:
       type: object

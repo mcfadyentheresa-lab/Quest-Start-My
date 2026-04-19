@@ -77,10 +77,23 @@ A personal daily command center — mobile-first web app for morning planning.
 - "Resume this task" button replaces "Undo" for stepped_back tasks.
 - Fixed API server import error: GetPillarCompletionHistoryQueryParams alias.
 
+**Phase 6 features (Home/Cleaning micro-task module — added):**
+- Home Reset module at `/home` — completely separate from the main work task stream
+- `taskSource` nullable text column added to tasks table (additive only, no existing data touched)
+- API: GET /tasks now accepts `source` param — omitting returns only work tasks (taskSource=null), `source=home` returns only home tasks
+- 40+ seeded micro-tasks in `src/data/home-microtasks.ts` across 6 areas (kitchen, bathroom, laundry, living, bedroom, general) with energy level (low/medium/high) and time metadata (2/5/10/15 min)
+- Energy filter pills, time filter pills, area chips — all combinable before picking
+- "Pick a task for me" shuffle button uses filters to pick from the seeded bank
+- 3 sprint modes: 5-min reset (3 low-energy tasks ≤2min), 10-min sprint (3 medium tasks ≤5min), One song (1 medium task ≤5min)
+- MicroTaskPreview card with Why / Done looks like / Next step — one-tap "Add to today" creates a home task
+- HomeTaskCard for today's home tasks with Done/Pass/Undo/Remove actions and expandable detail
+- Home tab added to bottom nav (6 tabs: Today, This Week, History, Home, Month, Pillars)
+
 **Pages:**
 - `/` — Start My Day dashboard
 - `/weekly` — Weekly planning + reflection
 - `/history` — Progress log (5 tabs: Activity, This week, Pillar health, Outcomes, Friction)
+- `/home` — Home Reset micro-task module (ADHD-friendly cleaning/tidying tasks)
 - `/review` — Monthly Review (reflections + top priorities)
 - `/settings` — Pillar project management (portfolio view)
 
@@ -95,7 +108,7 @@ A personal daily command center — mobile-first web app for morning planning.
 ## Database Schema
 
 - `pillars` — project pillars with priority (P1-P4), portfolioStatus (Active/Warm/Parked), detail fields (currentStage, whyItMatters, nowFocus, nextFocus, laterFocus, blockers, lastUpdated)
-- `tasks` — daily tasks with category (business/creative/wellness), status (pending/done/pushed/passed/blocked/stepped_back), rich details, pillarId FK, milestoneId FK (nullable), blockerReason, blockerType, adjustmentType, adjustmentReason, parentTaskId, stepBackDepth
+- `tasks` — daily tasks with category (business/creative/wellness), status (pending/done/pushed/passed/blocked/stepped_back), rich details, pillarId FK, milestoneId FK (nullable), blockerReason, blockerType, adjustmentType, adjustmentReason, parentTaskId, stepBackDepth, taskSource (nullable — "home" for home module tasks, null for work tasks)
 - `weekly_plans` — weekly priorities, healthFocus, businessFocus, creativeFocus, notes, reflection fields (whatMovedForward, whatGotStuck, whatContinues, whatToDeprioritize, nextWeekFocus), activePillarIds
 - `milestones` — per-pillar milestones with status (planned/active/blocked/complete), priority (P1-P4), targetDate, description, nextAction, sortOrder
 - `progress_logs` — log of task status changes for history view

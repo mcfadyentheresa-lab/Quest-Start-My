@@ -179,6 +179,7 @@ export const DeleteMilestoneParams = zod.object({
  */
 export const ListTasksQueryParams = zod.object({
   date: zod.coerce.string().optional(),
+  source: zod.coerce.string().optional(),
 });
 
 export const ListTasksResponseItem = zod.object({
@@ -214,6 +215,12 @@ export const ListTasksResponseItem = zod.object({
     .nullish(),
   adjustmentType: zod.enum(["step_back", "push"]).nullish(),
   adjustmentReason: zod.string().nullish(),
+  taskSource: zod
+    .string()
+    .nullish()
+    .describe(
+      "Source module (e.g. 'home' for ADHD home tasks). Null = regular work task.",
+    ),
 });
 export const ListTasksResponse = zod.array(ListTasksResponseItem);
 
@@ -229,6 +236,10 @@ export const CreateTaskBody = zod.object({
   pillarId: zod.number().nullish(),
   milestoneId: zod.number().nullish(),
   blockerReason: zod.string().nullish(),
+  taskSource: zod
+    .string()
+    .nullish()
+    .describe("Source module (e.g. 'home'). Null = regular work task."),
   date: zod.string(),
 });
 
@@ -261,6 +272,10 @@ export const UpdateTaskBody = zod.object({
     ])
     .nullish(),
   adjustmentReason: zod.string().nullish(),
+  taskSource: zod
+    .string()
+    .nullish()
+    .describe("Source module (e.g. 'home'). Null = regular work task."),
 });
 
 export const UpdateTaskResponse = zod.object({
@@ -296,6 +311,12 @@ export const UpdateTaskResponse = zod.object({
     .nullish(),
   adjustmentType: zod.enum(["step_back", "push"]).nullish(),
   adjustmentReason: zod.string().nullish(),
+  taskSource: zod
+    .string()
+    .nullish()
+    .describe(
+      "Source module (e.g. 'home' for ADHD home tasks). Null = regular work task.",
+    ),
 });
 
 /**

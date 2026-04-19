@@ -1,0 +1,77 @@
+Addendum: also include an optional ADHD Home / Cleaning micro-task module in Quest without changing or weakening any of the requirements above.
+
+Important:
+- This is an additive feature request, not a rewrite of the earlier prompt.
+- Preserve all prior requirements, especially data preservation and backward compatibility.
+- Do not remove, replace, or interfere with existing populated Quest data, business tasks, milestones, or workflows. Additive changes are preferred for backward compatibility. [web:875]
+
+New feature:
+Build a separate optional Home / Cleaning support module for ADHD-friendly micro-tasks.
+
+Core rule:
+- Do not mix home/cleaning tasks into the main business task stream by default.
+- Keep this as a separate optional lane, module, category, or toggleable section.
+
+Goal:
+Help the user start tiny household or cleaning tasks without overwhelm by using micro-tasks, low-friction prompts, energy filters, and short timed resets. Microtask-based task design can make starting easier and reduce resistance for ADHD users. [web:901]
+
+Include:
+- a reusable home/cleaning micro-task bank
+- categories such as kitchen, bathroom, laundry, living area, bedroom, and general reset
+- energy filters: low, medium, high
+- time filters: 2-minute, 5-minute, 10-minute, 15-minute
+- sprint modes: 5-minute reset, 10-minute sprint, one-song cleanup
+- support for prompts like:
+  - give me one tiny home task
+  - give me a low-energy cleaning task
+  - give me a 10-minute reset
+  - give me one kitchen micro-task
+
+Use the same Quest task-card structure:
+- Title
+- Why this matters
+- Done looks like
+- Suggested next step
+
+Example seed tasks:
+Kitchen:
+- Put dirty dishes in sink
+- Empty dishwasher
+- Wipe one counter
+- Clear one hotspot
+
+Bathroom:
+- Wipe sink
+- Replace hand towel
+- Empty bathroom garbage
+
+Laundry:
+- Start one load
+- Fold 5 items
+- Put away one clothing category
+
+Living area:
+- Gather cups
+- Clear coffee table
+- Put 5 things away
+
+Bedroom:
+- Make bed
+- Put clothes in hamper
+- Clear one surface
+
+General reset:
+- Put 5 things away
+- Throw out visible trash
+- Carry one item back to its room
+- Do a 5-minute reset
+
+UX rule:
+This module should feel supportive, calm, and optional.
+It should reduce activation energy and create visible quick wins through very small tasks. [web:901]
+
+Technical rule:
+- Keep this fully compatible with the earlier Step back / Push one step / Blocked work.
+- Preserve all existing data.
+- Do not inject demo home tasks into the user’s live workspace by default.
+- If seed data is used, keep it separate in a test/dev-safe way.

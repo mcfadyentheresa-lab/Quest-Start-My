@@ -305,6 +305,8 @@ export interface Task {
   blockerType?: TaskBlockerType;
   adjustmentType?: TaskAdjustmentType;
   adjustmentReason?: string | null;
+  /** Source module (e.g. 'home' for ADHD home tasks). Null = regular work task. */
+  taskSource?: string | null;
 }
 
 export type CreateTaskBodyCategory =
@@ -325,6 +327,8 @@ export interface CreateTaskBody {
   pillarId?: number | null;
   milestoneId?: number | null;
   blockerReason?: string | null;
+  /** Source module (e.g. 'home'). Null = regular work task. */
+  taskSource?: string | null;
   date: string;
 }
 
@@ -373,6 +377,8 @@ export interface UpdateTaskBody {
   blockerReason?: string | null;
   blockerType?: UpdateTaskBodyBlockerType;
   adjustmentReason?: string | null;
+  /** Source module (e.g. 'home'). Null = regular work task. */
+  taskSource?: string | null;
 }
 
 export interface StepBackTaskResponse {
@@ -617,6 +623,10 @@ export type ListTasksParams = {
    * Date in YYYY-MM-DD format, defaults to today
    */
   date?: string;
+  /**
+   * Filter by taskSource (e.g. 'home'). Omit to get all tasks.
+   */
+  source?: string;
 };
 
 export type ListWeeklyPlansParams = {

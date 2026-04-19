@@ -21,6 +21,7 @@ export const tasksTable = pgTable("tasks", {
   blockerType: text("blocker_type"),
   adjustmentType: text("adjustment_type"),
   adjustmentReason: text("adjustment_reason"),
+  taskSource: text("task_source"),
 });
 
 export const insertTaskSchema = createInsertSchema(tasksTable).omit({ id: true, createdAt: true });

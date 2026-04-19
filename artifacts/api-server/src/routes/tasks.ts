@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { db, tasksTable, progressLogsTable } from "@workspace/db";
 import {
   CreateTaskBody,
@@ -77,9 +77,14 @@ router.get("/tasks", async (req, res): Promise<void> => {
   const query = ListTasksQueryParams.safeParse(req.query);
   const today = new Date().toISOString().slice(0, 10);
   const date = query.success && query.data.date ? query.data.date : today;
+  const source = query.success ? query.data.source : undefined;
+
+  const whereClause = source
+    ? and(eq(tasksTable.date, date), eq(tasksTable.taskSource, source))
+    : and(eq(tasksTable.date, date), isNull(tasksTable.taskSource));
 
   const tasks = await db.select().from(tasksTable)
-    .where(eq(tasksTable.date, date))
+    .where(whereClause)
     .orderBy(tasksTable.createdAt);
 
   res.json(ListTasksResponse.parse(tasks.map(serializeTask)));
@@ -101,6 +106,7 @@ router.post("/tasks", async (req, res): Promise<void> => {
     pillarId: parsed.data.pillarId ?? null,
     milestoneId: parsed.data.milestoneId ?? null,
     blockerReason: parsed.data.blockerReason ?? null,
+    taskSource: parsed.data.taskSource ?? null,
     date: parsed.data.date,
     status: "pending",
   }).returning();
@@ -133,6 +139,7 @@ router.patch("/tasks/:id", async (req, res): Promise<void> => {
   if (parsed.data.blockerReason !== undefined) updates.blockerReason = parsed.data.blockerReason;
   if (parsed.data.blockerType !== undefined) updates.blockerType = parsed.data.blockerType;
   if (parsed.data.adjustmentReason !== undefined) updates.adjustmentReason = parsed.data.adjustmentReason;
+  if (parsed.data.taskSource !== undefined) updates.taskSource = parsed.data.taskSource;
 
   const [task] = await db
     .update(tasksTable)
