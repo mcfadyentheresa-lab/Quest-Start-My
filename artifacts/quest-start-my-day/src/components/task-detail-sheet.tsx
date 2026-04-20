@@ -13,6 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
@@ -163,6 +164,9 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
       <SheetContent side="bottom" className="rounded-t-2xl max-h-[90vh] overflow-y-auto px-6 pb-8">
         <SheetHeader className="mb-4">
           <SheetTitle className="font-serif text-xl text-left">Edit task</SheetTitle>
+          <SheetDescription className="sr-only">
+            Edit the details of this task, including its title, category, pillar, milestone, and other fields.
+          </SheetDescription>
         </SheetHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
