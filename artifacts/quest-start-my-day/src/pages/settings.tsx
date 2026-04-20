@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useId } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   useListPillars,
@@ -102,6 +102,7 @@ function PillarForm({
   loading: boolean;
   submitLabel: string;
 }) {
+  const uid = useId();
   const { register, handleSubmit, setValue, watch } = useForm<PillarFormData>({
     defaultValues: {
       name: "",
@@ -127,8 +128,8 @@ function PillarForm({
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2 max-h-[70vh] overflow-y-auto pr-1">
       <div className="space-y-1.5">
-        <Label>Pillar name</Label>
-        <Input {...register("name", { required: true })} placeholder="e.g. Aster & Spruce Connect" className="rounded-xl" />
+        <Label htmlFor={`${uid}-name`}>Pillar name</Label>
+        <Input id={`${uid}-name`} {...register("name", { required: true })} placeholder="e.g. Aster & Spruce Connect" className="rounded-xl" />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -177,8 +178,8 @@ function PillarForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label>Description</Label>
-        <Textarea {...register("description")} placeholder="Brief description" className="rounded-xl resize-none" rows={2} />
+        <Label htmlFor={`${uid}-description`}>Description</Label>
+        <Textarea id={`${uid}-description`} {...register("description")} placeholder="Brief description" className="rounded-xl resize-none" rows={2} />
       </div>
 
       <div className="space-y-2">
@@ -202,33 +203,33 @@ function PillarForm({
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Project detail</p>
 
         <div className="space-y-1.5">
-          <Label>Current stage</Label>
-          <Input {...register("currentStage")} placeholder="e.g. Early development, Beta, Launched..." className="rounded-xl" />
+          <Label htmlFor={`${uid}-current-stage`}>Current stage</Label>
+          <Input id={`${uid}-current-stage`} {...register("currentStage")} placeholder="e.g. Early development, Beta, Launched..." className="rounded-xl" />
         </div>
 
         <div className="space-y-1.5">
-          <Label>Why it matters</Label>
-          <Textarea {...register("whyItMatters")} placeholder="Why does this project matter to you?" className="rounded-xl resize-none" rows={2} />
+          <Label htmlFor={`${uid}-why-it-matters`}>Why it matters</Label>
+          <Textarea id={`${uid}-why-it-matters`} {...register("whyItMatters")} placeholder="Why does this project matter to you?" className="rounded-xl resize-none" rows={2} />
         </div>
 
         <div className="space-y-1.5">
-          <Label>Now — what you're focused on</Label>
-          <Textarea {...register("nowFocus")} placeholder="What's the current focus or milestone?" className="rounded-xl resize-none" rows={2} />
+          <Label htmlFor={`${uid}-now-focus`}>Now — what you're focused on</Label>
+          <Textarea id={`${uid}-now-focus`} {...register("nowFocus")} placeholder="What's the current focus or milestone?" className="rounded-xl resize-none" rows={2} />
         </div>
 
         <div className="space-y-1.5">
-          <Label>Next — what comes after</Label>
-          <Textarea {...register("nextFocus")} placeholder="What's the next phase or step?" className="rounded-xl resize-none" rows={2} />
+          <Label htmlFor={`${uid}-next-focus`}>Next — what comes after</Label>
+          <Textarea id={`${uid}-next-focus`} {...register("nextFocus")} placeholder="What's the next phase or step?" className="rounded-xl resize-none" rows={2} />
         </div>
 
         <div className="space-y-1.5">
-          <Label>Later — future ideas</Label>
-          <Textarea {...register("laterFocus")} placeholder="What's in the longer-term vision?" className="rounded-xl resize-none" rows={2} />
+          <Label htmlFor={`${uid}-later-focus`}>Later — future ideas</Label>
+          <Textarea id={`${uid}-later-focus`} {...register("laterFocus")} placeholder="What's in the longer-term vision?" className="rounded-xl resize-none" rows={2} />
         </div>
 
         <div className="space-y-1.5">
-          <Label>Blockers</Label>
-          <Textarea {...register("blockers")} placeholder="Anything blocking this project?" className="rounded-xl resize-none" rows={2} />
+          <Label htmlFor={`${uid}-blockers`}>Blockers</Label>
+          <Textarea id={`${uid}-blockers`} {...register("blockers")} placeholder="Anything blocking this project?" className="rounded-xl resize-none" rows={2} />
         </div>
       </div>
 
@@ -250,6 +251,7 @@ function MilestoneForm({
   loading: boolean;
   submitLabel: string;
 }) {
+  const uid = useId();
   const { register, handleSubmit, setValue, watch } = useForm<MilestoneFormData>({
     defaultValues: {
       title: "",
@@ -266,8 +268,8 @@ function MilestoneForm({
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2 max-h-[65vh] overflow-y-auto pr-1">
       <div className="space-y-1.5">
-        <Label>Milestone title</Label>
-        <Input {...register("title", { required: true })} placeholder="e.g. Launch beta to first 10 users" className="rounded-xl" />
+        <Label htmlFor={`${uid}-title`}>Milestone title</Label>
+        <Input id={`${uid}-title`} {...register("title", { required: true })} placeholder="e.g. Launch beta to first 10 users" className="rounded-xl" />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -303,18 +305,18 @@ function MilestoneForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label>Target date (optional)</Label>
-        <Input type="date" {...register("targetDate")} className="rounded-xl" />
+        <Label htmlFor={`${uid}-target-date`}>Target date (optional)</Label>
+        <Input id={`${uid}-target-date`} type="date" {...register("targetDate")} className="rounded-xl" />
       </div>
 
       <div className="space-y-1.5">
-        <Label>Description</Label>
-        <Textarea {...register("description")} placeholder="What does reaching this milestone mean?" className="rounded-xl resize-none" rows={2} />
+        <Label htmlFor={`${uid}-description`}>Description</Label>
+        <Textarea id={`${uid}-description`} {...register("description")} placeholder="What does reaching this milestone mean?" className="rounded-xl resize-none" rows={2} />
       </div>
 
       <div className="space-y-1.5">
-        <Label>Next action</Label>
-        <Input {...register("nextAction")} placeholder="First concrete step..." className="rounded-xl" />
+        <Label htmlFor={`${uid}-next-action`}>Next action</Label>
+        <Input id={`${uid}-next-action`} {...register("nextAction")} placeholder="First concrete step..." className="rounded-xl" />
       </div>
 
       <Button type="submit" className="w-full rounded-xl" disabled={loading}>
