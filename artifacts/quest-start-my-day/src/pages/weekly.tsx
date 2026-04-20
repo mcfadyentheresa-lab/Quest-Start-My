@@ -221,8 +221,11 @@ export default function WeeklyPage() {
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Top priorities</p>
           {priorities.map((p, i) => (
-            <div key={i} className="flex gap-2">
+            <div key={i} className="space-y-1">
+              <Label htmlFor={`weekly-priority-${i + 1}`} className="text-xs text-muted-foreground">Priority {i + 1}</Label>
+              <div className="flex gap-2">
               <Input
+                id={`weekly-priority-${i + 1}`}
                 value={p}
                 onChange={e => {
                   const next = [...priorities];
@@ -230,7 +233,6 @@ export default function WeeklyPage() {
                   setPriorities(next);
                 }}
                 placeholder={`Priority ${i + 1}`}
-                aria-label={`Priority ${i + 1}`}
                 className="rounded-xl flex-1"
               />
               {priorities.length > 1 && (
@@ -244,6 +246,7 @@ export default function WeeklyPage() {
                   <Trash2 className="h-4 w-4" />
                 </Button>
               )}
+              </div>
             </div>
           ))}
           <Button
