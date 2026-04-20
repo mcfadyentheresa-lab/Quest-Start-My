@@ -263,7 +263,7 @@ export default function WeeklyPage() {
         {/* Focus fields */}
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="weekly-health-focus">Health focus</Label>
+            <Label htmlFor="weekly-health-focus" className="block py-1.5">Health focus</Label>
             <Input
               id="weekly-health-focus"
               value={healthFocus}
@@ -274,7 +274,7 @@ export default function WeeklyPage() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="weekly-business-focus">Business focus</Label>
+            <Label htmlFor="weekly-business-focus" className="block py-1.5">Business focus</Label>
             <Input
               id="weekly-business-focus"
               value={businessFocus}
@@ -285,7 +285,7 @@ export default function WeeklyPage() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="weekly-creative-focus">Creative / build focus</Label>
+            <Label htmlFor="weekly-creative-focus" className="block py-1.5">Creative / build focus</Label>
             <Input
               id="weekly-creative-focus"
               value={creativeFocus}
@@ -296,7 +296,7 @@ export default function WeeklyPage() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="weekly-notes">Notes</Label>
+            <Label htmlFor="weekly-notes" className="block py-1.5">Notes</Label>
             <Textarea
               id="weekly-notes"
               value={notes}
@@ -340,7 +340,7 @@ export default function WeeklyPage() {
             >
               <div className="px-5 pb-5 space-y-3 border-t border-border pt-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="weekly-what-moved-forward">What moved forward?</Label>
+                  <Label htmlFor="weekly-what-moved-forward" className="block py-1.5">What moved forward?</Label>
                   <Textarea
                     id="weekly-what-moved-forward"
                     value={whatMovedForward}
@@ -351,7 +351,7 @@ export default function WeeklyPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="weekly-what-got-stuck">What got stuck?</Label>
+                  <Label htmlFor="weekly-what-got-stuck" className="block py-1.5">What got stuck?</Label>
                   <Textarea
                     id="weekly-what-got-stuck"
                     value={whatGotStuck}
@@ -362,7 +362,7 @@ export default function WeeklyPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="weekly-what-continues">What continues next week?</Label>
+                  <Label htmlFor="weekly-what-continues" className="block py-1.5">What continues next week?</Label>
                   <Textarea
                     id="weekly-what-continues"
                     value={whatContinues}
@@ -373,7 +373,7 @@ export default function WeeklyPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="weekly-what-to-deprioritize">What to deprioritize</Label>
+                  <Label htmlFor="weekly-what-to-deprioritize" className="block py-1.5">What to deprioritize</Label>
                   <Textarea
                     id="weekly-what-to-deprioritize"
                     value={whatToDeprioritize}
@@ -384,7 +384,7 @@ export default function WeeklyPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="weekly-next-week-focus">Next week's key focus</Label>
+                  <Label htmlFor="weekly-next-week-focus" className="block py-1.5">Next week's key focus</Label>
                   <Textarea
                     id="weekly-next-week-focus"
                     value={nextWeekFocus}

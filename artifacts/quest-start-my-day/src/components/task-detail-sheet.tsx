@@ -171,7 +171,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="detail-title">Title</Label>
+            <Label htmlFor="detail-title" className="block py-1.5">Title</Label>
             <Input
               id="detail-title"
               {...register("title", { required: true })}
@@ -181,7 +181,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Category</Label>
+              <Label className="block py-1.5">Category</Label>
               <Select value={category} onValueChange={(v) => setValue("category", v)}>
                 <SelectTrigger className="rounded-xl">
                   <SelectValue />
@@ -196,7 +196,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
 
             {pillars && pillars.length > 0 && (
               <div className="space-y-1.5">
-                <Label>Pillar</Label>
+                <Label className="block py-1.5">Pillar</Label>
                 <Select
                   value={pillarId}
                   onValueChange={(v) => {
@@ -222,7 +222,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
 
           {selectedPillarNumericId && (
             <div className="space-y-1.5">
-              <Label>Milestone</Label>
+              <Label className="block py-1.5">Milestone</Label>
               <Select
                 value={milestoneId}
                 onValueChange={(v) => setValue("milestoneId", v)}
@@ -244,7 +244,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
           )}
 
           <div className="space-y-1.5">
-            <Label htmlFor="detail-why">Why this matters</Label>
+            <Label htmlFor="detail-why" className="block py-1.5">Why this matters</Label>
             <Textarea
               id="detail-why"
               {...register("whyItMatters")}
@@ -255,7 +255,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="detail-done">Done looks like</Label>
+            <Label htmlFor="detail-done" className="block py-1.5">Done looks like</Label>
             <Textarea
               id="detail-done"
               {...register("doneLooksLike")}
@@ -266,7 +266,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="detail-next">Suggested next step</Label>
+            <Label htmlFor="detail-next" className="block py-1.5">Suggested next step</Label>
             <Input
               id="detail-next"
               {...register("suggestedNextStep")}
@@ -277,7 +277,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
 
           {task.status === "blocked" && (
             <div className="space-y-1.5">
-              <Label htmlFor="detail-blocker">Blocker reason</Label>
+              <Label htmlFor="detail-blocker" className="block py-1.5">Blocker reason</Label>
               <Textarea
                 id="detail-blocker"
                 {...register("blockerReason")}
