@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check, Trash2, GripVertical, AlertCircle, Volume2, VolumeX } from "lucide-react";
@@ -475,6 +475,7 @@ function SortableMilestoneRow({
             <DialogContent className="rounded-2xl max-w-sm mx-4">
               <DialogHeader>
                 <DialogTitle className="font-serif text-lg">Edit milestone</DialogTitle>
+                <DialogDescription className="sr-only">Update the details for this milestone.</DialogDescription>
               </DialogHeader>
               <MilestoneForm
                 defaultValues={{
@@ -631,6 +632,7 @@ function MilestonesSection({ pillarId }: { pillarId: number }) {
           <DialogContent className="rounded-2xl max-w-sm mx-4">
             <DialogHeader>
               <DialogTitle className="font-serif text-lg">New milestone</DialogTitle>
+              <DialogDescription className="sr-only">Add a new milestone to track progress for this pillar.</DialogDescription>
             </DialogHeader>
             <MilestoneForm
               onSubmit={handleCreate}
@@ -766,6 +768,7 @@ function PillarCard({ pillar, onEdit, onStatusChange, editLoading, statusLoading
               <DialogContent className="rounded-2xl max-w-md mx-4">
                 <DialogHeader>
                   <DialogTitle className="font-serif text-xl">Edit pillar</DialogTitle>
+                  <DialogDescription className="sr-only">Update the details for this pillar project.</DialogDescription>
                 </DialogHeader>
                 <PillarForm
                   defaultValues={{
@@ -1011,6 +1014,7 @@ export default function SettingsPage() {
           <DialogContent className="rounded-2xl max-w-md mx-4">
             <DialogHeader>
               <DialogTitle className="font-serif text-xl">New pillar project</DialogTitle>
+              <DialogDescription className="sr-only">Create a new pillar project to organize your work.</DialogDescription>
             </DialogHeader>
             <PillarForm onSubmit={handleCreate} loading={createPillar.isPending} submitLabel="Create pillar" />
           </DialogContent>

@@ -11,7 +11,7 @@ import {
   getListMilestonesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -117,6 +117,7 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
       <DialogContent className="rounded-2xl max-w-md mx-4">
         <DialogHeader>
           <DialogTitle className="font-serif text-xl">Add a task</DialogTitle>
+          <DialogDescription className="sr-only">Fill in the details to add a new task for the day.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2 max-h-[75vh] overflow-y-auto pr-1">
           <div className="space-y-1.5">
