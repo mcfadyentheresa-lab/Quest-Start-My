@@ -46,7 +46,12 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 const COLORS = [
-  "#c2a49e", "#d4a77a", "#a8b89c", "#8eafc0", "#b49ac4", "#c4947a",
+  { hex: "#c2a49e", name: "Dusty rose" },
+  { hex: "#d4a77a", name: "Warm sand" },
+  { hex: "#a8b89c", name: "Sage green" },
+  { hex: "#8eafc0", name: "Steel blue" },
+  { hex: "#b49ac4", name: "Lavender" },
+  { hex: "#c4947a", name: "Terra cotta" },
 ];
 
 const PORTFOLIO_STATUSES = ["Active", "Warm", "Parked"] as const;
@@ -102,7 +107,7 @@ function PillarForm({
       name: "",
       priority: "P1",
       description: "",
-      color: COLORS[0],
+      color: COLORS[0]!.hex,
       portfolioStatus: "Active",
       featureTag: "",
       currentStage: "",
@@ -181,13 +186,13 @@ function PillarForm({
         <div className="flex gap-2 flex-wrap">
           {COLORS.map(c => (
             <button
-              key={c}
+              key={c.hex}
               type="button"
-              onClick={() => setValue("color", c)}
-              className={`h-7 w-7 rounded-full transition-all ${color === c ? "ring-2 ring-offset-2 ring-primary scale-110" : ""}`}
-              style={{ backgroundColor: c }}
-              aria-label={`Select color ${c}`}
-              aria-pressed={color === c}
+              onClick={() => setValue("color", c.hex)}
+              className={`h-7 w-7 rounded-full transition-all ${color === c.hex ? "ring-2 ring-offset-2 ring-primary scale-110" : ""}`}
+              style={{ backgroundColor: c.hex }}
+              aria-label={`Select color: ${c.name}`}
+              aria-pressed={color === c.hex}
             />
           ))}
         </div>
@@ -785,7 +790,7 @@ function PillarCard({ pillar, onEdit, onStatusChange, editLoading, statusLoading
                     name: pillar.name,
                     priority: pillar.priority,
                     description: pillar.description ?? "",
-                    color: pillar.color ?? COLORS[0]!,
+                    color: pillar.color ?? COLORS[0]!.hex,
                     portfolioStatus: pillar.portfolioStatus ?? "Active",
                     featureTag: pillar.featureTag ?? "",
                     currentStage: pillar.currentStage ?? "",
