@@ -188,8 +188,9 @@ export default function ReviewPage() {
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">What happened</p>
 
             <div className="space-y-1.5">
-              <Label>What moved forward</Label>
+              <Label htmlFor="review-what-moved">What moved forward</Label>
               <Textarea
+                id="review-what-moved"
                 {...register("whatMoved")}
                 placeholder="What made real progress this month?"
                 className="rounded-xl resize-none"
@@ -198,8 +199,9 @@ export default function ReviewPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Pillars advanced</Label>
+              <Label htmlFor="review-pillars-advanced">Pillars advanced</Label>
               <Textarea
+                id="review-pillars-advanced"
                 {...register("pillarsAdvanced")}
                 placeholder="Which projects or areas made meaningful strides?"
                 className="rounded-xl resize-none"
@@ -208,8 +210,9 @@ export default function ReviewPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Milestones completed</Label>
+              <Label htmlFor="review-milestones-completed">Milestones completed</Label>
               <Textarea
+                id="review-milestones-completed"
                 {...register("milestonesCompleted")}
                 placeholder="Key milestones reached this month"
                 className="rounded-xl resize-none"
@@ -222,8 +225,9 @@ export default function ReviewPage() {
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">What to learn from</p>
 
             <div className="space-y-1.5">
-              <Label>What caused delays</Label>
+              <Label htmlFor="review-what-delayed">What caused delays</Label>
               <Textarea
+                id="review-what-delayed"
                 {...register("whatDelayed")}
                 placeholder="What slowed you down or blocked progress?"
                 className="rounded-xl resize-none"
@@ -232,8 +236,9 @@ export default function ReviewPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>What to pause</Label>
+              <Label htmlFor="review-what-to-pause">What to pause</Label>
               <Textarea
+                id="review-what-to-pause"
                 {...register("whatToPause")}
                 placeholder="What should you put on hold or let go?"
                 className="rounded-xl resize-none"
@@ -246,8 +251,9 @@ export default function ReviewPage() {
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Top 3 priorities next month</p>
             {(["priority1", "priority2", "priority3"] as const).map((field, i) => (
               <div key={field} className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Priority {i + 1}</Label>
+                <Label htmlFor={`review-${field}`} className="text-xs text-muted-foreground">Priority {i + 1}</Label>
                 <Input
+                  id={`review-${field}`}
                   {...register(field)}
                   placeholder={i === 0 ? "e.g. Launch beta to first users" : i === 1 ? "e.g. Finish the content backlog" : "e.g. Ship the onboarding flow"}
                   className="rounded-xl"

@@ -219,7 +219,7 @@ export default function WeeklyPage() {
 
         {/* Priorities */}
         <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Top priorities</Label>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Top priorities</p>
           {priorities.map((p, i) => (
             <div key={i} className="flex gap-2">
               <Input
@@ -230,6 +230,7 @@ export default function WeeklyPage() {
                   setPriorities(next);
                 }}
                 placeholder={`Priority ${i + 1}`}
+                aria-label={`Priority ${i + 1}`}
                 className="rounded-xl flex-1"
               />
               {priorities.length > 1 && (
@@ -259,8 +260,9 @@ export default function WeeklyPage() {
         {/* Focus fields */}
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label>Health focus</Label>
+            <Label htmlFor="weekly-health-focus">Health focus</Label>
             <Input
+              id="weekly-health-focus"
               value={healthFocus}
               onChange={e => setHealthFocus(e.target.value)}
               placeholder="e.g. Morning walks, 8h sleep..."
@@ -269,8 +271,9 @@ export default function WeeklyPage() {
           </div>
 
           <div className="space-y-1.5">
-            <Label>Business focus</Label>
+            <Label htmlFor="weekly-business-focus">Business focus</Label>
             <Input
+              id="weekly-business-focus"
               value={businessFocus}
               onChange={e => setBusinessFocus(e.target.value)}
               placeholder="e.g. Finish the onboarding flow..."
@@ -279,8 +282,9 @@ export default function WeeklyPage() {
           </div>
 
           <div className="space-y-1.5">
-            <Label>Creative / build focus</Label>
+            <Label htmlFor="weekly-creative-focus">Creative / build focus</Label>
             <Input
+              id="weekly-creative-focus"
               value={creativeFocus}
               onChange={e => setCreativeFocus(e.target.value)}
               placeholder="e.g. Design the landing page..."
@@ -289,8 +293,9 @@ export default function WeeklyPage() {
           </div>
 
           <div className="space-y-1.5">
-            <Label>Notes</Label>
+            <Label htmlFor="weekly-notes">Notes</Label>
             <Textarea
+              id="weekly-notes"
               value={notes}
               onChange={e => setNotes(e.target.value)}
               placeholder="Anything else to keep in mind this week..."
@@ -332,8 +337,9 @@ export default function WeeklyPage() {
             >
               <div className="px-5 pb-5 space-y-3 border-t border-border pt-4">
                 <div className="space-y-1.5">
-                  <Label>What moved forward?</Label>
+                  <Label htmlFor="weekly-what-moved-forward">What moved forward?</Label>
                   <Textarea
+                    id="weekly-what-moved-forward"
                     value={whatMovedForward}
                     onChange={e => setWhatMovedForward(e.target.value)}
                     placeholder="What made real progress this week?"
@@ -342,8 +348,9 @@ export default function WeeklyPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>What got stuck?</Label>
+                  <Label htmlFor="weekly-what-got-stuck">What got stuck?</Label>
                   <Textarea
+                    id="weekly-what-got-stuck"
                     value={whatGotStuck}
                     onChange={e => setWhatGotStuck(e.target.value)}
                     placeholder="What felt blocked or stalled?"
@@ -352,8 +359,9 @@ export default function WeeklyPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>What continues next week?</Label>
+                  <Label htmlFor="weekly-what-continues">What continues next week?</Label>
                   <Textarea
+                    id="weekly-what-continues"
                     value={whatContinues}
                     onChange={e => setWhatContinues(e.target.value)}
                     placeholder="What carries forward?"
@@ -362,8 +370,9 @@ export default function WeeklyPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>What to deprioritize</Label>
+                  <Label htmlFor="weekly-what-to-deprioritize">What to deprioritize</Label>
                   <Textarea
+                    id="weekly-what-to-deprioritize"
                     value={whatToDeprioritize}
                     onChange={e => setWhatToDeprioritize(e.target.value)}
                     placeholder="What's OK to let go of or slow down?"
@@ -372,8 +381,9 @@ export default function WeeklyPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Next week's key focus</Label>
+                  <Label htmlFor="weekly-next-week-focus">Next week's key focus</Label>
                   <Textarea
+                    id="weekly-next-week-focus"
                     value={nextWeekFocus}
                     onChange={e => setNextWeekFocus(e.target.value)}
                     placeholder="One sentence: what's the north star next week?"
