@@ -128,13 +128,13 @@ function PillarForm({
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2 max-h-[70vh] overflow-y-auto pr-1">
       <div className="space-y-1.5">
-        <Label htmlFor={`${uid}-name`} className="block py-1.5">Pillar name</Label>
+        <Label htmlFor={`${uid}-name`}>Pillar name</Label>
         <Input id={`${uid}-name`} {...register("name", { required: true })} placeholder="e.g. Aster & Spruce Connect" className="rounded-xl" />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label className="block py-1.5">Priority</Label>
+          <Label>Priority</Label>
           <Select value={priority} onValueChange={v => setValue("priority", v)}>
             <SelectTrigger className="rounded-xl">
               <SelectValue />
@@ -148,7 +148,7 @@ function PillarForm({
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label className="block py-1.5">Portfolio status</Label>
+          <Label>Portfolio status</Label>
           <Select value={portfolioStatus} onValueChange={v => setValue("portfolioStatus", v)}>
             <SelectTrigger className="rounded-xl">
               <SelectValue />
@@ -163,7 +163,7 @@ function PillarForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label className="block py-1.5">Feature focus</Label>
+        <Label>Feature focus</Label>
         <Select value={featureTag || "none"} onValueChange={v => setValue("featureTag", v === "none" ? "" : v)}>
           <SelectTrigger className="rounded-xl">
             <SelectValue placeholder="None" />
@@ -178,12 +178,12 @@ function PillarForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor={`${uid}-description`} className="block py-1.5">Description</Label>
+        <Label htmlFor={`${uid}-description`}>Description</Label>
         <Textarea id={`${uid}-description`} {...register("description")} placeholder="Brief description" className="rounded-xl resize-none" rows={2} />
       </div>
 
       <div className="space-y-2">
-        <Label className="block py-1.5">Color</Label>
+        <Label>Color</Label>
         <div className="flex gap-2 flex-wrap">
           {COLORS.map(c => (
             <button
@@ -203,32 +203,32 @@ function PillarForm({
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Project detail</p>
 
         <div className="space-y-1.5">
-          <Label htmlFor={`${uid}-current-stage`} className="block py-1.5">Current stage</Label>
+          <Label htmlFor={`${uid}-current-stage`}>Current stage</Label>
           <Input id={`${uid}-current-stage`} {...register("currentStage")} placeholder="e.g. Early development, Beta, Launched..." className="rounded-xl" />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor={`${uid}-why-it-matters`} className="block py-1.5">Why it matters</Label>
+          <Label htmlFor={`${uid}-why-it-matters`}>Why it matters</Label>
           <Textarea id={`${uid}-why-it-matters`} {...register("whyItMatters")} placeholder="Why does this project matter to you?" className="rounded-xl resize-none" rows={2} />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor={`${uid}-now-focus`} className="block py-1.5">Now — what you're focused on</Label>
+          <Label htmlFor={`${uid}-now-focus`}>Now — what you're focused on</Label>
           <Textarea id={`${uid}-now-focus`} {...register("nowFocus")} placeholder="What's the current focus or milestone?" className="rounded-xl resize-none" rows={2} />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor={`${uid}-next-focus`} className="block py-1.5">Next — what comes after</Label>
+          <Label htmlFor={`${uid}-next-focus`}>Next — what comes after</Label>
           <Textarea id={`${uid}-next-focus`} {...register("nextFocus")} placeholder="What's the next phase or step?" className="rounded-xl resize-none" rows={2} />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor={`${uid}-later-focus`} className="block py-1.5">Later — future ideas</Label>
+          <Label htmlFor={`${uid}-later-focus`}>Later — future ideas</Label>
           <Textarea id={`${uid}-later-focus`} {...register("laterFocus")} placeholder="What's in the longer-term vision?" className="rounded-xl resize-none" rows={2} />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor={`${uid}-blockers`} className="block py-1.5">Blockers</Label>
+          <Label htmlFor={`${uid}-blockers`}>Blockers</Label>
           <Textarea id={`${uid}-blockers`} {...register("blockers")} placeholder="Anything blocking this project?" className="rounded-xl resize-none" rows={2} />
         </div>
       </div>
@@ -268,13 +268,13 @@ function MilestoneForm({
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2 max-h-[65vh] overflow-y-auto pr-1">
       <div className="space-y-1.5">
-        <Label htmlFor={`${uid}-title`} className="block py-1.5">Milestone title</Label>
+        <Label htmlFor={`${uid}-title`}>Milestone title</Label>
         <Input id={`${uid}-title`} {...register("title", { required: true })} placeholder="e.g. Launch beta to first 10 users" className="rounded-xl" />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label className="block py-1.5">Status</Label>
+          <Label>Status</Label>
           <Select value={status} onValueChange={v => setValue("status", v)}>
             <SelectTrigger className="rounded-xl">
               <SelectValue />
@@ -288,7 +288,7 @@ function MilestoneForm({
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label className="block py-1.5">Priority</Label>
+          <Label>Priority</Label>
           <Select value={watch("priority") || "none"} onValueChange={v => setValue("priority", v === "none" ? "" : v)}>
             <SelectTrigger className="rounded-xl">
               <SelectValue placeholder="None" />
@@ -305,17 +305,17 @@ function MilestoneForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor={`${uid}-target-date`} className="block py-1.5">Target date (optional)</Label>
+        <Label htmlFor={`${uid}-target-date`}>Target date (optional)</Label>
         <Input id={`${uid}-target-date`} type="date" {...register("targetDate")} className="rounded-xl" />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor={`${uid}-description`} className="block py-1.5">Description</Label>
+        <Label htmlFor={`${uid}-description`}>Description</Label>
         <Textarea id={`${uid}-description`} {...register("description")} placeholder="What does reaching this milestone mean?" className="rounded-xl resize-none" rows={2} />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor={`${uid}-next-action`} className="block py-1.5">Next action</Label>
+        <Label htmlFor={`${uid}-next-action`}>Next action</Label>
         <Input id={`${uid}-next-action`} {...register("nextAction")} placeholder="First concrete step..." className="rounded-xl" />
       </div>
 

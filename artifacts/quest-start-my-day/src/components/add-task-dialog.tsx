@@ -121,13 +121,13 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2 max-h-[75vh] overflow-y-auto pr-1">
           <div className="space-y-1.5">
-            <Label htmlFor="title" className="block py-1.5">Task title</Label>
+            <Label htmlFor="title">Task title</Label>
             <Input id="title" {...register("title", { required: true })} placeholder="What will you do?" className="rounded-xl" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="block py-1.5">Category</Label>
+              <Label>Category</Label>
               <Select value={category} onValueChange={(v) => setValue("category", v)}>
                 <SelectTrigger className="rounded-xl">
                   <SelectValue />
@@ -142,7 +142,7 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
 
             {activePillars.length > 0 && (
               <div className="space-y-1.5">
-                <Label className="block py-1.5">Pillar</Label>
+                <Label>Pillar</Label>
                 <Select
                   value={pillarId}
                   onValueChange={(v) => {
@@ -169,7 +169,7 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
           {/* Milestone selector — only shown when a pillar is selected and it has milestones */}
           {selectedPillarNumericId && activeMilestones.length > 0 && (
             <div className="space-y-1.5">
-              <Label className="block py-1.5">Milestone</Label>
+              <Label>Milestone</Label>
               <Select value={milestoneId} onValueChange={(v) => setValue("milestoneId", v)}>
                 <SelectTrigger className="rounded-xl">
                   <SelectValue placeholder="No milestone" />
@@ -202,15 +202,15 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
           )}
 
           <div className="space-y-1.5">
-            <Label htmlFor="why" className="block py-1.5">Why this matters</Label>
+            <Label htmlFor="why">Why this matters</Label>
             <Textarea id="why" {...register("whyItMatters")} placeholder="Why is this important today?" className="rounded-xl resize-none" rows={2} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="done" className="block py-1.5">Done looks like</Label>
+            <Label htmlFor="done">Done looks like</Label>
             <Textarea id="done" {...register("doneLooksLike")} placeholder="What does completion look like?" className="rounded-xl resize-none" rows={2} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="next" className="block py-1.5">Suggested next step</Label>
+            <Label htmlFor="next">Suggested next step</Label>
             <Input id="next" {...register("suggestedNextStep")} placeholder="Optional first action" className="rounded-xl" />
           </div>
           <div className="flex gap-2 pt-2">

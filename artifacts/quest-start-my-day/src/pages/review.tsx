@@ -188,7 +188,7 @@ export default function ReviewPage() {
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">What happened</p>
 
             <div className="space-y-1.5">
-              <Label htmlFor="review-what-moved" className="block py-1.5">What moved forward</Label>
+              <Label htmlFor="review-what-moved">What moved forward</Label>
               <Textarea
                 id="review-what-moved"
                 {...register("whatMoved")}
@@ -199,7 +199,7 @@ export default function ReviewPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="review-pillars-advanced" className="block py-1.5">Pillars advanced</Label>
+              <Label htmlFor="review-pillars-advanced">Pillars advanced</Label>
               <Textarea
                 id="review-pillars-advanced"
                 {...register("pillarsAdvanced")}
@@ -210,7 +210,7 @@ export default function ReviewPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="review-milestones-completed" className="block py-1.5">Milestones completed</Label>
+              <Label htmlFor="review-milestones-completed">Milestones completed</Label>
               <Textarea
                 id="review-milestones-completed"
                 {...register("milestonesCompleted")}
@@ -225,7 +225,7 @@ export default function ReviewPage() {
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">What to learn from</p>
 
             <div className="space-y-1.5">
-              <Label htmlFor="review-what-delayed" className="block py-1.5">What caused delays</Label>
+              <Label htmlFor="review-what-delayed">What caused delays</Label>
               <Textarea
                 id="review-what-delayed"
                 {...register("whatDelayed")}
@@ -236,7 +236,7 @@ export default function ReviewPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="review-what-to-pause" className="block py-1.5">What to pause</Label>
+              <Label htmlFor="review-what-to-pause">What to pause</Label>
               <Textarea
                 id="review-what-to-pause"
                 {...register("whatToPause")}
@@ -251,7 +251,7 @@ export default function ReviewPage() {
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Top 3 priorities next month</p>
             {(["priority1", "priority2", "priority3"] as const).map((field, i) => (
               <div key={field} className="space-y-1.5">
-                <Label htmlFor={`review-${field}`} className="block py-1.5 text-xs text-muted-foreground">Priority {i + 1}</Label>
+                <Label htmlFor={`review-${field}`} className="text-xs text-muted-foreground">Priority {i + 1}</Label>
                 <Input
                   id={`review-${field}`}
                   {...register(field)}
