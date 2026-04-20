@@ -459,6 +459,8 @@ export default function Dashboard() {
                         ? "bg-violet-100 border-violet-400 text-violet-700 dark:bg-violet-900/40 dark:border-violet-500 dark:text-violet-300"
                         : "border-border text-muted-foreground hover:border-violet-300 hover:text-violet-600"
                     }`}
+                    aria-pressed={selectedFocusDuration === d}
+                    aria-label={`Focus for ${d} minutes`}
                   >
                     {d}m
                   </button>

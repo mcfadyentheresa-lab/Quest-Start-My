@@ -186,6 +186,8 @@ function PillarForm({
               onClick={() => setValue("color", c)}
               className={`h-7 w-7 rounded-full transition-all ${color === c ? "ring-2 ring-offset-2 ring-primary scale-110" : ""}`}
               style={{ backgroundColor: c }}
+              aria-label={`Select color ${c}`}
+              aria-pressed={color === c}
             />
           ))}
         </div>
@@ -468,7 +470,7 @@ function SortableMilestoneRow({
         <div className="flex items-center gap-1 flex-shrink-0">
           <Dialog open={editId === m.id} onOpenChange={open => setEditId(open ? m.id : null)}>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
+              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" aria-label={`Edit milestone: ${m.title}`}>
                 <Pencil className="h-3 w-3" />
               </Button>
             </DialogTrigger>
@@ -498,6 +500,7 @@ function SortableMilestoneRow({
             className="h-7 w-7 rounded-lg text-muted-foreground hover:text-rose-600"
             onClick={() => handleDelete(m.id)}
             disabled={deleteMilestone.isPending}
+            aria-label={`Delete milestone: ${m.title}`}
           >
             <Trash2 className="h-3 w-3" />
           </Button>
@@ -756,12 +759,19 @@ function PillarCard({ pillar, onEdit, onStatusChange, editLoading, statusLoading
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
             <PillarSparklineWidget pillarId={pillar.id} />
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl" onClick={() => setExpanded(!expanded)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-xl"
+              onClick={() => setExpanded(!expanded)}
+              aria-label={expanded ? `Collapse ${pillar.name} details` : `Expand ${pillar.name} details`}
+              aria-expanded={expanded}
+            >
               {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             </Button>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl">
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl" aria-label={`Edit ${pillar.name}`}>
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
               </DialogTrigger>
@@ -1112,6 +1122,7 @@ export default function SettingsPage() {
                     ? "bg-violet-100 border-violet-400 text-violet-700 dark:bg-violet-900/40 dark:border-violet-500 dark:text-violet-300"
                     : "border-border text-muted-foreground hover:border-violet-300 hover:text-violet-600"
                 }`}
+                aria-pressed={defaultDuration === d}
               >
                 {d} min
               </button>

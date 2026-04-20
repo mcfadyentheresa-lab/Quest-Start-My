@@ -113,9 +113,10 @@ function CollapsibleSection({
             type="button"
             onClick={() => setOpen(o => !o)}
             className="flex items-center gap-1 text-xs text-primary font-medium"
+            aria-expanded={open}
           >
             {open ? "Hide" : "Show detail"}
-            {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            {open ? <ChevronUp className="h-3 w-3" aria-hidden="true" /> : <ChevronDown className="h-3 w-3" aria-hidden="true" />}
           </button>
         </div>
         <div className="mt-2">{summary}</div>

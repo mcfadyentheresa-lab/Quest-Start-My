@@ -94,7 +94,12 @@ function HomeTaskCard({ task, date }: HomeTaskCardProps) {
             {task.title}
           </h4>
         </div>
-        <button onClick={() => setExpanded(!expanded)} className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 mt-0.5">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 mt-0.5"
+          aria-label={expanded ? "Collapse task details" : "Expand task details"}
+          aria-expanded={expanded}
+        >
           {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
       </div>
@@ -197,7 +202,12 @@ function MicroTaskPreview({ microTask, onAdd, isAdding }: { microTask: HomeMicro
           </div>
           <h4 className="font-serif text-base font-medium leading-snug text-foreground">{microTask.title}</h4>
         </div>
-        <button onClick={() => setExpanded(!expanded)} className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 mt-1">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 mt-1"
+          aria-label={expanded ? "Collapse task preview" : "Expand task preview"}
+          aria-expanded={expanded}
+        >
           {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
       </div>
@@ -346,8 +356,9 @@ export default function HomeModulePage() {
                   key={e}
                   onClick={() => setEnergy(prev => prev === e ? null : e)}
                   className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border transition-colors font-medium ${isActive ? cfg.activeClass : cfg.className}`}
+                  aria-pressed={isActive}
                 >
-                  <Icon className="h-3.5 w-3.5" />
+                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                   {cfg.label}
                 </button>
               );
@@ -369,8 +380,9 @@ export default function HomeModulePage() {
                       ? "bg-teal-100 border-teal-400 text-teal-700 dark:bg-teal-900/40 dark:border-teal-500 dark:text-teal-300"
                       : "border-border text-muted-foreground hover:border-teal-300 hover:text-teal-600"
                   }`}
+                  aria-pressed={isActive}
                 >
-                  <Clock className="h-3 w-3" />
+                  <Clock className="h-3 w-3" aria-hidden="true" />
                   {label}
                 </button>
               );
@@ -392,6 +404,7 @@ export default function HomeModulePage() {
                       ? "bg-teal-100 border-teal-400 text-teal-700 dark:bg-teal-900/40 dark:border-teal-500 dark:text-teal-300"
                       : "border-border text-muted-foreground hover:border-teal-300 hover:text-teal-600"
                   }`}
+                  aria-pressed={isActive}
                 >
                   {label}
                 </button>

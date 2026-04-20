@@ -203,6 +203,8 @@ export default function WeeklyPage() {
                     ? "bg-primary border-primary text-primary-foreground"
                     : "bg-transparent border-border text-muted-foreground"
                 }`}
+                aria-label={pillar.isActiveThisWeek ? `Deactivate ${pillar.name} this week` : `Activate ${pillar.name} this week`}
+                aria-pressed={pillar.isActiveThisWeek}
               >
                 {pillar.isActiveThisWeek && <Check className="h-4 w-4" />}
               </button>
@@ -236,6 +238,7 @@ export default function WeeklyPage() {
                   size="icon"
                   className="rounded-xl text-muted-foreground"
                   onClick={() => setPriorities(priorities.filter((_, j) => j !== i))}
+                  aria-label={`Remove priority ${i + 1}`}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -308,12 +311,13 @@ export default function WeeklyPage() {
         <button
           onClick={() => setReflectionOpen(!reflectionOpen)}
           className="w-full flex items-center justify-between p-5 text-left"
+          aria-expanded={reflectionOpen}
         >
           <div>
             <h2 className="font-serif text-base font-medium text-foreground">Weekly reflection</h2>
             <p className="text-xs text-muted-foreground mt-0.5">Review what happened this week</p>
           </div>
-          {reflectionOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+          {reflectionOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" aria-hidden="true" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />}
         </button>
 
         <AnimatePresence initial={false}>

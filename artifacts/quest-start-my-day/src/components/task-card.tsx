@@ -246,6 +246,8 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
           <button
             onClick={() => setExpanded(!expanded)}
             className="text-muted-foreground hover:text-foreground transition-colors"
+            aria-label={expanded ? "Collapse task details" : "Expand task details"}
+            aria-expanded={expanded}
           >
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
@@ -434,6 +436,7 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
                   variant="ghost"
                   className="rounded-xl text-xs text-muted-foreground"
                   onClick={handleDelete}
+                  aria-label="Delete task"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
@@ -455,6 +458,7 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
                   variant="ghost"
                   className="rounded-xl text-xs text-muted-foreground"
                   onClick={handleDelete}
+                  aria-label="Delete task"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
