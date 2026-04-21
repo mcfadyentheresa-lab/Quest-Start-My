@@ -10,6 +10,7 @@ import {
   ListTasksResponse,
   UpdateTaskResponse,
   StepBackTaskParams,
+  GetTaskSuggestionsQueryParams,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -115,8 +116,13 @@ router.post("/tasks", async (req, res): Promise<void> => {
 });
 
 router.get("/tasks/suggestions", async (req, res): Promise<void> => {
+  const queryResult = GetTaskSuggestionsQueryParams.safeParse(req.query);
+  if (!queryResult.success) {
+    res.status(400).json({ error: queryResult.error.message });
+    return;
+  }
   const today = new Date().toISOString().slice(0, 10);
-  const date = typeof req.query.date === "string" ? req.query.date : today;
+  const date = queryResult.data.date ?? today;
 
   // Active pillars ordered by priority (P1 first), then id
   const activePillars = await db

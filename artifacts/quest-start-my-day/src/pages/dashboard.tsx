@@ -133,6 +133,8 @@ export default function Dashboard() {
   };
 
   const handleAddAllSuggestions = async () => {
+    let added = 0;
+    let failed = 0;
     for (const suggestion of visibleSuggestions) {
       await new Promise<void>((resolve) => {
         createTask.mutate(
@@ -147,8 +149,10 @@ export default function Dashboard() {
           },
           {
             onSuccess: () => {
+              added++;
               setDismissedMilestoneIds(prev => new Set([...prev, suggestion.milestoneId]));
             },
+            onError: () => { failed++; },
             onSettled: () => resolve(),
           }
         );
@@ -157,7 +161,17 @@ export default function Dashboard() {
     queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date: today }) });
     queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
     queryClient.invalidateQueries({ queryKey: getGetTaskSuggestionsQueryKey({ date: today }) });
-    toast({ title: "Tasks added", description: `${visibleSuggestions.length} tasks added for today` });
+    if (failed === 0) {
+      toast({ title: "Tasks added", description: `${added} task${added !== 1 ? "s" : ""} added for today` });
+    } else {
+      toast({
+        title: added > 0 ? "Some tasks added" : "Could not add tasks",
+        description: added > 0
+          ? `${added} added, ${failed} failed — try again for the rest`
+          : "Something went wrong. Please try adding tasks individually.",
+        variant: "destructive",
+      });
+    }
   };
 
   const pendingTasks = tasks?.filter(t => t.status === "pending") ?? [];
