@@ -17,6 +17,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarCheck, Save } from "lucide-react";
 import { useForm } from "react-hook-form";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ReviewFormData {
   whatMoved: string;
@@ -67,12 +77,13 @@ export default function ReviewPage() {
   const months = getRecentMonths();
   const currentMonth = months[0]!;
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [pendingMonth, setPendingMonth] = useState<string | null>(null);
 
   const { data: reviews, isLoading } = useListMonthlyReviews();
   const createReview = useCreateMonthlyReview();
   const updateReview = useUpdateMonthlyReview();
 
-  const { register, handleSubmit, reset } = useForm<ReviewFormData>({
+  const { register, handleSubmit, reset, formState: { isDirty } } = useForm<ReviewFormData>({
     defaultValues: {
       whatMoved: "",
       pillarsAdvanced: "",
@@ -144,6 +155,25 @@ export default function ReviewPage() {
 
   const isSaving = createReview.isPending || updateReview.isPending;
 
+  function handleMonthChange(month: string) {
+    if (isDirty) {
+      setPendingMonth(month);
+    } else {
+      setSelectedMonth(month);
+    }
+  }
+
+  function confirmMonthChange() {
+    if (pendingMonth) {
+      setSelectedMonth(pendingMonth);
+      setPendingMonth(null);
+    }
+  }
+
+  function cancelMonthChange() {
+    setPendingMonth(null);
+  }
+
   return (
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
@@ -153,7 +183,7 @@ export default function ReviewPage() {
 
       <div className="flex items-center gap-3">
         <CalendarCheck className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+        <Select value={selectedMonth} onValueChange={handleMonthChange}>
           <SelectTrigger className="rounded-xl flex-1">
             <SelectValue />
           </SelectTrigger>
@@ -268,6 +298,21 @@ export default function ReviewPage() {
           </Button>
         </motion.form>
       )}
+
+      <AlertDialog open={pendingMonth !== null} onOpenChange={(open) => { if (!open) cancelMonthChange(); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes to this review. If you switch months now, your edits will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelMonthChange}>Stay here</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmMonthChange}>Leave anyway</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
