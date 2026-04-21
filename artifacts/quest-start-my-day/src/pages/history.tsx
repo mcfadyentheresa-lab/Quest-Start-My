@@ -135,10 +135,27 @@ function CollapsibleSection({
   );
 }
 
-function PillarTrendIndicator({ rates }: { rates: number[] }) {
+function PillarTrendIndicator({
+  rates,
+  weeks,
+  selectedWeek,
+}: {
+  rates: number[];
+  weeks?: string[];
+  selectedWeek?: string;
+}) {
   if (rates.length < 2) return null;
-  const current = rates[rates.length - 1];
-  const prior = rates[rates.length - 2];
+
+  let currentIdx = rates.length - 1;
+  if (selectedWeek && weeks) {
+    const idx = weeks.indexOf(selectedWeek);
+    if (idx >= 1) {
+      currentIdx = idx;
+    }
+  }
+
+  const current = rates[currentIdx];
+  const prior = rates[currentIdx - 1];
   const delta = current - prior;
   const threshold = 0.01;
 
@@ -709,7 +726,11 @@ export default function HistoryPage() {
                             <Skeleton className="h-7 w-16 rounded" />
                           ) : sparklineEntry ? (
                             <>
-                              <PillarTrendIndicator rates={sparklineEntry.rates} />
+                              <PillarTrendIndicator
+                                rates={sparklineEntry.rates}
+                                weeks={sparklineEntry.weeks}
+                                selectedWeek={selectedWeek}
+                              />
                               <PillarSparkline
                                 rates={sparklineEntry.rates}
                                 weeks={sparklineEntry.weeks}
