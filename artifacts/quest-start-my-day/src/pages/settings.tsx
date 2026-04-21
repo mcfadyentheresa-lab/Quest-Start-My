@@ -6,6 +6,7 @@ import {
   useUpdatePillar,
   useListMilestones,
   useCreateMilestone,
+  useBulkCreateMilestones,
   useUpdateMilestone,
   useDeleteMilestone,
   getListPillarsQueryKey,
@@ -549,6 +550,9 @@ function MilestonesSection({ pillarId }: { pillarId: number }) {
   const [addOpen, setAddOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [orderedMilestones, setOrderedMilestones] = useState<MilestoneItem[]>([]);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkText, setBulkText] = useState("");
+  const bulkCreateMilestones = useBulkCreateMilestones();
 
   useEffect(() => {
     if (milestones) {
@@ -605,6 +609,28 @@ function MilestonesSection({ pillarId }: { pillarId: number }) {
     );
   };
 
+  const handleBulkCreate = () => {
+    const titles = bulkText
+      .split("\n")
+      .map(t => t.trim())
+      .filter(t => t.length > 0);
+
+    if (titles.length === 0) return;
+
+    bulkCreateMilestones.mutate(
+      { data: { pillarId, titles } },
+      {
+        onSuccess: (created) => {
+          invalidate();
+          setBulkOpen(false);
+          setBulkText("");
+          toast({ title: `${created.length} milestone${created.length !== 1 ? "s" : ""} added` });
+        },
+        onError: () => toast({ title: "Failed to add milestones", variant: "destructive" }),
+      }
+    );
+  };
+
   const handleUpdate = (id: number, data: MilestoneFormData) => {
     updateMilestone.mutate(
       {
@@ -654,25 +680,75 @@ function MilestonesSection({ pillarId }: { pillarId: number }) {
             </p>
           )}
         </div>
-        <Dialog open={addOpen} onOpenChange={setAddOpen}>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-7 rounded-lg gap-1 text-xs px-2">
-              <Plus className="h-3 w-3" />
-              Add
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="rounded-2xl max-w-sm mx-4">
-            <DialogHeader>
-              <DialogTitle className="font-serif text-lg">New milestone</DialogTitle>
-              <DialogDescription className="sr-only">Add a new milestone to track progress for this pillar.</DialogDescription>
-            </DialogHeader>
-            <MilestoneForm
-              onSubmit={handleCreate}
-              loading={createMilestone.isPending}
-              submitLabel="Create milestone"
-            />
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-1">
+          <Dialog open={bulkOpen} onOpenChange={(open) => { setBulkOpen(open); if (!open) setBulkText(""); }}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-7 rounded-lg gap-1 text-xs px-2">
+                <Plus className="h-3 w-3" />
+                Bulk add
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="rounded-2xl max-w-sm mx-4">
+              <DialogHeader>
+                <DialogTitle className="font-serif text-lg">Bulk add milestones</DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Type one milestone title per line. They'll all be added as planned milestones — you can fill in details after.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 pt-1">
+                <Textarea
+                  autoFocus
+                  placeholder={"Build landing page\nSet up analytics\nWrite first blog post"}
+                  value={bulkText}
+                  onChange={(e) => setBulkText(e.target.value)}
+                  className="rounded-xl min-h-[160px] resize-none text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                      e.preventDefault();
+                      handleBulkCreate();
+                    }
+                  }}
+                />
+                {(() => {
+                  const count = bulkText.split("\n").filter(t => t.trim().length > 0).length;
+                  return count > 0 ? (
+                    <p className="text-xs text-muted-foreground">{count} milestone{count !== 1 ? "s" : ""} will be added</p>
+                  ) : null;
+                })()}
+                <Button
+                  className="w-full rounded-xl"
+                  onClick={handleBulkCreate}
+                  disabled={bulkCreateMilestones.isPending || bulkText.split("\n").filter(t => t.trim().length > 0).length === 0}
+                >
+                  {bulkCreateMilestones.isPending ? "Adding..." : (() => {
+                    const count = bulkText.split("\n").filter(t => t.trim().length > 0).length;
+                    return count > 0 ? `Add ${count} milestone${count !== 1 ? "s" : ""}` : "Add milestones";
+                  })()}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={addOpen} onOpenChange={setAddOpen}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-7 rounded-lg gap-1 text-xs px-2">
+                <Plus className="h-3 w-3" />
+                Add
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="rounded-2xl max-w-sm mx-4">
+              <DialogHeader>
+                <DialogTitle className="font-serif text-lg">New milestone</DialogTitle>
+                <DialogDescription className="sr-only">Add a new milestone to track progress for this pillar.</DialogDescription>
+              </DialogHeader>
+              <MilestoneForm
+                onSubmit={handleCreate}
+                loading={createMilestone.isPending}
+                submitLabel="Create milestone"
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {activeMilestone && (

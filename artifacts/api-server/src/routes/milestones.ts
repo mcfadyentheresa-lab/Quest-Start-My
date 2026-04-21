@@ -5,6 +5,7 @@ import {
   ListMilestonesQueryParams,
   ListMilestonesResponse,
   CreateMilestoneBody,
+  BulkCreateMilestonesBody,
   UpdateMilestoneParams,
   UpdateMilestoneBody,
   UpdateMilestoneResponse,
@@ -53,6 +54,35 @@ router.post("/milestones", async (req, res): Promise<void> => {
   }).returning();
 
   res.status(201).json(serializeMilestone(milestone!));
+});
+
+router.post("/milestones/bulk", async (req, res): Promise<void> => {
+  const parsed = BulkCreateMilestonesBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const { pillarId, titles } = parsed.data;
+
+  // Get current max sort_order for this pillar so new ones go at the bottom
+  const existing = await db
+    .select({ sortOrder: milestonesTable.sortOrder })
+    .from(milestonesTable)
+    .where(eq(milestonesTable.pillarId, pillarId));
+
+  const maxOrder = existing.reduce((max, m) => Math.max(max, m.sortOrder ?? 0), -1);
+
+  const rows = titles.map((title, i) => ({
+    pillarId,
+    title: title.trim(),
+    status: "planned" as const,
+    sortOrder: maxOrder + 1 + i,
+  }));
+
+  const created = await db.insert(milestonesTable).values(rows).returning();
+
+  res.status(201).json(created.map(serializeMilestone));
 });
 
 router.patch("/milestones/:id", async (req, res): Promise<void> => {

@@ -17,6 +17,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  BulkCreateMilestonesBody,
   CreateDailyPlanBody,
   CreateMilestoneBody,
   CreateMonthlyReviewBody,
@@ -564,6 +565,93 @@ export const useCreateMilestone = <
   TContext
 > => {
   return useMutation(getCreateMilestoneMutationOptions(options));
+};
+
+/**
+ * @summary Create multiple milestones at once for a pillar
+ */
+export const getBulkCreateMilestonesUrl = () => {
+  return `/api/milestones/bulk`;
+};
+
+export const bulkCreateMilestones = async (
+  bulkCreateMilestonesBody: BulkCreateMilestonesBody,
+  options?: RequestInit,
+): Promise<Milestone[]> => {
+  return customFetch<Milestone[]>(getBulkCreateMilestonesUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(bulkCreateMilestonesBody),
+  });
+};
+
+export const getBulkCreateMilestonesMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkCreateMilestones>>,
+    TError,
+    { data: BodyType<BulkCreateMilestonesBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof bulkCreateMilestones>>,
+  TError,
+  { data: BodyType<BulkCreateMilestonesBody> },
+  TContext
+> => {
+  const mutationKey = ["bulkCreateMilestones"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof bulkCreateMilestones>>,
+    { data: BodyType<BulkCreateMilestonesBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return bulkCreateMilestones(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BulkCreateMilestonesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof bulkCreateMilestones>>
+>;
+export type BulkCreateMilestonesMutationBody =
+  BodyType<BulkCreateMilestonesBody>;
+export type BulkCreateMilestonesMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create multiple milestones at once for a pillar
+ */
+export const useBulkCreateMilestones = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkCreateMilestones>>,
+    TError,
+    { data: BodyType<BulkCreateMilestonesBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof bulkCreateMilestones>>,
+  TError,
+  { data: BodyType<BulkCreateMilestonesBody> },
+  TContext
+> => {
+  return useMutation(getBulkCreateMilestonesMutationOptions(options));
 };
 
 /**

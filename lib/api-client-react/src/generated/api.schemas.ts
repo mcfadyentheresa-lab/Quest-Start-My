@@ -95,6 +95,15 @@ export interface CreateMilestoneBody {
   sortOrder?: number;
 }
 
+export interface BulkCreateMilestonesBody {
+  pillarId: number;
+  /**
+   * @minItems 1
+   * @maxItems 50
+   */
+  titles: string[];
+}
+
 export type UpdateMilestoneBodyStatus =
   (typeof UpdateMilestoneBodyStatus)[keyof typeof UpdateMilestoneBodyStatus];
 

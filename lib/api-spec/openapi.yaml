@@ -135,6 +135,27 @@ paths:
               schema:
                 $ref: "#/components/schemas/Milestone"
 
+  /milestones/bulk:
+    post:
+      operationId: bulkCreateMilestones
+      tags: [milestones]
+      summary: Create multiple milestones at once for a pillar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkCreateMilestonesBody"
+      responses:
+        "201":
+          description: Created milestones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Milestone"
+
   /milestones/{id}:
     patch:
       operationId: updateMilestone
@@ -719,6 +740,22 @@ components:
       required:
         - pillarId
         - title
+
+    BulkCreateMilestonesBody:
+      type: object
+      properties:
+        pillarId:
+          type: integer
+        titles:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          minItems: 1
+          maxItems: 50
+      required:
+        - pillarId
+        - titles
 
     UpdateMilestoneBody:
       type: object

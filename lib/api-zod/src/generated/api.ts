@@ -158,6 +158,20 @@ export const CreateMilestoneBody = zod.object({
 });
 
 /**
+ * @summary Create multiple milestones at once for a pillar
+ */
+
+export const bulkCreateMilestonesBodyTitlesMax = 50;
+
+export const BulkCreateMilestonesBody = zod.object({
+  pillarId: zod.number(),
+  titles: zod
+    .array(zod.string().min(1))
+    .min(1)
+    .max(bulkCreateMilestonesBodyTitlesMax),
+});
+
+/**
  * @summary Update a milestone
  */
 export const UpdateMilestoneParams = zod.object({
