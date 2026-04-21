@@ -87,6 +87,8 @@ export default function Dashboard() {
 
   const [dismissedMilestoneIds, setDismissedMilestoneIds] = useState<Set<number>>(new Set());
   const [addingSuggestionId, setAddingSuggestionId] = useState<number | null>(null);
+  const [editingTitleId, setEditingTitleId] = useState<number | null>(null);
+  const [editedTitles, setEditedTitles] = useState<Map<number, string>>(new Map());
 
   const { data: summary, isLoading: summaryLoading } = useGetDashboardSummary();
   const { data: tasks, isLoading: tasksLoading } = useListTasks(
@@ -109,10 +111,12 @@ export default function Dashboard() {
 
   const handleAddSuggestion = (suggestion: typeof visibleSuggestions[number]) => {
     setAddingSuggestionId(suggestion.milestoneId);
+    setEditingTitleId(null);
+    const title = editedTitles.get(suggestion.milestoneId)?.trim() || suggestion.title;
     createTask.mutate(
       {
         data: {
-          title: suggestion.title,
+          title,
           category: suggestion.pillarCategory ?? "business",
           date: today,
           pillarId: suggestion.pillarId,
@@ -125,7 +129,7 @@ export default function Dashboard() {
           queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date: today }) });
           queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetTaskSuggestionsQueryKey({ date: today }) });
-          toast({ title: "Task added", description: suggestion.title });
+          toast({ title: "Task added", description: title });
         },
         onSettled: () => setAddingSuggestionId(null),
       }
@@ -136,11 +140,12 @@ export default function Dashboard() {
     let added = 0;
     let failed = 0;
     for (const suggestion of visibleSuggestions) {
+      const title = editedTitles.get(suggestion.milestoneId)?.trim() || suggestion.title;
       await new Promise<void>((resolve) => {
         createTask.mutate(
           {
             data: {
-              title: suggestion.title,
+              title,
               category: suggestion.pillarCategory ?? "business",
               date: today,
               pillarId: suggestion.pillarId,
@@ -486,7 +491,33 @@ export default function Dashboard() {
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
-                  <p className="text-sm font-medium text-foreground leading-snug mb-3">{suggestion.title}</p>
+                  {editingTitleId === suggestion.milestoneId ? (
+                    <input
+                      autoFocus
+                      value={editedTitles.get(suggestion.milestoneId) ?? suggestion.title}
+                      onChange={e =>
+                        setEditedTitles(prev => new Map(prev).set(suggestion.milestoneId, e.target.value))
+                      }
+                      onBlur={() => setEditingTitleId(null)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" || e.key === "Escape") setEditingTitleId(null);
+                      }}
+                      className="w-full text-sm font-medium text-foreground leading-snug mb-3 bg-background border border-primary/40 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  ) : (
+                    <p
+                      className="text-sm font-medium text-foreground leading-snug mb-3 cursor-text hover:text-primary transition-colors"
+                      title="Click to edit title"
+                      onClick={() => {
+                        if (!editedTitles.has(suggestion.milestoneId)) {
+                          setEditedTitles(prev => new Map(prev).set(suggestion.milestoneId, suggestion.title));
+                        }
+                        setEditingTitleId(suggestion.milestoneId);
+                      }}
+                    >
+                      {editedTitles.get(suggestion.milestoneId) ?? suggestion.title}
+                    </p>
+                  )}
                   <Button
                     size="sm"
                     className="rounded-xl text-xs w-full gap-1.5"
