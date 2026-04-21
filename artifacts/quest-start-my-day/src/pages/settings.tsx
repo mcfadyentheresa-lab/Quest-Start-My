@@ -57,6 +57,9 @@ const COLORS = [
 const PORTFOLIO_STATUSES = ["Active", "Warm", "Parked"] as const;
 type PortfolioStatus = typeof PORTFOLIO_STATUSES[number];
 
+const TASK_CATEGORIES = ["business", "creative", "wellness"] as const;
+type TaskCategory = typeof TASK_CATEGORIES[number];
+
 const MILESTONE_STATUSES = ["planned", "active", "blocked", "complete"] as const;
 type MilestoneStatus = typeof MILESTONE_STATUSES[number];
 
@@ -74,6 +77,7 @@ interface PillarFormData {
   color: string;
   portfolioStatus: string;
   featureTag: string;
+  category: string;
   currentStage: string;
   whyItMatters: string;
   nowFocus: string;
@@ -111,6 +115,7 @@ function PillarForm({
       color: COLORS[0]!.hex,
       portfolioStatus: "Active",
       featureTag: "",
+      category: "",
       currentStage: "",
       whyItMatters: "",
       nowFocus: "",
@@ -124,6 +129,7 @@ function PillarForm({
   const color = watch("color");
   const portfolioStatus = watch("portfolioStatus");
   const featureTag = watch("featureTag");
+  const category = watch("category");
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2 max-h-[70vh] overflow-y-auto pr-1">
@@ -175,6 +181,22 @@ function PillarForm({
             <SelectItem value="sellable">Sellable</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Task category</Label>
+        <Select value={category || "none"} onValueChange={v => setValue("category", v === "none" ? "" : v)}>
+          <SelectTrigger className="rounded-xl">
+            <SelectValue placeholder="None" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">None</SelectItem>
+            <SelectItem value="business">Business</SelectItem>
+            <SelectItem value="creative">Creative</SelectItem>
+            <SelectItem value="wellness">Wellness</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">Suggested tasks from this pillar will use this category</p>
       </div>
 
       <div className="space-y-1.5">
@@ -715,6 +737,7 @@ interface PillarCardProps {
     isActiveThisWeek: boolean;
     portfolioStatus?: string | null;
     featureTag?: string | null;
+    category?: string | null;
     currentStage?: string | null;
     whyItMatters?: string | null;
     nowFocus?: string | null;
@@ -795,6 +818,7 @@ function PillarCard({ pillar, onEdit, onStatusChange, editLoading, statusLoading
                     color: pillar.color ?? COLORS[0]!.hex,
                     portfolioStatus: pillar.portfolioStatus ?? "Active",
                     featureTag: pillar.featureTag ?? "",
+                    category: pillar.category ?? "",
                     currentStage: pillar.currentStage ?? "",
                     whyItMatters: pillar.whyItMatters ?? "",
                     nowFocus: pillar.nowFocus ?? "",
@@ -918,6 +942,7 @@ export default function SettingsPage() {
           color: data.color,
           portfolioStatus: data.portfolioStatus,
           featureTag: (data.featureTag as "personal" | "shared" | "sellable") || undefined,
+          category: (data.category as "business" | "creative" | "wellness") || undefined,
         },
       },
       {
@@ -980,6 +1005,7 @@ export default function SettingsPage() {
           laterFocus: data.laterFocus || undefined,
           blockers: data.blockers || undefined,
           featureTag: (data.featureTag as "personal" | "shared" | "sellable") || null,
+          category: (data.category as "business" | "creative" | "wellness") || null,
           lastUpdated: today,
         },
       },

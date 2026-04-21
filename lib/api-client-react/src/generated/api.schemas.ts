@@ -5,11 +5,26 @@
  * API specification for Quest Start My Day
  * OpenAPI spec version: 0.1.0
  */
+/**
+ * Task category derived from the pillar's category setting
+ */
+export type TaskSuggestionPillarCategory =
+  | (typeof TaskSuggestionPillarCategory)[keyof typeof TaskSuggestionPillarCategory]
+  | null;
+
+export const TaskSuggestionPillarCategory = {
+  business: "business",
+  creative: "creative",
+  wellness: "wellness",
+} as const;
+
 export interface TaskSuggestion {
   title: string;
   pillarId: number;
   pillarName: string;
   pillarColor?: string | null;
+  /** Task category derived from the pillar's category setting */
+  pillarCategory?: TaskSuggestionPillarCategory;
   milestoneId: number;
   milestoneTitle: string;
 }
@@ -165,6 +180,19 @@ export const PillarFeatureTag = {
   sellable: "sellable",
 } as const;
 
+/**
+ * Task category for this pillar, used to auto-categorize suggested tasks
+ */
+export type PillarCategory =
+  | (typeof PillarCategory)[keyof typeof PillarCategory]
+  | null;
+
+export const PillarCategory = {
+  business: "business",
+  creative: "creative",
+  wellness: "wellness",
+} as const;
+
 export interface Pillar {
   id: number;
   name: string;
@@ -183,6 +211,8 @@ export interface Pillar {
   lastUpdated?: string | null;
   /** Optional product/feature label for productization tracking */
   featureTag?: PillarFeatureTag;
+  /** Task category for this pillar, used to auto-categorize suggested tasks */
+  category?: PillarCategory;
 }
 
 export type CreatePillarBodyPriority =
@@ -208,6 +238,19 @@ export const CreatePillarBodyFeatureTag = {
   sellable: "sellable",
 } as const;
 
+/**
+ * Task category for this pillar
+ */
+export type CreatePillarBodyCategory =
+  | (typeof CreatePillarBodyCategory)[keyof typeof CreatePillarBodyCategory]
+  | null;
+
+export const CreatePillarBodyCategory = {
+  business: "business",
+  creative: "creative",
+  wellness: "wellness",
+} as const;
+
 export interface CreatePillarBody {
   name: string;
   priority: CreatePillarBodyPriority;
@@ -217,6 +260,8 @@ export interface CreatePillarBody {
   portfolioStatus?: string | null;
   /** Optional product/feature label for productization tracking */
   featureTag?: CreatePillarBodyFeatureTag;
+  /** Task category for this pillar */
+  category?: CreatePillarBodyCategory;
 }
 
 export type UpdatePillarBodyPriority =
@@ -239,6 +284,19 @@ export const UpdatePillarBodyFeatureTag = {
   sellable: "sellable",
 } as const;
 
+/**
+ * Task category for this pillar
+ */
+export type UpdatePillarBodyCategory =
+  | (typeof UpdatePillarBodyCategory)[keyof typeof UpdatePillarBodyCategory]
+  | null;
+
+export const UpdatePillarBodyCategory = {
+  business: "business",
+  creative: "creative",
+  wellness: "wellness",
+} as const;
+
 export interface UpdatePillarBody {
   name?: string;
   priority?: UpdatePillarBodyPriority;
@@ -254,6 +312,8 @@ export interface UpdatePillarBody {
   blockers?: string | null;
   lastUpdated?: string | null;
   featureTag?: UpdatePillarBodyFeatureTag;
+  /** Task category for this pillar */
+  category?: UpdatePillarBodyCategory;
 }
 
 export type TaskCategory = (typeof TaskCategory)[keyof typeof TaskCategory];

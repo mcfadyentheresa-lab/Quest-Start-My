@@ -568,6 +568,11 @@ components:
         pillarColor:
           type: string
           nullable: true
+        pillarCategory:
+          type: string
+          nullable: true
+          enum: [business, creative, wellness]
+          description: Task category derived from the pillar's category setting
         milestoneId:
           type: integer
         milestoneTitle:
@@ -789,6 +794,11 @@ components:
           nullable: true
           enum: [personal, shared, sellable]
           description: Optional product/feature label for productization tracking
+        category:
+          type: string
+          nullable: true
+          enum: [business, creative, wellness]
+          description: Task category for this pillar, used to auto-categorize suggested tasks
       required:
         - id
         - name
@@ -820,6 +830,11 @@ components:
           nullable: true
           enum: [personal, shared, sellable]
           description: Optional product/feature label for productization tracking
+        category:
+          type: string
+          nullable: true
+          enum: [business, creative, wellness]
+          description: Task category for this pillar
       required:
         - name
         - priority
@@ -869,6 +884,11 @@ components:
           type: string
           nullable: true
           enum: [personal, shared, sellable]
+        category:
+          type: string
+          nullable: true
+          enum: [business, creative, wellness]
+          description: Task category for this pillar
 
     Task:
       type: object

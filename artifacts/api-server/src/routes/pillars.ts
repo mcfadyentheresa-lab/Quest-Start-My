@@ -38,6 +38,7 @@ router.post("/pillars", async (req, res): Promise<void> => {
     color: parsed.data.color ?? null,
     portfolioStatus: parsed.data.portfolioStatus ?? null,
     featureTag: parsed.data.featureTag ?? null,
+    category: parsed.data.category ?? null,
   }).returning();
 
   res.status(201).json(serializePillar(pillar!));
@@ -71,6 +72,7 @@ router.patch("/pillars/:id", async (req, res): Promise<void> => {
   if (parsed.data.blockers !== undefined) updates.blockers = parsed.data.blockers;
   if (parsed.data.lastUpdated !== undefined) updates.lastUpdated = parsed.data.lastUpdated;
   if (parsed.data.featureTag !== undefined) updates.featureTag = parsed.data.featureTag;
+  if (parsed.data.category !== undefined) updates.category = parsed.data.category;
 
   const [pillar] = await db
     .update(pillarsTable)

@@ -172,6 +172,7 @@ router.get("/tasks/suggestions", async (req, res): Promise<void> => {
     pillarId: number;
     pillarName: string;
     pillarColor: string | null;
+    pillarCategory: string | null;
     milestoneId: number;
     milestoneTitle: string;
   }[] = [];
@@ -189,6 +190,7 @@ router.get("/tasks/suggestions", async (req, res): Promise<void> => {
       pillarId: pillar.id,
       pillarName: pillar.name,
       pillarColor: pillar.color ?? null,
+      pillarCategory: pillar.category ?? null,
       milestoneId: milestone.id,
       milestoneTitle: milestone.title,
     });

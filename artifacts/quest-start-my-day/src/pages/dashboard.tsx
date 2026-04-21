@@ -113,7 +113,7 @@ export default function Dashboard() {
       {
         data: {
           title: suggestion.title,
-          category: "business",
+          category: suggestion.pillarCategory ?? "business",
           date: today,
           pillarId: suggestion.pillarId,
           milestoneId: suggestion.milestoneId,
@@ -141,7 +141,7 @@ export default function Dashboard() {
           {
             data: {
               title: suggestion.title,
-              category: "business",
+              category: suggestion.pillarCategory ?? "business",
               date: today,
               pillarId: suggestion.pillarId,
               milestoneId: suggestion.milestoneId,

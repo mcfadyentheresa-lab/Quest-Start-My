@@ -37,6 +37,12 @@ export const ListPillarsResponseItem = zod.object({
     .enum(["personal", "shared", "sellable"])
     .nullish()
     .describe("Optional product\/feature label for productization tracking"),
+  category: zod
+    .enum(["business", "creative", "wellness"])
+    .nullish()
+    .describe(
+      "Task category for this pillar, used to auto-categorize suggested tasks",
+    ),
 });
 export const ListPillarsResponse = zod.array(ListPillarsResponseItem);
 
@@ -54,6 +60,10 @@ export const CreatePillarBody = zod.object({
     .enum(["personal", "shared", "sellable"])
     .nullish()
     .describe("Optional product\/feature label for productization tracking"),
+  category: zod
+    .enum(["business", "creative", "wellness"])
+    .nullish()
+    .describe("Task category for this pillar"),
 });
 
 /**
@@ -78,6 +88,10 @@ export const UpdatePillarBody = zod.object({
   blockers: zod.string().nullish(),
   lastUpdated: zod.string().nullish(),
   featureTag: zod.enum(["personal", "shared", "sellable"]).nullish(),
+  category: zod
+    .enum(["business", "creative", "wellness"])
+    .nullish()
+    .describe("Task category for this pillar"),
 });
 
 export const UpdatePillarResponse = zod.object({
@@ -100,6 +114,12 @@ export const UpdatePillarResponse = zod.object({
     .enum(["personal", "shared", "sellable"])
     .nullish()
     .describe("Optional product\/feature label for productization tracking"),
+  category: zod
+    .enum(["business", "creative", "wellness"])
+    .nullish()
+    .describe(
+      "Task category for this pillar, used to auto-categorize suggested tasks",
+    ),
 });
 
 /**
@@ -338,6 +358,10 @@ export const GetTaskSuggestionsResponseItem = zod.object({
   pillarId: zod.number(),
   pillarName: zod.string(),
   pillarColor: zod.string().nullish(),
+  pillarCategory: zod
+    .enum(["business", "creative", "wellness"])
+    .nullish()
+    .describe("Task category derived from the pillar's category setting"),
   milestoneId: zod.number(),
   milestoneTitle: zod.string(),
 });
@@ -486,6 +510,12 @@ export const GetDashboardSummaryResponse = zod.object({
         .nullish()
         .describe(
           "Optional product\/feature label for productization tracking",
+        ),
+      category: zod
+        .enum(["business", "creative", "wellness"])
+        .nullish()
+        .describe(
+          "Task category for this pillar, used to auto-categorize suggested tasks",
         ),
     }),
   ),
