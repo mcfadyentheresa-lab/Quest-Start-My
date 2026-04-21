@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Layout from "@/components/layout";
 import Dashboard from "@/pages/dashboard";
+import TodayPage from "@/pages/today";
 import WeeklyPage from "@/pages/weekly";
 import HistoryPage from "@/pages/history";
 import ReviewPage from "@/pages/review";
@@ -26,6 +27,7 @@ function Router() {
     <Layout>
       <Switch>
         <Route path="/" component={Dashboard} />
+        <Route path="/today" component={TodayPage} />
         <Route path="/weekly" component={WeeklyPage} />
         <Route path="/history" component={HistoryPage} />
         <Route path="/home" component={HomeModulePage} />

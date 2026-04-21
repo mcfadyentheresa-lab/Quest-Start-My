@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   useGetDashboardSummary,
@@ -8,10 +8,12 @@ import {
   useCreateTask,
   useListPillars,
   useGetTaskSuggestions,
+  useListDailyPlans,
   getListTasksQueryKey,
   getGetDashboardSummaryQueryKey,
   getGetReentryTaskQueryKey,
   getGetTaskSuggestionsQueryKey,
+  getListDailyPlansQueryKey,
 } from "@workspace/api-client-react";
 import { TaskCard } from "@/components/task-card";
 import { ProgressSummary } from "@/components/progress-summary";
@@ -22,12 +24,10 @@ import { FocusNudgeDialog } from "@/components/focus-nudge-dialog";
 import { useFocusTimer } from "@/hooks/use-focus-timer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Plus, Sprout, ArrowRight, CheckCircle2, ExternalLink, CalendarDays, Timer, Lightbulb, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useSearch, useLocation } from "wouter";
+import { useSearch, useLocation, Link } from "wouter";
 
 const FOCUS_DURATIONS = [5, 10, 15, 25] as const;
 
@@ -48,21 +48,6 @@ function formatShortDate(dateStr: string) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function getDailyPrioritiesKey(date: string) {
-  return `quest-daily-priorities-${date}`;
-}
-
-function loadDailyPriorities(date: string): [string, string, string] {
-  try {
-    const raw = localStorage.getItem(getDailyPrioritiesKey(date));
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length === 3) return parsed as [string, string, string];
-    }
-  } catch {}
-  return ["", "", ""];
-}
-
 export default function Dashboard() {
   const today = new Date().toISOString().slice(0, 10);
   const search = useSearch();
@@ -74,13 +59,11 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [dailyPriorities, setDailyPriorities] = useState<[string, string, string]>(() => loadDailyPriorities(today));
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(getDailyPrioritiesKey(today), JSON.stringify(dailyPriorities));
-    } catch {}
-  }, [dailyPriorities, today]);
+  const { data: dailyPlans } = useListDailyPlans(
+    { date: today },
+    { query: { queryKey: getListDailyPlansQueryKey({ date: today }), enabled: !isViewingHistory } }
+  );
+  const todayPlan = dailyPlans?.[0];
 
   const timer = useFocusTimer();
   const [selectedFocusDuration, setSelectedFocusDuration] = useState<number>(() => timer.defaultDuration);
@@ -410,25 +393,32 @@ export default function Dashboard() {
           transition={{ delay: 0.17 }}
           className="rounded-2xl bg-card border border-card-border p-5 space-y-3"
         >
-          <h2 className="font-serif text-base font-medium text-foreground">Today's top priorities</h2>
-          <div className="space-y-3">
-            {(["today-priority-1", "today-priority-2", "today-priority-3"] as const).map((id, i) => (
-              <div key={id} className="space-y-1.5">
-                <Label htmlFor={id} className="text-xs text-muted-foreground">Priority {i + 1}</Label>
-                <Input
-                  id={id}
-                  value={dailyPriorities[i]}
-                  onChange={e => {
-                    const next: [string, string, string] = [...dailyPriorities];
-                    next[i] = e.target.value;
-                    setDailyPriorities(next);
-                  }}
-                  placeholder={i === 0 ? "Your most important thing today" : i === 1 ? "Second priority for today" : "Third priority for today"}
-                  className="rounded-xl"
-                />
-              </div>
-            ))}
+          <div className="flex items-center justify-between">
+            <h2 className="font-serif text-base font-medium text-foreground">Today's top priorities</h2>
+            <Link href="/today">
+              <button className="text-xs text-primary hover:underline">
+                {todayPlan && todayPlan.priorities.length > 0 ? "Edit" : "Set priorities"}
+              </button>
+            </Link>
           </div>
+          {todayPlan && todayPlan.priorities.length > 0 ? (
+            <ol className="space-y-2">
+              {todayPlan.priorities.map((p, i) => (
+                <li key={i} className="flex items-start gap-2.5">
+                  <span className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold flex items-center justify-center mt-0.5">
+                    {i + 1}
+                  </span>
+                  <p className="text-sm text-foreground leading-snug">{p}</p>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <Link href="/today">
+              <button className="w-full rounded-xl border border-dashed border-border py-4 text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors">
+                Tap to set your priorities for today →
+              </button>
+            </Link>
+          )}
         </motion.section>
       )}
 

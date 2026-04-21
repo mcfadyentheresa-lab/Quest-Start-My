@@ -693,6 +693,24 @@ export interface FrictionSignal {
   blockEntries?: FrictionBlockEntry[];
 }
 
+export interface DailyPlan {
+  id: number;
+  /** Date in YYYY-MM-DD format */
+  date: string;
+  priorities: string[];
+  createdAt: string;
+}
+
+export interface CreateDailyPlanBody {
+  /** Date in YYYY-MM-DD format */
+  date: string;
+  priorities: string[];
+}
+
+export interface UpdateDailyPlanBody {
+  priorities?: string[];
+}
+
 export type ListMilestonesParams = {
   pillarId?: number;
 };
@@ -738,4 +756,11 @@ export type GetPillarCompletionHistoryParams = {
    * Number of past weeks to include (default 4)
    */
   weeks?: number;
+};
+
+export type ListDailyPlansParams = {
+  /**
+   * Date in YYYY-MM-DD format, defaults to today
+   */
+  date?: string;
 };

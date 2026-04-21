@@ -831,3 +831,44 @@ export const UpdateMonthlyReviewResponse = zod.object({
   topPrioritiesNextMonth: zod.array(zod.string()).nullish(),
   createdAt: zod.string(),
 });
+
+/**
+ * @summary List daily plans
+ */
+export const ListDailyPlansQueryParams = zod.object({
+  date: zod.coerce.string().optional(),
+});
+
+export const ListDailyPlansResponseItem = zod.object({
+  id: zod.number(),
+  date: zod.string().describe("Date in YYYY-MM-DD format"),
+  priorities: zod.array(zod.string()),
+  createdAt: zod.string(),
+});
+export const ListDailyPlansResponse = zod.array(ListDailyPlansResponseItem);
+
+/**
+ * @summary Create a daily plan (409 if date already has a plan)
+ */
+export const CreateDailyPlanBody = zod.object({
+  date: zod.string().describe("Date in YYYY-MM-DD format"),
+  priorities: zod.array(zod.string()),
+});
+
+/**
+ * @summary Update a daily plan
+ */
+export const UpdateDailyPlanParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateDailyPlanBody = zod.object({
+  priorities: zod.array(zod.string()).optional(),
+});
+
+export const UpdateDailyPlanResponse = zod.object({
+  id: zod.number(),
+  date: zod.string().describe("Date in YYYY-MM-DD format"),
+  priorities: zod.array(zod.string()),
+  createdAt: zod.string(),
+});

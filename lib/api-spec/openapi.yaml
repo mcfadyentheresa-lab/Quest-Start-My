@@ -24,6 +24,8 @@ tags:
     description: Dashboard summary operations
   - name: monthly
     description: Monthly review operations
+  - name: daily
+    description: Daily planning operations
 paths:
   /healthz:
     get:
@@ -553,6 +555,74 @@ paths:
                 $ref: "#/components/schemas/MonthlyReview"
         "404":
           description: Monthly review not found
+
+  /daily:
+    get:
+      operationId: listDailyPlans
+      tags: [daily]
+      summary: List daily plans
+      parameters:
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+            description: Date in YYYY-MM-DD format, defaults to today
+      responses:
+        "200":
+          description: List of daily plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DailyPlan"
+    post:
+      operationId: createDailyPlan
+      tags: [daily]
+      summary: Create a daily plan (409 if date already has a plan)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDailyPlanBody"
+      responses:
+        "201":
+          description: Created daily plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyPlan"
+        "409":
+          description: A plan for this date already exists
+
+  /daily/{id}:
+    patch:
+      operationId: updateDailyPlan
+      tags: [daily]
+      summary: Update a daily plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDailyPlanBody"
+      responses:
+        "200":
+          description: Updated daily plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyPlan"
+        "404":
+          description: Daily plan not found
 
 components:
   schemas:
@@ -1586,3 +1656,45 @@ components:
       required:
         - date
         - taskTitle
+
+    DailyPlan:
+      type: object
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+          description: Date in YYYY-MM-DD format
+        priorities:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - date
+        - priorities
+        - createdAt
+
+    CreateDailyPlanBody:
+      type: object
+      properties:
+        date:
+          type: string
+          description: Date in YYYY-MM-DD format
+        priorities:
+          type: array
+          items:
+            type: string
+      required:
+        - date
+        - priorities
+
+    UpdateDailyPlanBody:
+      type: object
+      properties:
+        priorities:
+          type: array
+          items:
+            type: string

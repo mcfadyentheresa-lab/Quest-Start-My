@@ -17,17 +17,20 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  CreateDailyPlanBody,
   CreateMilestoneBody,
   CreateMonthlyReviewBody,
   CreatePillarBody,
   CreateTaskBody,
   CreateWeeklyPlanBody,
+  DailyPlan,
   DashboardSummary,
   FrictionSignal,
   GetOutcomeMetricsParams,
   GetPillarCompletionHistoryParams,
   GetTaskSuggestionsParams,
   HealthStatus,
+  ListDailyPlansParams,
   ListMilestonesParams,
   ListProgressLogsParams,
   ListTasksParams,
@@ -43,6 +46,7 @@ import type {
   StepBackTaskResponse,
   Task,
   TaskSuggestion,
+  UpdateDailyPlanBody,
   UpdateMilestoneBody,
   UpdateMonthlyReviewBody,
   UpdatePillarBody,
@@ -2459,4 +2463,271 @@ export const useUpdateMonthlyReview = <
   TContext
 > => {
   return useMutation(getUpdateMonthlyReviewMutationOptions(options));
+};
+
+/**
+ * @summary List daily plans
+ */
+export const getListDailyPlansUrl = (params?: ListDailyPlansParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/daily?${stringifiedParams}`
+    : `/api/daily`;
+};
+
+export const listDailyPlans = async (
+  params?: ListDailyPlansParams,
+  options?: RequestInit,
+): Promise<DailyPlan[]> => {
+  return customFetch<DailyPlan[]>(getListDailyPlansUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDailyPlansQueryKey = (params?: ListDailyPlansParams) => {
+  return [`/api/daily`, ...(params ? [params] : [])] as const;
+};
+
+export const getListDailyPlansQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDailyPlans>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListDailyPlansParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDailyPlans>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListDailyPlansQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listDailyPlans>>> = ({
+    signal,
+  }) => listDailyPlans(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDailyPlans>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDailyPlansQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDailyPlans>>
+>;
+export type ListDailyPlansQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List daily plans
+ */
+
+export function useListDailyPlans<
+  TData = Awaited<ReturnType<typeof listDailyPlans>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListDailyPlansParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDailyPlans>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDailyPlansQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a daily plan (409 if date already has a plan)
+ */
+export const getCreateDailyPlanUrl = () => {
+  return `/api/daily`;
+};
+
+export const createDailyPlan = async (
+  createDailyPlanBody: CreateDailyPlanBody,
+  options?: RequestInit,
+): Promise<DailyPlan> => {
+  return customFetch<DailyPlan>(getCreateDailyPlanUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createDailyPlanBody),
+  });
+};
+
+export const getCreateDailyPlanMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createDailyPlan>>,
+    TError,
+    { data: BodyType<CreateDailyPlanBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createDailyPlan>>,
+  TError,
+  { data: BodyType<CreateDailyPlanBody> },
+  TContext
+> => {
+  const mutationKey = ["createDailyPlan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createDailyPlan>>,
+    { data: BodyType<CreateDailyPlanBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createDailyPlan(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateDailyPlanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createDailyPlan>>
+>;
+export type CreateDailyPlanMutationBody = BodyType<CreateDailyPlanBody>;
+export type CreateDailyPlanMutationError = ErrorType<void>;
+
+/**
+ * @summary Create a daily plan (409 if date already has a plan)
+ */
+export const useCreateDailyPlan = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createDailyPlan>>,
+    TError,
+    { data: BodyType<CreateDailyPlanBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createDailyPlan>>,
+  TError,
+  { data: BodyType<CreateDailyPlanBody> },
+  TContext
+> => {
+  return useMutation(getCreateDailyPlanMutationOptions(options));
+};
+
+/**
+ * @summary Update a daily plan
+ */
+export const getUpdateDailyPlanUrl = (id: number) => {
+  return `/api/daily/${id}`;
+};
+
+export const updateDailyPlan = async (
+  id: number,
+  updateDailyPlanBody: UpdateDailyPlanBody,
+  options?: RequestInit,
+): Promise<DailyPlan> => {
+  return customFetch<DailyPlan>(getUpdateDailyPlanUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateDailyPlanBody),
+  });
+};
+
+export const getUpdateDailyPlanMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateDailyPlan>>,
+    TError,
+    { id: number; data: BodyType<UpdateDailyPlanBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateDailyPlan>>,
+  TError,
+  { id: number; data: BodyType<UpdateDailyPlanBody> },
+  TContext
+> => {
+  const mutationKey = ["updateDailyPlan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateDailyPlan>>,
+    { id: number; data: BodyType<UpdateDailyPlanBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateDailyPlan(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateDailyPlanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateDailyPlan>>
+>;
+export type UpdateDailyPlanMutationBody = BodyType<UpdateDailyPlanBody>;
+export type UpdateDailyPlanMutationError = ErrorType<void>;
+
+/**
+ * @summary Update a daily plan
+ */
+export const useUpdateDailyPlan = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateDailyPlan>>,
+    TError,
+    { id: number; data: BodyType<UpdateDailyPlanBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateDailyPlan>>,
+  TError,
+  { id: number; data: BodyType<UpdateDailyPlanBody> },
+  TContext
+> => {
+  return useMutation(getUpdateDailyPlanMutationOptions(options));
 };

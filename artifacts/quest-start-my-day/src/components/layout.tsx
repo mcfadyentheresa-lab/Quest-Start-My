@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useTheme } from "next-themes";
-import { Sun, Moon, LayoutDashboard, Calendar, History, Settings, BookOpen, Home } from "lucide-react";
+import { Sun, Moon, LayoutDashboard, Calendar, CalendarDays, History, Settings, BookOpen, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { href: "/", label: "Today", icon: LayoutDashboard },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/today", label: "Today", icon: CalendarDays },
   { href: "/weekly", label: "This Week", icon: Calendar },
   { href: "/history", label: "History", icon: History },
   { href: "/home", label: "Home", icon: Home },
