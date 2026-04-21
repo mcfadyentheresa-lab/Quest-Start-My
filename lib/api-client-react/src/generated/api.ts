@@ -26,6 +26,7 @@ import type {
   FrictionSignal,
   GetOutcomeMetricsParams,
   GetPillarCompletionHistoryParams,
+  GetTaskSuggestionsParams,
   HealthStatus,
   ListMilestonesParams,
   ListProgressLogsParams,
@@ -41,6 +42,7 @@ import type {
   ReentryInfo,
   StepBackTaskResponse,
   Task,
+  TaskSuggestion,
   UpdateMilestoneBody,
   UpdateMonthlyReviewBody,
   UpdatePillarBody,
@@ -1081,6 +1083,103 @@ export const useDeleteTask = <
 > => {
   return useMutation(getDeleteTaskMutationOptions(options));
 };
+
+/**
+ * @summary Get suggested tasks for a given date based on active pillars and milestones
+ */
+export const getGetTaskSuggestionsUrl = (params?: GetTaskSuggestionsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/tasks/suggestions?${stringifiedParams}`
+    : `/api/tasks/suggestions`;
+};
+
+export const getTaskSuggestions = async (
+  params?: GetTaskSuggestionsParams,
+  options?: RequestInit,
+): Promise<TaskSuggestion[]> => {
+  return customFetch<TaskSuggestion[]>(getGetTaskSuggestionsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetTaskSuggestionsQueryKey = (
+  params?: GetTaskSuggestionsParams,
+) => {
+  return [`/api/tasks/suggestions`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetTaskSuggestionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTaskSuggestions>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetTaskSuggestionsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTaskSuggestions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetTaskSuggestionsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getTaskSuggestions>>
+  > = ({ signal }) => getTaskSuggestions(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTaskSuggestions>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetTaskSuggestionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTaskSuggestions>>
+>;
+export type GetTaskSuggestionsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get suggested tasks for a given date based on active pillars and milestones
+ */
+
+export function useGetTaskSuggestions<
+  TData = Awaited<ReturnType<typeof getTaskSuggestions>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetTaskSuggestionsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTaskSuggestions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetTaskSuggestionsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Create a prerequisite task one level simpler and mark original as stepped back

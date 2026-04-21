@@ -327,6 +327,25 @@ export const DeleteTaskParams = zod.object({
 });
 
 /**
+ * @summary Get suggested tasks for a given date based on active pillars and milestones
+ */
+export const GetTaskSuggestionsQueryParams = zod.object({
+  date: zod.coerce.string().optional(),
+});
+
+export const GetTaskSuggestionsResponseItem = zod.object({
+  title: zod.string(),
+  pillarId: zod.number(),
+  pillarName: zod.string(),
+  pillarColor: zod.string().nullish(),
+  milestoneId: zod.number(),
+  milestoneTitle: zod.string(),
+});
+export const GetTaskSuggestionsResponse = zod.array(
+  GetTaskSuggestionsResponseItem,
+);
+
+/**
  * @summary Create a prerequisite task one level simpler and mark original as stepped back
  */
 export const StepBackTaskParams = zod.object({

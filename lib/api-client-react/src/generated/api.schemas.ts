@@ -5,6 +5,15 @@
  * API specification for Quest Start My Day
  * OpenAPI spec version: 0.1.0
  */
+export interface TaskSuggestion {
+  title: string;
+  pillarId: number;
+  pillarName: string;
+  pillarColor?: string | null;
+  milestoneId: number;
+  milestoneTitle: string;
+}
+
 export type MilestoneStatus =
   (typeof MilestoneStatus)[keyof typeof MilestoneStatus];
 
@@ -637,6 +646,13 @@ export type ListTasksParams = {
    * Filter by taskSource (e.g. 'home'). Omit to get all tasks.
    */
   source?: string;
+};
+
+export type GetTaskSuggestionsParams = {
+  /**
+   * Date in YYYY-MM-DD format, defaults to today
+   */
+  date?: string;
 };
 
 export type ListWeeklyPlansParams = {

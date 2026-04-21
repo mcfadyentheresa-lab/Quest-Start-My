@@ -254,6 +254,28 @@ paths:
         "204":
           description: Deleted
 
+  /tasks/suggestions:
+    get:
+      operationId: getTaskSuggestions
+      tags: [tasks]
+      summary: Get suggested tasks for a given date based on active pillars and milestones
+      parameters:
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+            description: Date in YYYY-MM-DD format, defaults to today
+      responses:
+        "200":
+          description: List of task suggestions (empty if no slots available)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaskSuggestion"
+
   /tasks/{id}/step-back:
     post:
       operationId: stepBackTask
@@ -534,6 +556,29 @@ paths:
 
 components:
   schemas:
+    TaskSuggestion:
+      type: object
+      properties:
+        title:
+          type: string
+        pillarId:
+          type: integer
+        pillarName:
+          type: string
+        pillarColor:
+          type: string
+          nullable: true
+        milestoneId:
+          type: integer
+        milestoneTitle:
+          type: string
+      required:
+        - title
+        - pillarId
+        - pillarName
+        - milestoneId
+        - milestoneTitle
+
     Milestone:
       type: object
       properties:
