@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarCheck, Save, Clock, ChevronRight, ArrowLeft, Target } from "lucide-react";
+import { CalendarCheck, Save, Clock, ChevronRight, ArrowLeft, Target, Search, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import {
   AlertDialog,
@@ -76,12 +76,46 @@ function truncate(text: string | null | undefined, maxLen = 120): string {
   return text.length > maxLen ? text.slice(0, maxLen).trimEnd() + "…" : text;
 }
 
+function HighlightedText({ text, query }: { text: string; query: string }) {
+  if (!query.trim()) return <>{text}</>;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const parts = text.split(new RegExp(`(${escaped})`, "gi"));
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === query.toLowerCase() ? (
+          <mark key={i} className="bg-yellow-200 dark:bg-yellow-700/60 text-foreground rounded-sm px-0.5">
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+}
+
+function reviewMatchesQuery(review: MonthlyReview, query: string): boolean {
+  if (!query.trim()) return true;
+  const q = query.toLowerCase();
+  const fields = [
+    review.whatMoved,
+    review.pillarsAdvanced,
+    review.milestonesCompleted,
+    review.whatDelayed,
+    review.whatToPause,
+    ...(review.topPrioritiesNextMonth ?? []),
+  ];
+  return fields.some(f => f && f.toLowerCase().includes(q));
+}
+
 interface ReviewHistoryCardProps {
   review: MonthlyReview;
   onOpen: (monthOf: string) => void;
+  searchQuery: string;
 }
 
-function ReviewHistoryCard({ review, onOpen }: ReviewHistoryCardProps) {
+function ReviewHistoryCard({ review, onOpen, searchQuery }: ReviewHistoryCardProps) {
   const priorities = (review.topPrioritiesNextMonth ?? []).filter(Boolean);
   const hasSummary = !!review.whatMoved;
   const hasPriorities = priorities.length > 0;
@@ -102,7 +136,9 @@ function ReviewHistoryCard({ review, onOpen }: ReviewHistoryCardProps) {
       {hasSummary && (
         <div className="space-y-0.5">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">What moved forward</p>
-          <p className="text-sm text-foreground/80 leading-relaxed">{truncate(review.whatMoved)}</p>
+          <p className="text-sm text-foreground/80 leading-relaxed">
+            <HighlightedText text={truncate(review.whatMoved)} query={searchQuery} />
+          </p>
         </div>
       )}
 
@@ -113,7 +149,7 @@ function ReviewHistoryCard({ review, onOpen }: ReviewHistoryCardProps) {
             {priorities.map((p, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
                 <Target className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-primary/60" />
-                <span>{p}</span>
+                <span><HighlightedText text={p} query={searchQuery} /></span>
               </li>
             ))}
           </ul>
@@ -128,7 +164,9 @@ function ReviewHistoryCard({ review, onOpen }: ReviewHistoryCardProps) {
 }
 
 function ReviewHistoryView({ reviews, onSelectMonth }: { reviews: MonthlyReview[]; onSelectMonth: (m: string) => void }) {
+  const [searchQuery, setSearchQuery] = useState("");
   const sorted = [...reviews].sort((a, b) => b.monthOf.localeCompare(a.monthOf));
+  const filtered = sorted.filter(r => reviewMatchesQuery(r, searchQuery));
 
   if (sorted.length === 0) {
     return (
@@ -142,9 +180,37 @@ function ReviewHistoryView({ reviews, onSelectMonth }: { reviews: MonthlyReview[
 
   return (
     <div className="space-y-3">
-      {sorted.map((review) => (
-        <ReviewHistoryCard key={review.id} review={review} onOpen={onSelectMonth} />
-      ))}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search reviews…"
+          className="w-full rounded-xl border border-input bg-background pl-9 pr-9 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => setSearchQuery("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Clear search"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="text-center py-12 space-y-2">
+          <Search className="h-7 w-7 mx-auto text-muted-foreground/40" />
+          <p className="text-sm text-muted-foreground">No reviews match "{searchQuery}"</p>
+        </div>
+      ) : (
+        filtered.map((review) => (
+          <ReviewHistoryCard key={review.id} review={review} onOpen={onSelectMonth} searchQuery={searchQuery} />
+        ))
+      )}
     </div>
   );
 }
