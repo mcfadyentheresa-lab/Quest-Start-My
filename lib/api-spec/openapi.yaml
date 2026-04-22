@@ -588,7 +588,13 @@ paths:
           required: false
           schema:
             type: string
-            description: Date in YYYY-MM-DD format, defaults to today
+            description: Date in YYYY-MM-DD format. When omitted, returns all plans newest first.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            description: Maximum number of plans to return when no date filter is applied
       responses:
         "200":
           description: List of daily plans

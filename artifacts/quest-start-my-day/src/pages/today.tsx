@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListDailyPlans,
@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarDays, Save } from "lucide-react";
+import { CalendarDays, Save, ChevronDown, ChevronUp, History } from "lucide-react";
 import { useForm } from "react-hook-form";
 
 interface DailyPlanFormData {
@@ -26,21 +26,34 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 }
 
+function formatDateShort(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
 export default function TodayPage() {
   const today = new Date().toISOString().slice(0, 10);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [historyOpen, setHistoryOpen] = useState(false);
 
-  const { data: plans, isLoading } = useListDailyPlans(
+  const { data: todayPlans, isLoading } = useListDailyPlans(
     { date: today },
     { query: { queryKey: getListDailyPlansQueryKey({ date: today }) } }
+  );
+
+  const { data: allPlans, isLoading: isHistoryLoading } = useListDailyPlans(
+    {},
+    { query: { queryKey: getListDailyPlansQueryKey(), enabled: historyOpen } }
   );
 
   const createPlan = useCreateDailyPlan();
   const updatePlan = useUpdateDailyPlan();
 
-  const existingPlan = plans?.[0];
+  const existingPlan = todayPlans?.[0];
   const isSaving = createPlan.isPending || updatePlan.isPending;
+
+  const pastPlans = (allPlans ?? []).filter((p) => p.date !== today);
 
   const { register, handleSubmit, reset } = useForm<DailyPlanFormData>({
     defaultValues: { priority1: "", priority2: "", priority3: "" },
@@ -124,6 +137,72 @@ export default function TodayPage() {
           </Button>
         </motion.form>
       )}
+
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <button
+          type="button"
+          onClick={() => setHistoryOpen((o) => !o)}
+          className="flex w-full items-center justify-between rounded-2xl bg-card border border-card-border px-5 py-4 text-left transition-colors hover:bg-muted/40"
+        >
+          <div className="flex items-center gap-2">
+            <History className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-foreground">Past plans</span>
+          </div>
+          {historyOpen ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
+        </button>
+
+        <AnimatePresence>
+          {historyOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-2 space-y-2">
+                {isHistoryLoading ? (
+                  <div className="space-y-2 px-1">
+                    <Skeleton className="h-20 w-full rounded-xl" />
+                    <Skeleton className="h-20 w-full rounded-xl" />
+                  </div>
+                ) : pastPlans.length === 0 ? (
+                  <div className="rounded-xl border border-card-border bg-card px-5 py-6 text-center">
+                    <p className="text-sm text-muted-foreground">No past plans yet. Start planning daily to build your history.</p>
+                  </div>
+                ) : (
+                  pastPlans.map((plan) => (
+                    <div
+                      key={plan.id}
+                      className="rounded-xl border border-card-border bg-card px-5 py-4 space-y-2"
+                    >
+                      <p className="text-xs font-semibold text-muted-foreground">{formatDateShort(plan.date)}</p>
+                      <ol className="space-y-1">
+                        {plan.priorities.map((p, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                              {i + 1}
+                            </span>
+                            <span>{p}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 }

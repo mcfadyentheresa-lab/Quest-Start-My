@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db, dailyPlansTable } from "@workspace/db";
 import {
   CreateDailyPlanBody,
+  ListDailyPlansQueryParams,
   UpdateDailyPlanBody,
   UpdateDailyPlanParams,
 } from "@workspace/api-zod";
@@ -16,13 +17,31 @@ function serializePlan(plan: typeof dailyPlansTable.$inferSelect) {
   };
 }
 
+const MAX_DAILY_PLAN_LIMIT = 200;
+
 router.get("/daily", async (req, res): Promise<void> => {
-  const date = typeof req.query.date === "string"
-    ? req.query.date
-    : new Date().toISOString().slice(0, 10);
+  const parsed = ListDailyPlansQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const { date, limit: rawLimit } = parsed.data;
+
+  if (date !== undefined) {
+    const plans = await db.select().from(dailyPlansTable)
+      .where(eq(dailyPlansTable.date, date));
+    res.json(plans.map(serializePlan));
+    return;
+  }
+
+  const limit = rawLimit && rawLimit > 0
+    ? Math.min(rawLimit, MAX_DAILY_PLAN_LIMIT)
+    : MAX_DAILY_PLAN_LIMIT;
 
   const plans = await db.select().from(dailyPlansTable)
-    .where(eq(dailyPlansTable.date, date));
+    .orderBy(desc(dailyPlansTable.date))
+    .limit(limit);
 
   res.json(plans.map(serializePlan));
 });

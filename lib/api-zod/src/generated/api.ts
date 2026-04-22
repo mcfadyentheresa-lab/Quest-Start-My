@@ -687,8 +687,9 @@ export const UpdateMonthlyReviewResponse = zod.object({
  * @summary List daily plans
  */
 export const ListDailyPlansQueryParams = zod.object({
-  "date": zod.coerce.string().optional()
-})
+  date: zod.coerce.string().optional(),
+  limit: zod.coerce.number().optional(),
+});
 
 export const ListDailyPlansResponseItem = zod.object({
   "id": zod.number(),

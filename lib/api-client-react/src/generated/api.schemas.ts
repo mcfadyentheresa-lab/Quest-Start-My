@@ -757,9 +757,13 @@ weeks?: number;
 };
 
 export type ListDailyPlansParams = {
-/**
- * Date in YYYY-MM-DD format, defaults to today
- */
-date?: string;
+  /**
+   * Date in YYYY-MM-DD format. When omitted, returns all plans newest first.
+   */
+  date?: string;
+  /**
+   * Maximum number of plans to return when no date filter is applied
+   */
+  limit?: number;
 };
 
