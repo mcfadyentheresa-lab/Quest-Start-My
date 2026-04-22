@@ -1,0 +1,44 @@
+I need help fixing a pnpm lockfile / overrides mismatch that I can’t resolve from this Replit environment.
+
+Context (important):
+
+Project: Quest app workspace, using pnpm and pnpm-workspace.yaml.
+
+Railway build runs: pnpm install --frozen-lockfile --prefer-offline and fails with:
+ERR_PNPM_LOCKFILE_CONFIG_MISMATCH Cannot proceed with the frozen installation. The current "overrides" configuration doesn't match the value found in the lockfile.
+
+Railway is using pnpm 9.15.9.
+
+In Replit, when I run:
+
+bash
+rm -rf node_modules pnpm-lock.yaml
+pnpm install
+pnpm immediately tries to run:
+pnpm add pnpm@9.15.9 ... (Corepack/pnpm bootstrap)
+and either hangs or I have to Ctrl+C. It never actually finishes a clean pnpm install, and git status continues to show nothing to commit, working tree clean (no new pnpm-lock.yaml gets generated).
+
+So:
+
+Railway is stuck because it wants the lockfile to match the overrides.
+
+Replit is stuck because the pnpm 9.15.9 bootstrap is failing before it can regenerate the lockfile.
+
+Please:
+
+Inspect pnpm-workspace.yaml and pnpm-lock.yaml in this repo and tell me exactly which overrides are mismatched.
+
+Propose a minimal, concrete change I can make in the repo to fix this for Railway without relying on a full pnpm/Corepack bootstrap in Replit (for example, adjusting or removing specific overrides, or editing the lockfile by hand in a safe, targeted way).
+
+Give me the exact file edits (paths and code blocks) and the exact git commands to run afterward.
+
+Constraints:
+
+Do not tell me just to “run pnpm install again” or “regenerate the lockfile from scratch” — that’s what keeps failing in this Replit environment.
+
+Focus on changes I can make by editing files (pnpm-workspace.yaml, pnpm-lock.yaml, package.json) and committing them.
+
+Keep your answer to specific steps and code snippets I can copy-paste.
+
+Goal:
+Make Railway’s pnpm install --frozen-lockfile succeed by getting the overrides and lockfile back into sync, using only repo edits + git commits from inside Replit.
