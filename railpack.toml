@@ -1,0 +1,3 @@
+# Railway build configuration is in railway.json at the root.
+# This file was previously empty. Keeping it empty so Railway doesn't pick it
+# up as an override.
