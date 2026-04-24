@@ -29,13 +29,21 @@ function Router() {
   );
 }
 
+// Resolve the router base once. wouter expects either an absolute prefix
+// like "/app" or no prop at all when mounted at the domain root. Passing "/"
+// or "" can cause matching oddities.
+const rawBase = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
+
 function App() {
+  const routerTree = <Router />;
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
+        {rawBase ? (
+          <WouterRouter base={rawBase}>{routerTree}</WouterRouter>
+        ) : (
+          routerTree
+        )}
         <Toaster />
       </TooltipProvider>
     </ThemeProvider>
