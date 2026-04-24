@@ -1,0 +1,23 @@
+# Custom Nixpacks config for this pnpm workspace monorepo.
+# The repo has no pnpm-lock.yaml at the root, so the default
+# `pnpm i --frozen-lockfile` fails. Override install, build, and start
+# phases to skip the frozen lockfile check.
+
+[phases.setup]
+nixPkgs = ["nodejs_24", "pnpm-9_x"]
+
+[phases.install]
+cmds = [
+  "npm install -g corepack@0.31.0",
+  "corepack enable",
+  "pnpm install --no-frozen-lockfile",
+]
+
+[phases.build]
+cmds = [
+  "BASE_PATH=${BASE_PATH:-/} pnpm run build",
+  "pnpm --filter @workspace/db run push",
+]
+
+[start]
+cmd = "pnpm --filter @workspace/api-server run start"
