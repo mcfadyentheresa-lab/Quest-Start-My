@@ -14,8 +14,11 @@ cmds = [
 ]
 
 [phases.build]
+# PORT=8080 is a dummy value for the Vite build — it's required by the
+# frontend's vite.config.ts but only used at runtime (Railway sets the real
+# PORT when the server starts).
 cmds = [
-  "BASE_PATH=${BASE_PATH:-/} pnpm run build",
+  "PORT=8080 BASE_PATH=${BASE_PATH:-/} pnpm run build",
   "pnpm --filter @workspace/db run push",
 ]
 
