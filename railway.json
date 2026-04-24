@@ -5,7 +5,7 @@
     "buildCommand": "PORT=8080 BASE_PATH=/ pnpm --filter @workspace/quest-start-my-day run build && pnpm --filter @workspace/api-server run build"
   },
   "deploy": {
-    "startCommand": "pnpm --filter @workspace/db run push && pnpm --filter @workspace/api-server run start",
+    "startCommand": "pnpm --filter @workspace/db run push && pnpm --filter @workspace/db run restore && pnpm --filter @workspace/api-server run start",
     "healthcheckPath": "/api/healthz",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
