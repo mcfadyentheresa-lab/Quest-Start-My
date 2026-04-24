@@ -51,7 +51,16 @@ export default defineConfig({
       "@": path.resolve(import.meta.dirname, "src"),
       "@assets": path.resolve(import.meta.dirname, "..", "..", "attached_assets"),
     },
-    dedupe: ["react", "react-dom"],
+    // Deduplicate context-providing libraries so that the app and the
+    // workspace package @workspace/api-client-react share a single instance.
+    // Without this, useQueryClient() fails with "No QueryClient set".
+    dedupe: [
+      "react",
+      "react-dom",
+      "@tanstack/react-query",
+      "wouter",
+      "next-themes",
+    ],
   },
   root: path.resolve(import.meta.dirname),
   build: {
