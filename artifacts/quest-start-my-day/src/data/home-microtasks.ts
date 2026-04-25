@@ -288,7 +288,10 @@ export function pickMicroTasks(
 ): HomeMicroTask[] {
   let pool = [...tasks];
   if (filters.energy) pool = pool.filter(t => t.energyLevel === filters.energy);
-  if (filters.maxMinutes) pool = pool.filter(t => t.timeMinutes <= filters.maxMinutes);
+  if (filters.maxMinutes !== undefined) {
+    const maxMinutes = filters.maxMinutes;
+    pool = pool.filter(t => t.timeMinutes <= maxMinutes);
+  }
   if (filters.area) pool = pool.filter(t => t.area === filters.area);
   if (pool.length === 0) pool = [...tasks];
 

@@ -277,7 +277,9 @@ export default function HistoryPage() {
   const { data: pillarHealth, isLoading: healthLoading } = useGetPillarHealth();
   const { data: dashSummary } = useGetDashboardSummary();
   const { data: outcomes, isLoading: outcomesLoading } = useGetOutcomeMetrics({ weekOf: selectedWeek });
-  const { data: friction, isLoading: frictionLoading } = useGetFrictionSignals({ weekOf: selectedWeek });
+  // Note: useGetFrictionSignals does not currently accept weekOf at the API layer.
+  // Filtering by selectedWeek would require a spec update; for now we fetch all signals.
+  const { data: friction, isLoading: frictionLoading } = useGetFrictionSignals();
 
   useEffect(() => {
     if (!frictionTypeFilter || !friction) return;
@@ -310,7 +312,7 @@ export default function HistoryPage() {
   const sparklineLoading = weeklyOutcomeResults.some(r => r.isLoading);
 
   const pillarSparklineData = useMemo(() => {
-    const map = new Map<string, { rates: number[]; weeks: string[] }>();
+    const map = new Map<number, { rates: number[]; weeks: string[] }>();
     sparklineWeeks.forEach((week, i) => {
       const data = weeklyOutcomeResults[i]?.data;
       if (!data) return;
