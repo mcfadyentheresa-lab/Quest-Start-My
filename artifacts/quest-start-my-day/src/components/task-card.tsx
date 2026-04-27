@@ -116,20 +116,32 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
     queryClient.invalidateQueries({ queryKey: getGetReentryTaskQueryKey() });
   };
 
-  const handleAction = (status: "done" | "pushed" | "passed" | "blocked") => {
+  const handleAction = async (status: "done" | "pushed" | "passed" | "blocked") => {
     if (status === "blocked") {
       setShowBlockerInput(true);
       return;
     }
+    const tasksKey = getListTasksQueryKey({ date });
+    await queryClient.cancelQueries({ queryKey: tasksKey });
+    const prev = queryClient.getQueryData(tasksKey);
+    queryClient.setQueryData(tasksKey, (old: unknown) => {
+      if (!Array.isArray(old)) return old;
+      return old.map((t: { id: number } & Record<string, unknown>) =>
+        t.id === task.id ? { ...t, status } : t
+      );
+    });
     updateTask.mutate(
       { id: task.id, data: { status } },
       {
+        onError: () => {
+          queryClient.setQueryData(tasksKey, prev);
+          toast({ title: "Something went wrong", variant: "destructive" });
+        },
         onSuccess: () => {
-          invalidateAll();
           if (status === "done") setExpanded(false);
         },
-        onError: () => {
-          toast({ title: "Something went wrong", variant: "destructive" });
+        onSettled: () => {
+          invalidateAll();
         },
       }
     );

@@ -48,20 +48,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Bottom navigation (mobile-first) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur border-t border-border">
+      <nav aria-label="Primary" className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur border-t border-border">
         <div className="max-w-2xl mx-auto flex items-center justify-around py-2">
           {navItems.map(({ href, label, icon: Icon }) => {
             const isActive = href === "/" ? location === "/" : location.startsWith(href);
             return (
               <Link key={href} href={href}>
                 <button
-                  className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-colors ${
+                  type="button"
+                  aria-label={label}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
                     isActive
                       ? "text-primary"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <Icon className={`h-5 w-5 ${isActive ? "stroke-[2.2px]" : "stroke-[1.7px]"}`} />
+                  <Icon aria-hidden="true" className={`h-5 w-5 ${isActive ? "stroke-[2.2px]" : "stroke-[1.7px]"}`} />
                   <span className="text-[10px] font-medium leading-none">{label}</span>
                 </button>
               </Link>

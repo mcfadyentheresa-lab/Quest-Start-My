@@ -8,6 +8,7 @@ import { useListTasks, useCreateTask, useUpdateTask, useDeleteTask, getListTasks
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { getUserToday } from "@/lib/time";
 import {
   HOME_MICROTASKS, SPRINT_PRESETS, pickMicroTasks,
   type HomeMicroTask, type EnergyLevel, type HomeArea,
@@ -255,7 +256,7 @@ function MicroTaskPreview({ microTask, onAdd, isAdding }: { microTask: HomeMicro
 }
 
 export default function HomeModulePage() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getUserToday();
   const [energy, setEnergy] = useState<EnergyLevel | null>(null);
   const [maxMinutes, setMaxMinutes] = useState<number | null>(null);
   const [area, setArea] = useState<HomeArea | null>(null);

@@ -25,20 +25,14 @@ import { FocusNudgeDialog } from "@/components/focus-nudge-dialog";
 import { useFocusTimer } from "@/hooks/use-focus-timer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { RouteError } from "@/components/route-error";
 import { Plus, Sprout, ArrowRight, CheckCircle2, ExternalLink, CalendarDays, Timer, Lightbulb, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch, useLocation } from "wouter";
+import { getUserToday, getWeekKey } from "@/lib/time";
 
 const PRIORITY_LEVELS: PillarWithPriorityPriority[] = ["P1", "P2", "P3", "P4"];
-
-function getWeekStart(date: Date = new Date()): string {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().slice(0, 10);
-}
 
 const FOCUS_DURATIONS = [5, 10, 15, 25] as const;
 
@@ -60,7 +54,7 @@ function formatShortDate(dateStr: string) {
 }
 
 export default function Dashboard() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getUserToday();
   const search = useSearch();
   const [, navigate] = useLocation();
   const viewDate = new URLSearchParams(search).get("date") ?? today;
@@ -70,7 +64,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const weekOf = getWeekStart();
+  const weekOf = getWeekKey();
   const updatePriorities = useUpdateWeeklyPlanPriorities();
 
   const timer = useFocusTimer();
@@ -81,8 +75,8 @@ export default function Dashboard() {
   const [editingTitleId, setEditingTitleId] = useState<number | null>(null);
   const [editedTitles, setEditedTitles] = useState<Map<number, string>>(new Map());
 
-  const { data: summary, isLoading: summaryLoading } = useGetDashboardSummary();
-  const { data: tasks, isLoading: tasksLoading } = useListTasks(
+  const { data: summary, isLoading: summaryLoading, isError: summaryError, refetch: refetchSummary } = useGetDashboardSummary();
+  const { data: tasks, isLoading: tasksLoading, isError: tasksError, refetch: refetchTasks } = useListTasks(
     { date: viewDate },
     { query: { queryKey: getListTasksQueryKey({ date: viewDate }) } }
   );
@@ -269,6 +263,17 @@ export default function Dashboard() {
     );
   }
 
+  if (summaryError && tasksError) {
+    return (
+      <RouteError
+        onRetry={() => {
+          refetchSummary();
+          refetchTasks();
+        }}
+      />
+    );
+  }
+
   // Build a quick pillar map for task chips
   const pillarMap = new Map(pillars?.map(p => [p.id, p]) ?? []);
 
@@ -412,18 +417,43 @@ export default function Dashboard() {
             {summary.activePillars.map(pillar => {
               const current = (pillar.priority ?? "P4") as PillarWithPriorityPriority;
               const currentMap = (summary.weeklyPlan?.pillarPriorities ?? {}) as Record<string, PillarWithPriorityPriority>;
-              const handleChange = (next: PillarWithPriorityPriority) => {
+              const handleChange = async (next: PillarWithPriorityPriority) => {
                 if (next === current) return;
                 const merged: Record<string, PillarWithPriorityPriority> = { ...currentMap };
                 merged[String(pillar.id)] = next;
+                const dashboardKey = getGetDashboardSummaryQueryKey();
+                const weeklyPlansKey = getListWeeklyPlansQueryKey({ weekOf });
+
+                await queryClient.cancelQueries({ queryKey: dashboardKey });
+                const prev = queryClient.getQueryData(dashboardKey);
+                queryClient.setQueryData(dashboardKey, (old: unknown) => {
+                  if (!old || typeof old !== "object") return old;
+                  const summaryOld = old as {
+                    activePillars?: Array<{ id: number; priority?: string | null } & Record<string, unknown>>;
+                    weeklyPlan?: { pillarPriorities?: Record<string, string> } & Record<string, unknown>;
+                  } & Record<string, unknown>;
+                  return {
+                    ...summaryOld,
+                    activePillars: summaryOld.activePillars?.map(p =>
+                      p.id === pillar.id ? { ...p, priority: next } : p
+                    ),
+                    weeklyPlan: summaryOld.weeklyPlan
+                      ? { ...summaryOld.weeklyPlan, pillarPriorities: merged }
+                      : summaryOld.weeklyPlan,
+                  };
+                });
+
                 updatePriorities.mutate(
                   { weekKey: weekOf, data: { pillarPriorities: merged } },
                   {
-                    onSuccess: () => {
-                      queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-                      queryClient.invalidateQueries({ queryKey: getListWeeklyPlansQueryKey({ weekOf }) });
+                    onError: () => {
+                      queryClient.setQueryData(dashboardKey, prev);
+                      toast({ title: "Couldn't update priority", variant: "destructive" });
                     },
-                    onError: () => toast({ title: "Couldn't update priority", variant: "destructive" }),
+                    onSettled: () => {
+                      queryClient.invalidateQueries({ queryKey: dashboardKey });
+                      queryClient.invalidateQueries({ queryKey: weeklyPlansKey });
+                    },
                   }
                 );
               };
@@ -446,7 +476,8 @@ export default function Dashboard() {
                         onClick={() => handleChange(level)}
                         disabled={updatePriorities.isPending}
                         aria-pressed={current === level}
-                        className={`text-xs font-bold px-2 py-1 rounded-full border transition-colors ${
+                        aria-label={`Set ${pillar.name} priority to ${level}`}
+                        className={`text-xs font-bold px-2 py-1 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
                           current === level
                             ? "bg-primary text-primary-foreground border-primary"
                             : "bg-background text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
@@ -525,6 +556,7 @@ export default function Dashboard() {
                   {editingTitleId === suggestion.milestoneId ? (
                     <input
                       autoFocus
+                      aria-label="Edit suggested task title"
                       value={editedTitles.get(suggestion.milestoneId) ?? suggestion.title}
                       onChange={e =>
                         setEditedTitles(prev => new Map(prev).set(suggestion.milestoneId, e.target.value))
@@ -727,8 +759,9 @@ export default function Dashboard() {
                 {FOCUS_DURATIONS.map(d => (
                   <button
                     key={d}
+                    type="button"
                     onClick={() => setSelectedFocusDuration(d)}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors font-medium ${
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 ${
                       selectedFocusDuration === d
                         ? "bg-violet-100 border-violet-400 text-violet-700 dark:bg-violet-900/40 dark:border-violet-500 dark:text-violet-300"
                         : "border-border text-muted-foreground hover:border-violet-300 hover:text-violet-600"

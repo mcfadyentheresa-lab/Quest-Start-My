@@ -44,6 +44,8 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { getUserToday } from "@/lib/time";
+import { RouteError } from "@/components/route-error";
 
 const COLORS = [
   { hex: "#c2a49e", name: "Dusty rose" },
@@ -438,7 +440,7 @@ function SortableMilestoneRow({
         </button>
         <div className="flex-1 min-w-0">
           {(() => {
-            const today = new Date().toISOString().slice(0, 10);
+            const today = getUserToday();
             const isOverdue = m.targetDate && m.status !== "complete" && m.targetDate < today;
             return (
               <>
@@ -954,7 +956,7 @@ const P_LEGEND = [
 export default function PillarsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: pillars, isLoading } = useListPillars();
+  const { data: pillars, isLoading, isError, refetch } = useListPillars();
   const createPillar = useCreatePillar();
   const updatePillar = useUpdatePillar();
   const [addOpen, setAddOpen] = useState(false);
@@ -1014,7 +1016,7 @@ export default function PillarsPage() {
   };
 
   const handleEdit = (id: number, data: PillarFormData) => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getUserToday();
     updatePillar.mutate(
       {
         id,
@@ -1052,6 +1054,10 @@ export default function PillarsPage() {
         <Skeleton className="h-48 rounded-2xl" />
       </div>
     );
+  }
+
+  if (isError) {
+    return <RouteError onRetry={() => refetch()} />;
   }
 
   const activeP = pillars?.filter(p => p.portfolioStatus === "Active") ?? [];

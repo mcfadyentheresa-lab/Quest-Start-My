@@ -2,21 +2,16 @@ import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { getGetOutcomeMetricsQueryOptions } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getWeekKey, shiftDateString } from "@/lib/time";
 
 export const SPARKLINE_WEEK_COUNT = 6;
 
 export function getCurrentWeekStart(): string {
-  const d = new Date();
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().slice(0, 10);
+  return getWeekKey();
 }
 
 export function shiftWeek(weekOf: string, delta: number): string {
-  const d = new Date(weekOf + "T00:00:00");
-  d.setDate(d.getDate() + delta * 7);
-  return d.toISOString().slice(0, 10);
+  return shiftDateString(weekOf, delta * 7);
 }
 
 export function PillarSparkline({

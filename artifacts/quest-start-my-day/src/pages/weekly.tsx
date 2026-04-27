@@ -19,14 +19,8 @@ import { PriorityBadge } from "@/components/priority-badge";
 import { Plus, Trash2, Check, Loader2, ChevronDown, ChevronUp, Flame } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-
-function getWeekStart(): string {
-  const d = new Date();
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().slice(0, 10);
-}
+import { RouteError } from "@/components/route-error";
+import { getWeekKey } from "@/lib/time";
 
 function formatWeek(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
@@ -36,15 +30,15 @@ function formatWeek(dateStr: string) {
 }
 
 export default function WeeklyPage() {
-  const weekOf = getWeekStart();
+  const weekOf = getWeekKey();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: weeklyPlans, isLoading: plansLoading } = useListWeeklyPlans(
+  const { data: weeklyPlans, isLoading: plansLoading, isError: plansError, refetch: refetchPlans } = useListWeeklyPlans(
     { weekOf },
     { query: { queryKey: getListWeeklyPlansQueryKey({ weekOf }) } }
   );
-  const { data: pillars, isLoading: pillarsLoading } = useListPillars();
+  const { data: pillars, isLoading: pillarsLoading, isError: pillarsError, refetch: refetchPillars } = useListPillars();
   const { data: dashboardSummary } = useGetDashboardSummary();
 
   const createPlan = useCreateWeeklyPlan();
@@ -142,6 +136,22 @@ export default function WeeklyPage() {
       ? activePillarIdsFromPlan.filter(id => id !== pillarId)
       : [...activePillarIdsFromPlan, pillarId];
 
+    const plansKey = getListWeeklyPlansQueryKey({ weekOf });
+    const pillarsKey = getListPillarsQueryKey();
+    const dashboardKey = getGetDashboardSummaryQueryKey();
+
+    await queryClient.cancelQueries({ queryKey: plansKey });
+    const prevPlans = queryClient.getQueryData(plansKey);
+    queryClient.setQueryData(plansKey, (old: unknown) => {
+      if (!Array.isArray(old)) return old;
+      if (existingPlan) {
+        return old.map((p: { id: number } & Record<string, unknown>) =>
+          p.id === existingPlan.id ? { ...p, activePillarIds: nextIds } : p
+        );
+      }
+      return [{ id: -1, weekOf, priorities: [], activePillarIds: nextIds }, ...old];
+    });
+
     try {
       if (existingPlan) {
         await updatePlan.mutateAsync({
@@ -157,11 +167,13 @@ export default function WeeklyPage() {
           },
         });
       }
-      queryClient.invalidateQueries({ queryKey: getListWeeklyPlansQueryKey({ weekOf }) });
-      queryClient.invalidateQueries({ queryKey: getListPillarsQueryKey() });
-      queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
     } catch {
+      queryClient.setQueryData(plansKey, prevPlans);
       toast({ title: "Failed to update active pillars", variant: "destructive" });
+    } finally {
+      queryClient.invalidateQueries({ queryKey: plansKey });
+      queryClient.invalidateQueries({ queryKey: pillarsKey });
+      queryClient.invalidateQueries({ queryKey: dashboardKey });
     }
   };
 
@@ -172,6 +184,17 @@ export default function WeeklyPage() {
         <Skeleton className="h-32 rounded-2xl" />
         <Skeleton className="h-24 rounded-2xl" />
       </div>
+    );
+  }
+
+  if (plansError && pillarsError) {
+    return (
+      <RouteError
+        onRetry={() => {
+          refetchPlans();
+          refetchPillars();
+        }}
+      />
     );
   }
 
