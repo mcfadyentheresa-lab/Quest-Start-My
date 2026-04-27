@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { showPlanLimitToast } from "@/lib/plan-limit-toast";
 import { trackEvent } from "@/lib/analytics";
 
 interface AddTaskDialogProps {
@@ -104,7 +105,8 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
           });
           toast({ title: "Task added" });
         },
-        onError: () => {
+        onError: (err) => {
+          if (showPlanLimitToast(err)) return;
           toast({ title: "Failed to add task", variant: "destructive" });
         },
       }

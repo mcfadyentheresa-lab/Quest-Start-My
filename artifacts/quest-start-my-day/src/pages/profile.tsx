@@ -1,9 +1,11 @@
 import { useCallback, useState } from "react";
 import { motion } from "framer-motion";
+import { Link } from "wouter";
 import { useUser, SignOutButton } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { isClerkEnabled } from "@/lib/clerk-config";
-import { User, LogOut, Volume2, VolumeX, Download, Keyboard } from "lucide-react";
+import { isBillingEnabled } from "@/lib/billing-config";
+import { User, LogOut, Volume2, VolumeX, Download, Keyboard, Sparkles } from "lucide-react";
 import { customFetch } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { dispatchOpenCheatsheet } from "@/hooks/use-keyboard-shortcuts";
@@ -246,6 +248,28 @@ export default function ProfilePage() {
           {exporting ? "Preparing…" : "Export my data"}
         </Button>
       </motion.section>
+
+      {isBillingEnabled() && (
+        <motion.section
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl bg-card border border-card-border p-5 space-y-3"
+        >
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-muted-foreground" />
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Plan & billing</p>
+          </div>
+          <p className="text-sm text-foreground">
+            Manage your subscription, view plan limits, and upgrade.
+          </p>
+          <Link href="/billing">
+            <Button variant="outline" size="sm" className="rounded-xl gap-1.5" data-testid="open-billing">
+              <Sparkles className="h-3.5 w-3.5" />
+              Manage plan
+            </Button>
+          </Link>
+        </motion.section>
+      )}
 
       <motion.section
         initial={{ opacity: 0, y: 8 }}

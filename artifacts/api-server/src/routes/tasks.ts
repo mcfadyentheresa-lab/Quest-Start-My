@@ -15,6 +15,7 @@ import {
 } from "@workspace/api-zod";
 import { scoped, userIdFrom } from "../lib/scoped";
 import { getUserToday, getWeekKey } from "../lib/time";
+import { assertCanCreateTask } from "../lib/plan";
 
 const router: IRouter = Router();
 
@@ -106,7 +107,9 @@ router.post("/tasks", async (req, res): Promise<void> => {
     return;
   }
 
-  const s = scoped(userIdFrom(req));
+  const userId = userIdFrom(req);
+  await assertCanCreateTask(userId);
+  const s = scoped(userId);
   const [task] = await db.insert(tasksTable).values(s.tasks.withUser({
     title: parsed.data.title,
     category: parsed.data.category,

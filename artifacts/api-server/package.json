@@ -27,6 +27,7 @@
     "helmet": "^8.0.0",
     "pino": "^9",
     "pino-http": "^10",
+    "stripe": "^17.7.0",
     "zod": "catalog:"
   },
   "devDependencies": {

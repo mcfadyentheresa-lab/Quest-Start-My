@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, pillarsTable, milestonesTable, tasksTable } from "@workspace/db";
 import { scoped, userIdFrom } from "../lib/scoped";
 import { getUserToday } from "../lib/time";
+import { assertCanExport } from "../lib/plan";
 
 const router: IRouter = Router();
 
@@ -116,6 +117,7 @@ export function exportFilename(today: string): string {
 
 router.get("/export.csv", async (req, res): Promise<void> => {
   const userId = userIdFrom(req);
+  await assertCanExport(userId);
   const s = scoped(userId);
 
   const [pillars, milestones, tasks] = await Promise.all([

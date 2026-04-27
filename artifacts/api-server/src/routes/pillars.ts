@@ -9,6 +9,7 @@ import {
   UpdatePillarResponse,
 } from "@workspace/api-zod";
 import { scoped, userIdFrom } from "../lib/scoped";
+import { assertCanCreatePillar } from "../lib/plan";
 
 const router: IRouter = Router();
 
@@ -32,7 +33,9 @@ router.post("/pillars", async (req, res): Promise<void> => {
     return;
   }
 
-  const s = scoped(userIdFrom(req));
+  const userId = userIdFrom(req);
+  await assertCanCreatePillar(userId);
+  const s = scoped(userId);
   const [pillar] = await db.insert(pillarsTable).values(s.pillars.withUser({
     name: parsed.data.name,
     description: parsed.data.description ?? null,

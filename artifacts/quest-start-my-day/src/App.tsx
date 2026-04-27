@@ -17,6 +17,7 @@ const HistoryPage = lazy(() => import("@/pages/history"));
 const ReviewPage = lazy(() => import("@/pages/review"));
 const PillarsPage = lazy(() => import("@/pages/pillars"));
 const ProfilePage = lazy(() => import("@/pages/profile"));
+const BillingPage = lazy(() => import("@/pages/billing"));
 const HomeModulePage = lazy(() => import("@/pages/home-module"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const SignInPage = lazy(() => import("@/pages/sign-in"));
@@ -75,6 +76,7 @@ function ProtectedAppRoutes() {
                 <Route path="/pillars" component={PillarsPage} />
                 <Route path="/history" component={HistoryPage} />
                 <Route path="/profile" component={ProfilePage} />
+                <Route path="/billing" component={BillingPage} />
                 {/* Secondary routes — kept accessible but not in primary nav */}
                 <Route path="/review" component={ReviewPage} />
                 <Route path="/home" component={HomeModulePage} />

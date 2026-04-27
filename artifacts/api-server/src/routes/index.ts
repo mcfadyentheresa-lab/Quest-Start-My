@@ -10,12 +10,14 @@ import monthlyRouter from "./monthly";
 import frictionRouter from "./friction";
 import onboardingRouter from "./onboarding";
 import exportRouter from "./export";
+import { billingPublicRouter, billingAuthedRouter } from "./billing";
 import { requireAuth } from "../middleware/auth";
 
 const router: IRouter = Router();
 
 // Public routes (no auth)
 router.use(healthRouter);
+router.use(billingPublicRouter);
 
 // Everything below this line requires auth (Clerk mode) or owner-mode fallback.
 router.use(requireAuth);
@@ -30,5 +32,6 @@ router.use(monthlyRouter);
 router.use(frictionRouter);
 router.use(onboardingRouter);
 router.use(exportRouter);
+router.use(billingAuthedRouter);
 
 export default router;

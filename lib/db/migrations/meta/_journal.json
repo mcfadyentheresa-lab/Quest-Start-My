@@ -29,6 +29,13 @@
       "when": 1777852800000,
       "tag": "index_0003_phase5_onboarding",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782518400000,
+      "tag": "index_0004_phase7_billing",
+      "breakpoints": true
     }
   ]
 }

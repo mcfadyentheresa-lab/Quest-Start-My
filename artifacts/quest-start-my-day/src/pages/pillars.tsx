@@ -26,6 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check, Trash2, GripVertical, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
+import { showPlanLimitToast } from "@/lib/plan-limit-toast";
 import { useForm } from "react-hook-form";
 import {
   DndContext,
@@ -982,7 +983,10 @@ export default function PillarsPage() {
           trackEvent("pillar_created", { category: data.category ?? null });
           toast({ title: "Pillar added" });
         },
-        onError: () => toast({ title: "Failed to add pillar", variant: "destructive" }),
+        onError: (err) => {
+          if (showPlanLimitToast(err)) return;
+          toast({ title: "Failed to add pillar", variant: "destructive" });
+        },
       }
     );
   };
