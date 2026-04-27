@@ -34,18 +34,20 @@ import {
   CalendarDays, X,
 } from "lucide-react";
 
+import { getUserToday, shiftYmd } from "@/lib/time";
+
 function formatDate(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
-  const today = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const today = getUserToday();
+  const yesterday = shiftYmd(today, -1);
   if (dateStr === today) return "Today";
   if (dateStr === yesterday) return "Yesterday";
   return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 }
 
 function formatShortDate(dateStr: string): string {
-  const today = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const today = getUserToday();
+  const yesterday = shiftYmd(today, -1);
   if (dateStr === today) return "Today";
   if (dateStr === yesterday) return "Yesterday";
   return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });

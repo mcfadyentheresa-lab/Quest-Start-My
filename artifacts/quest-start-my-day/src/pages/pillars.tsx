@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RouteError } from "@/components/route-error";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check, Trash2, GripVertical, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -954,7 +955,7 @@ const P_LEGEND = [
 export default function PillarsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: pillars, isLoading } = useListPillars();
+  const { data: pillars, isLoading, isError: pillarsError, refetch: refetchPillars } = useListPillars();
   const createPillar = useCreatePillar();
   const updatePillar = useUpdatePillar();
   const [addOpen, setAddOpen] = useState(false);
@@ -1044,6 +1045,14 @@ export default function PillarsPage() {
       }
     );
   };
+
+  if (pillarsError && !pillars) {
+    return (
+      <div className="space-y-4">
+        <RouteError onRetry={() => refetchPillars()} />
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

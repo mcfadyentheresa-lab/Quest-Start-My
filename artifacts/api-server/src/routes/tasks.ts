@@ -14,18 +14,16 @@ import {
   GetTaskSuggestionsQueryParams,
 } from "@workspace/api-zod";
 import { scoped, userIdFrom } from "../lib/scoped";
+import {
+  getUserToday,
+  getWeekStart as tzWeekStart,
+  validateViewDate,
+} from "../lib/time";
+import { getUserTimezone } from "../lib/user-timezone";
 
 const router: IRouter = Router();
 
 const MAX_STEP_BACK_DEPTH = 3;
-
-function getWeekStart(date: Date = new Date()): string {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().slice(0, 10);
-}
 
 interface GeneratedTask {
   title: string;
@@ -85,10 +83,15 @@ function serializeTask(task: typeof tasksTable.$inferSelect) {
 }
 
 router.get("/tasks", async (req, res): Promise<void> => {
-  const s = scoped(userIdFrom(req));
+  const userId = userIdFrom(req);
+  const s = scoped(userId);
+  const tz = await getUserTimezone(userId);
   const query = ListTasksQueryParams.safeParse(req.query);
-  const today = new Date().toISOString().slice(0, 10);
-  const date = query.success && query.data.date ? query.data.date : today;
+  const today = getUserToday(tz);
+  const validatedDate = query.success && query.data.date
+    ? validateViewDate(query.data.date, "date")
+    : null;
+  const date = validatedDate ?? today;
   const source = query.success ? query.data.source : undefined;
 
   const whereClause = source
@@ -128,18 +131,21 @@ router.post("/tasks", async (req, res): Promise<void> => {
 });
 
 router.get("/tasks/suggestions", async (req, res): Promise<void> => {
-  const s = scoped(userIdFrom(req));
+  const userId = userIdFrom(req);
+  const s = scoped(userId);
+  const tz = await getUserTimezone(userId);
   const queryResult = GetTaskSuggestionsQueryParams.safeParse(req.query);
   if (!queryResult.success) {
     res.status(400).json({ error: queryResult.error.message });
     return;
   }
-  const today = new Date().toISOString().slice(0, 10);
-  const date = queryResult.data.date ?? today;
+  const today = getUserToday(tz);
+  const validatedDate = validateViewDate(queryResult.data.date, "date");
+  const date = validatedDate ?? today;
 
   // Active pillars: source of truth is weekly_plans.activePillarIds for the
   // current week. Priority is per-week and lives in weekly_plans.pillarPriorities.
-  const weekOf = getWeekStart();
+  const weekOf = tzWeekStart(today, tz);
   const [weeklyPlan] = await db
     .select()
     .from(weeklyPlansTable)

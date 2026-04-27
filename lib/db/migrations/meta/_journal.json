@@ -15,6 +15,13 @@
       "when": 1761523200000,
       "tag": "index_0001_phase3_ia",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1761609600000,
+      "tag": "index_0002_phase4_user_timezone",
+      "breakpoints": true
     }
   ]
 }

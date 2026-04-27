@@ -13,16 +13,14 @@ import {
   UpdateWeeklyPlanPrioritiesParams,
 } from "@workspace/api-zod";
 import { scoped, userIdFrom } from "../lib/scoped";
+import {
+  getUserToday,
+  getWeekStart as tzWeekStart,
+  validateViewDate,
+} from "../lib/time";
+import { getUserTimezone } from "../lib/user-timezone";
 
 const router: IRouter = Router();
-
-function getWeekStart(date: Date = new Date()): string {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().slice(0, 10);
-}
 
 function serializePlan(plan: typeof weeklyPlansTable.$inferSelect) {
   return {
@@ -34,9 +32,14 @@ function serializePlan(plan: typeof weeklyPlansTable.$inferSelect) {
 }
 
 router.get("/weekly", async (req, res): Promise<void> => {
-  const s = scoped(userIdFrom(req));
+  const userId = userIdFrom(req);
+  const s = scoped(userId);
+  const tz = await getUserTimezone(userId);
   const query = ListWeeklyPlansQueryParams.safeParse(req.query);
-  const weekOf = query.success && query.data.weekOf ? query.data.weekOf : getWeekStart();
+  const validated = query.success
+    ? validateViewDate(query.data.weekOf, "weekOf")
+    : null;
+  const weekOf = validated ?? tzWeekStart(getUserToday(tz), tz);
 
   const plans = await db.select().from(weeklyPlansTable)
     .where(and(s.weeklyPlans.owns, eq(weeklyPlansTable.weekOf, weekOf)));

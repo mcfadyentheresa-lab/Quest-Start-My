@@ -19,14 +19,9 @@ import { PriorityBadge } from "@/components/priority-badge";
 import { Plus, Trash2, Check, Loader2, ChevronDown, ChevronUp, Flame } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RouteError } from "@/components/route-error";
 
-function getWeekStart(): string {
-  const d = new Date();
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().slice(0, 10);
-}
+import { getWeekStart } from "@/lib/time";
 
 function formatWeek(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
@@ -40,15 +35,51 @@ export default function WeeklyPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: weeklyPlans, isLoading: plansLoading } = useListWeeklyPlans(
+  const {
+    data: weeklyPlans,
+    isLoading: plansLoading,
+    isError: plansError,
+    refetch: refetchPlans,
+  } = useListWeeklyPlans(
     { weekOf },
     { query: { queryKey: getListWeeklyPlansQueryKey({ weekOf }) } }
   );
   const { data: pillars, isLoading: pillarsLoading } = useListPillars();
   const { data: dashboardSummary } = useGetDashboardSummary();
 
+  const plansQueryKey = getListWeeklyPlansQueryKey({ weekOf });
   const createPlan = useCreateWeeklyPlan();
-  const updatePlan = useUpdateWeeklyPlan();
+
+  type WeeklyPlanRow = NonNullable<typeof weeklyPlans>[number];
+
+  // Optimistic active-pillar toggle on Dashboard /weekly. The previous list is
+  // captured for rollback, and onSettled invalidates so the server remains
+  // source of truth.
+  const updatePlan = useUpdateWeeklyPlan<unknown, { previous?: WeeklyPlanRow[] }>({
+    mutation: {
+      onMutate: async ({ data }) => {
+        if (data.activePillarIds === undefined) return {};
+        await queryClient.cancelQueries({ queryKey: plansQueryKey });
+        const previous = queryClient.getQueryData<WeeklyPlanRow[]>(plansQueryKey);
+        if (previous && previous.length > 0) {
+          const next = previous.map((row, idx) =>
+            idx === 0 ? { ...row, activePillarIds: data.activePillarIds! as number[] } : row
+          );
+          queryClient.setQueryData(plansQueryKey, next);
+        }
+        return { previous };
+      },
+      onError: (_err, _vars, ctx) => {
+        if (ctx?.previous) queryClient.setQueryData(plansQueryKey, ctx.previous);
+        toast({ title: "Failed to update active pillars", variant: "destructive" });
+      },
+      onSettled: () => {
+        queryClient.invalidateQueries({ queryKey: plansQueryKey });
+        queryClient.invalidateQueries({ queryKey: getListPillarsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+      },
+    },
+  });
 
   const existingPlan = weeklyPlans?.[0];
   const activePillarIdsFromPlan = (existingPlan?.activePillarIds ?? []) as number[];
@@ -165,6 +196,14 @@ export default function WeeklyPage() {
     }
   };
 
+  if (plansError && !weeklyPlans) {
+    return (
+      <div className="space-y-4">
+        <RouteError onRetry={() => refetchPlans()} />
+      </div>
+    );
+  }
+
   if (plansLoading || pillarsLoading) {
     return (
       <div className="space-y-4">
@@ -218,8 +257,9 @@ export default function WeeklyPage() {
                   <PriorityBadge priority={priorityFor(pillar.id)} />
                 </div>
                 <button
+                  type="button"
                   onClick={() => togglePillarActive(pillar.id, active)}
-                  className={`h-9 w-9 rounded-full flex items-center justify-center border-2 transition-all ${
+                  className={`h-9 w-9 rounded-full flex items-center justify-center border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                     active
                       ? "bg-primary border-primary text-primary-foreground"
                       : "bg-transparent border-border text-muted-foreground"
@@ -227,7 +267,7 @@ export default function WeeklyPage() {
                   aria-label={active ? `Deactivate ${pillar.name} this week` : `Activate ${pillar.name} this week`}
                   aria-pressed={active}
                 >
-                  {active && <Check className="h-4 w-4" />}
+                  {active && <Check className="h-4 w-4" aria-hidden="true" />}
                 </button>
               </div>
             );

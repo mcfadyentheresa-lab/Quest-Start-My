@@ -3,6 +3,13 @@ import { and, lte, ne, eq, desc } from "drizzle-orm";
 import { db, tasksTable, pillarsTable, milestonesTable, progressLogsTable } from "@workspace/db";
 import { GetFrictionSignalsResponse } from "@workspace/api-zod";
 import { scoped, userIdFrom } from "../lib/scoped";
+import {
+  getUserToday,
+  parseUserDate,
+  shiftYmd,
+  validateViewDate,
+} from "../lib/time";
+import { getUserTimezone } from "../lib/user-timezone";
 
 const router: IRouter = Router();
 
@@ -12,32 +19,26 @@ function monthStartFromDate(d: Date): Date {
 }
 
 router.get("/dashboard/friction", async (req, res): Promise<void> => {
-  const s = scoped(userIdFrom(req));
-  const weekOfParam = typeof req.query.weekOf === "string" ? req.query.weekOf : null;
-  if (weekOfParam !== null) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(weekOfParam) || isNaN(Date.parse(weekOfParam + "T00:00:00"))) {
-      res.status(400).json({ error: "weekOf must be a valid date in YYYY-MM-DD format" });
-      return;
-    }
-  }
+  const userId = userIdFrom(req);
+  const s = scoped(userId);
+  const tz = await getUserTimezone(userId);
+  const weekOfParam = validateViewDate(req.query.weekOf, "weekOf");
 
-  // Anchor: end of the selected week (weekOf + 6 days). Defaults to today.
+  // Anchor: end of the selected week (weekOf + 6 days). Defaults to today
+  // in the user's timezone.
   let weekEndStr: string;
   let anchorDate: Date;
   if (weekOfParam) {
-    anchorDate = new Date(weekOfParam + "T00:00:00");
-    const weekEndDate = new Date(weekOfParam + "T00:00:00");
-    weekEndDate.setDate(weekEndDate.getDate() + 6);
-    weekEndStr = weekEndDate.toISOString().slice(0, 10);
+    anchorDate = parseUserDate(weekOfParam, tz);
+    weekEndStr = shiftYmd(weekOfParam, 6);
   } else {
-    anchorDate = new Date();
-    weekEndStr = anchorDate.toISOString().slice(0, 10);
+    const today = getUserToday(tz);
+    anchorDate = parseUserDate(today, tz);
+    weekEndStr = today;
   }
 
   // "14 days ago" relative to the week end
-  const fourteenDaysBeforeAnchor = new Date(weekEndStr + "T00:00:00");
-  fourteenDaysBeforeAnchor.setDate(fourteenDaysBeforeAnchor.getDate() - 14);
-  const fourteenDaysAgo = fourteenDaysBeforeAnchor.toISOString().slice(0, 10);
+  const fourteenDaysAgo = shiftYmd(weekEndStr, -14);
 
   // Month start of the selected week
   const monthStart = monthStartFromDate(anchorDate);

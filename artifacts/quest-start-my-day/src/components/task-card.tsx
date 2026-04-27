@@ -99,7 +99,35 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
   const [detailOpen, setDetailOpen] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const updateTask = useUpdateTask();
+  const tasksQueryKey = getListTasksQueryKey({ date });
+
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: tasksQueryKey });
+    queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getGetReentryTaskQueryKey() });
+  };
+
+  /** Apply an optimistic patch to the cached task list, return rollback ctx. */
+  const applyOptimistic = async (id: number, patch: Partial<Task>) => {
+    await queryClient.cancelQueries({ queryKey: tasksQueryKey });
+    const previous = queryClient.getQueryData<Task[]>(tasksQueryKey);
+    queryClient.setQueryData<Task[]>(tasksQueryKey, (old) =>
+      (old ?? []).map(t => t.id === id ? { ...t, ...patch } : t)
+    );
+    return { previous };
+  };
+
+  const updateTask = useUpdateTask<unknown, { previous?: Task[] }>({
+    mutation: {
+      onMutate: async ({ id, data }) =>
+        applyOptimistic(id, data as Partial<Task>),
+      onError: (_err, _vars, ctx) => {
+        if (ctx?.previous) queryClient.setQueryData(tasksQueryKey, ctx.previous);
+        toast({ title: "Something went wrong", variant: "destructive" });
+      },
+      onSettled: invalidateAll,
+    },
+  });
   const deleteTask = useDeleteTask();
   const stepBackTask = useStepBackTask();
 
@@ -110,12 +138,6 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
   const canStepBack = depth < MAX_STEP_BACK_DEPTH;
   const isPrerequisite = !!task.parentTaskId && task.adjustmentType === "step_back";
 
-  const invalidateAll = () => {
-    queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date }) });
-    queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-    queryClient.invalidateQueries({ queryKey: getGetReentryTaskQueryKey() });
-  };
-
   const handleAction = (status: "done" | "pushed" | "passed" | "blocked") => {
     if (status === "blocked") {
       setShowBlockerInput(true);
@@ -125,35 +147,29 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
       { id: task.id, data: { status } },
       {
         onSuccess: () => {
-          invalidateAll();
           if (status === "done") setExpanded(false);
-        },
-        onError: () => {
-          toast({ title: "Something went wrong", variant: "destructive" });
         },
       }
     );
   };
 
   const handleConfirmBlocked = () => {
+    const blockerType = (selectedBlockerType as "waiting_on_person" | "waiting_on_approval" | "missing_asset" | "access_issue" | "dependency") || undefined;
+    const blockerReason = blockerDraft.trim() || undefined;
     updateTask.mutate(
       {
         id: task.id,
         data: {
           status: "blocked",
-          blockerReason: blockerDraft.trim() || undefined,
-          blockerType: (selectedBlockerType as "waiting_on_person" | "waiting_on_approval" | "missing_asset" | "access_issue" | "dependency") || undefined,
+          blockerReason,
+          blockerType,
         },
       },
       {
         onSuccess: () => {
-          invalidateAll();
           setShowBlockerInput(false);
           setBlockerDraft("");
           setSelectedBlockerType("");
-        },
-        onError: () => {
-          toast({ title: "Something went wrong", variant: "destructive" });
         },
       }
     );
@@ -226,7 +242,8 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
             )}
           </div>
           <button
-            className="text-left w-full group"
+            type="button"
+            className="text-left w-full group rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             onClick={() => setDetailOpen(true)}
             aria-label="View and edit task details"
           >
@@ -237,19 +254,21 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
         </div>
         <div className="flex items-center gap-1 flex-shrink-0 mt-1">
           <button
+            type="button"
             onClick={() => setDetailOpen(true)}
-            className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
+            className="text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             aria-label="Edit task"
           >
-            <Pencil className="h-3.5 w-3.5" />
+            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
           <button
+            type="button"
             onClick={() => setExpanded(!expanded)}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             aria-label={expanded ? "Collapse task details" : "Expand task details"}
             aria-expanded={expanded}
           >
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            {expanded ? <ChevronUp className="h-4 w-4" aria-hidden="true" /> : <ChevronDown className="h-4 w-4" aria-hidden="true" />}
           </button>
         </div>
       </div>

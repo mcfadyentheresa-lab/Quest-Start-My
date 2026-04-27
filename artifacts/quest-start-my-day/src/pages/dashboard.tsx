@@ -15,6 +15,7 @@ import {
   getGetTaskSuggestionsQueryKey,
   getListWeeklyPlansQueryKey,
   type PillarWithPriorityPriority,
+  type DashboardSummary,
 } from "@workspace/api-client-react";
 import { TaskCard } from "@/components/task-card";
 import { ProgressSummary } from "@/components/progress-summary";
@@ -24,21 +25,15 @@ import { FocusTimerWidget } from "@/components/focus-timer-widget";
 import { FocusNudgeDialog } from "@/components/focus-nudge-dialog";
 import { useFocusTimer } from "@/hooks/use-focus-timer";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RouteError } from "@/components/route-error";
 import { Button } from "@/components/ui/button";
 import { Plus, Sprout, ArrowRight, CheckCircle2, ExternalLink, CalendarDays, Timer, Lightbulb, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch, useLocation } from "wouter";
+import { getUserToday, getWeekStart } from "@/lib/time";
 
 const PRIORITY_LEVELS: PillarWithPriorityPriority[] = ["P1", "P2", "P3", "P4"];
-
-function getWeekStart(date: Date = new Date()): string {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().slice(0, 10);
-}
 
 const FOCUS_DURATIONS = [5, 10, 15, 25] as const;
 
@@ -60,7 +55,7 @@ function formatShortDate(dateStr: string) {
 }
 
 export default function Dashboard() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getUserToday();
   const search = useSearch();
   const [, navigate] = useLocation();
   const viewDate = new URLSearchParams(search).get("date") ?? today;
@@ -71,7 +66,40 @@ export default function Dashboard() {
   const { toast } = useToast();
 
   const weekOf = getWeekStart();
-  const updatePriorities = useUpdateWeeklyPlanPriorities();
+  const summaryQueryKey = getGetDashboardSummaryQueryKey();
+  const weeklyPlanQueryKey = getListWeeklyPlansQueryKey({ weekOf });
+
+  const updatePriorities = useUpdateWeeklyPlanPriorities<unknown, { previous?: DashboardSummary }>({
+    mutation: {
+      onMutate: async ({ data }) => {
+        await queryClient.cancelQueries({ queryKey: summaryQueryKey });
+        const previous = queryClient.getQueryData<DashboardSummary>(summaryQueryKey);
+        if (previous) {
+          const nextMap = data.pillarPriorities as Record<string, PillarWithPriorityPriority>;
+          const merged: DashboardSummary = {
+            ...previous,
+            activePillars: previous.activePillars.map(p => ({
+              ...p,
+              priority: (nextMap[String(p.id)] ?? p.priority ?? "P4") as PillarWithPriorityPriority,
+            })),
+            weeklyPlan: previous.weeklyPlan
+              ? { ...previous.weeklyPlan, pillarPriorities: nextMap }
+              : previous.weeklyPlan,
+          };
+          queryClient.setQueryData(summaryQueryKey, merged);
+        }
+        return { previous };
+      },
+      onError: (_err, _vars, ctx) => {
+        if (ctx?.previous) queryClient.setQueryData(summaryQueryKey, ctx.previous);
+        toast({ title: "Couldn't update priority", variant: "destructive" });
+      },
+      onSettled: () => {
+        queryClient.invalidateQueries({ queryKey: summaryQueryKey });
+        queryClient.invalidateQueries({ queryKey: weeklyPlanQueryKey });
+      },
+    },
+  });
 
   const timer = useFocusTimer();
   const [selectedFocusDuration, setSelectedFocusDuration] = useState<number>(() => timer.defaultDuration);
@@ -81,7 +109,12 @@ export default function Dashboard() {
   const [editingTitleId, setEditingTitleId] = useState<number | null>(null);
   const [editedTitles, setEditedTitles] = useState<Map<number, string>>(new Map());
 
-  const { data: summary, isLoading: summaryLoading } = useGetDashboardSummary();
+  const {
+    data: summary,
+    isLoading: summaryLoading,
+    isError: summaryError,
+    refetch: refetchSummary,
+  } = useGetDashboardSummary();
   const { data: tasks, isLoading: tasksLoading } = useListTasks(
     { date: viewDate },
     { query: { queryKey: getListTasksQueryKey({ date: viewDate }) } }
@@ -259,6 +292,14 @@ export default function Dashboard() {
     );
   };
 
+  if (summaryError && !summary) {
+    return (
+      <div className="space-y-6">
+        <RouteError onRetry={() => refetchSummary()} />
+      </div>
+    );
+  }
+
   if (summaryLoading && tasksLoading) {
     return (
       <div className="space-y-6">
@@ -416,16 +457,7 @@ export default function Dashboard() {
                 if (next === current) return;
                 const merged: Record<string, PillarWithPriorityPriority> = { ...currentMap };
                 merged[String(pillar.id)] = next;
-                updatePriorities.mutate(
-                  { weekKey: weekOf, data: { pillarPriorities: merged } },
-                  {
-                    onSuccess: () => {
-                      queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-                      queryClient.invalidateQueries({ queryKey: getListWeeklyPlansQueryKey({ weekOf }) });
-                    },
-                    onError: () => toast({ title: "Couldn't update priority", variant: "destructive" }),
-                  }
-                );
+                updatePriorities.mutate({ weekKey: weekOf, data: { pillarPriorities: merged } });
               };
               return (
                 <div key={pillar.id} className="flex items-center justify-between gap-3 py-1">
@@ -446,7 +478,8 @@ export default function Dashboard() {
                         onClick={() => handleChange(level)}
                         disabled={updatePriorities.isPending}
                         aria-pressed={current === level}
-                        className={`text-xs font-bold px-2 py-1 rounded-full border transition-colors ${
+                        aria-label={`Set ${pillar.name} priority to ${level}`}
+                        className={`text-xs font-bold px-2 py-1 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                           current === level
                             ? "bg-primary text-primary-foreground border-primary"
                             : "bg-background text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"

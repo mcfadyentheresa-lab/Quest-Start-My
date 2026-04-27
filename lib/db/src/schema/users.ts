@@ -10,6 +10,7 @@ export const usersTable = pgTable("users", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   stripeCustomerId: text("stripe_customer_id"),
   plan: text("plan").notNull().default("free"),
+  timezone: text("timezone").notNull().default("America/Toronto"),
 });
 
 export const insertUserSchema = createInsertSchema(usersTable).omit({ createdAt: true, updatedAt: true });
