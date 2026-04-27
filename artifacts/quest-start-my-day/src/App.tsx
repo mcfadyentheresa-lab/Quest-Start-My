@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Layout from "@/components/layout";
 import { isClerkEnabled } from "@/lib/clerk-config";
 import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/clerk-react";
+import { useListPillars } from "@workspace/api-client-react";
+import { useMe, shouldShowWizard } from "@/data/onboarding";
 
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const WeeklyPage = lazy(() => import("@/pages/weekly"));
@@ -17,6 +19,7 @@ const HomeModulePage = lazy(() => import("@/pages/home-module"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const SignInPage = lazy(() => import("@/pages/sign-in"));
 const SignUpPage = lazy(() => import("@/pages/sign-up"));
+const WelcomePage = lazy(() => import("@/pages/welcome"));
 
 function RouteFallback() {
   return (
@@ -34,25 +37,54 @@ function SettingsRedirect() {
   return <RouteFallback />;
 }
 
+function FirstRunGuard() {
+  const [location, navigate] = useLocation();
+  const meQuery = useMe();
+  const pillarsQuery = useListPillars();
+
+  const isLoading = meQuery.isLoading || pillarsQuery.isLoading;
+  const eligible = shouldShowWizard({
+    user: meQuery.data,
+    pillarCount: pillarsQuery.data?.length,
+    isLoading,
+  });
+
+  useEffect(() => {
+    if (eligible && location !== "/welcome") {
+      navigate("/welcome", { replace: true });
+    }
+  }, [eligible, location, navigate]);
+
+  return null;
+}
+
 function ProtectedAppRoutes() {
   return (
-    <Layout>
-      <Suspense fallback={<RouteFallback />}>
-        <Switch>
-          <Route path="/" component={Dashboard} />
-          <Route path="/weekly" component={WeeklyPage} />
-          <Route path="/pillars" component={PillarsPage} />
-          <Route path="/history" component={HistoryPage} />
-          <Route path="/profile" component={ProfilePage} />
-          {/* Secondary routes — kept accessible but not in primary nav */}
-          <Route path="/review" component={ReviewPage} />
-          <Route path="/home" component={HomeModulePage} />
-          {/* Back-compat: /settings → /pillars (Phase 6 will remove). */}
-          <Route path="/settings" component={SettingsRedirect} />
-          <Route component={NotFound} />
-        </Switch>
-      </Suspense>
-    </Layout>
+    <Suspense fallback={<RouteFallback />}>
+      <Switch>
+        <Route path="/welcome" component={WelcomePage} />
+        <Route>
+          <FirstRunGuard />
+          <Layout>
+            <Suspense fallback={<RouteFallback />}>
+              <Switch>
+                <Route path="/" component={Dashboard} />
+                <Route path="/weekly" component={WeeklyPage} />
+                <Route path="/pillars" component={PillarsPage} />
+                <Route path="/history" component={HistoryPage} />
+                <Route path="/profile" component={ProfilePage} />
+                {/* Secondary routes — kept accessible but not in primary nav */}
+                <Route path="/review" component={ReviewPage} />
+                <Route path="/home" component={HomeModulePage} />
+                {/* Back-compat: /settings → /pillars (Phase 6 will remove). */}
+                <Route path="/settings" component={SettingsRedirect} />
+                <Route component={NotFound} />
+              </Switch>
+            </Suspense>
+          </Layout>
+        </Route>
+      </Switch>
+    </Suspense>
   );
 }
 

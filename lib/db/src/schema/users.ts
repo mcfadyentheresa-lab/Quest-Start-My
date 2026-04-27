@@ -11,6 +11,8 @@ export const usersTable = pgTable("users", {
   stripeCustomerId: text("stripe_customer_id"),
   plan: text("plan").notNull().default("free"),
   timezone: text("timezone").notNull().default("America/Toronto"),
+  onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
+  dismissedChecklist: timestamp("dismissed_checklist", { withTimezone: true }),
 });
 
 export const insertUserSchema = createInsertSchema(usersTable).omit({ createdAt: true, updatedAt: true });

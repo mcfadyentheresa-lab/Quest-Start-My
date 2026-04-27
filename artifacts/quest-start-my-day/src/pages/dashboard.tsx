@@ -17,6 +17,7 @@ import {
   type PillarWithPriorityPriority,
 } from "@workspace/api-client-react";
 import { TaskCard } from "@/components/task-card";
+import { DashboardChecklist } from "@/components/dashboard-checklist";
 import { ProgressSummary } from "@/components/progress-summary";
 import { PriorityBadge, PriorityLegend } from "@/components/priority-badge";
 import { AddTaskDialog } from "@/components/add-task-dialog";
@@ -279,6 +280,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      <DashboardChecklist />
       {/* Greeting header */}
       <motion.section
         initial={{ opacity: 0, y: -10 }}

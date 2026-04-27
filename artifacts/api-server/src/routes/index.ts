@@ -8,6 +8,7 @@ import progressRouter from "./progress";
 import dashboardRouter from "./dashboard";
 import monthlyRouter from "./monthly";
 import frictionRouter from "./friction";
+import onboardingRouter from "./onboarding";
 import { requireAuth } from "../middleware/auth";
 
 const router: IRouter = Router();
@@ -26,5 +27,6 @@ router.use(progressRouter);
 router.use(dashboardRouter);
 router.use(monthlyRouter);
 router.use(frictionRouter);
+router.use(onboardingRouter);
 
 export default router;
