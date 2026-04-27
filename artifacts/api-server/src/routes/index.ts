@@ -9,6 +9,7 @@ import dashboardRouter from "./dashboard";
 import monthlyRouter from "./monthly";
 import frictionRouter from "./friction";
 import onboardingRouter from "./onboarding";
+import exportRouter from "./export";
 import { requireAuth } from "../middleware/auth";
 
 const router: IRouter = Router();
@@ -28,5 +29,6 @@ router.use(dashboardRouter);
 router.use(monthlyRouter);
 router.use(frictionRouter);
 router.use(onboardingRouter);
+router.use(exportRouter);
 
 export default router;

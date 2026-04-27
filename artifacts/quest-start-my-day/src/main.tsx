@@ -6,6 +6,11 @@ import App from "./App";
 import "./index.css";
 import { CLERK_PUBLISHABLE_KEY, isClerkEnabled } from "./lib/clerk-config";
 import { ClerkAuthBridge } from "./lib/auth-bridge";
+import { initSentry } from "./lib/sentry";
+import { initAnalytics } from "./lib/analytics";
+
+void initSentry();
+void initAnalytics();
 
 const queryClient = new QueryClient();
 

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
+import { identifyUser, resetIdentity } from "./analytics";
 
 /**
  * Wires Clerk's session token into the shared API client so every request
@@ -10,7 +11,7 @@ import { setAuthTokenGetter } from "@workspace/api-client-react";
  * handles it).
  */
 export function ClerkAuthBridge() {
-  const { getToken, isLoaded } = useAuth();
+  const { getToken, isLoaded, userId, isSignedIn } = useAuth();
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -25,6 +26,15 @@ export function ClerkAuthBridge() {
       setAuthTokenGetter(null);
     };
   }, [getToken, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (isSignedIn && userId) {
+      identifyUser(userId);
+    } else {
+      resetIdentity();
+    }
+  }, [isLoaded, isSignedIn, userId]);
 
   return null;
 }

@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RouteError } from "@/components/route-error";
 import { getWeekKey } from "@/lib/time";
+import { trackEvent } from "@/lib/analytics";
 
 function formatWeek(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
@@ -123,6 +124,7 @@ export default function WeeklyPage() {
       }
       queryClient.invalidateQueries({ queryKey: getListWeeklyPlansQueryKey({ weekOf }) });
       queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+      trackEvent("weekly_priorities_set", { count: cleanPriorities.length, weekOf });
       toast({ title: "Weekly plan saved" });
     } catch {
       toast({ title: "Failed to save", variant: "destructive" });

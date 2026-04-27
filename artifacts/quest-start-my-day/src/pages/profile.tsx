@@ -3,7 +3,10 @@ import { motion } from "framer-motion";
 import { useUser, SignOutButton } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { isClerkEnabled } from "@/lib/clerk-config";
-import { User, LogOut, Volume2, VolumeX } from "lucide-react";
+import { User, LogOut, Volume2, VolumeX, Download, Keyboard } from "lucide-react";
+import { customFetch } from "@workspace/api-client-react";
+import { useToast } from "@/hooks/use-toast";
+import { dispatchOpenCheatsheet } from "@/hooks/use-keyboard-shortcuts";
 
 const FOCUS_DURATION_OPTIONS = [5, 10, 15, 25] as const;
 
@@ -70,9 +73,48 @@ function OwnerUserBlock() {
   );
 }
 
+function todayYmd(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export default function ProfilePage() {
   const [soundEnabled, setSoundEnabledState] = useState(() => readLocalBool("quest_sound_enabled", true));
   const [defaultDuration, setDefaultDurationState] = useState(() => readLocalInt("quest_timer_duration_minutes", 25));
+  const [exporting, setExporting] = useState(false);
+  const { toast } = useToast();
+
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      const response = await customFetch<Response>("/api/export.csv", {
+        method: "GET",
+        responseType: "blob",
+      });
+      // customFetch returns the parsed body; for blob responseType, it's a Blob.
+      const blob = response as unknown as Blob;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `quest-export-${todayYmd()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: "Export ready" });
+    } catch (err) {
+      toast({
+        title: "Export failed",
+        description: err instanceof Error ? err.message : "Try again in a moment.",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
+  }, [toast]);
 
   const toggleSound = useCallback(() => {
     setSoundEnabledState(prev => {
@@ -178,6 +220,57 @@ export default function ProfilePage() {
               : `Sound off · ${defaultDuration}-min default · Visual reminder only`}
           </p>
         </div>
+      </motion.section>
+
+      <motion.section
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl bg-card border border-card-border p-5 space-y-3"
+      >
+        <div className="flex items-center gap-2">
+          <Download className="h-4 w-4 text-muted-foreground" />
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Your data</p>
+        </div>
+        <p className="text-sm text-foreground">
+          Download a CSV of all your pillars, milestones, and tasks.
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-xl gap-1.5"
+          onClick={handleExport}
+          disabled={exporting}
+          data-testid="export-data"
+        >
+          <Download className="h-3.5 w-3.5" />
+          {exporting ? "Preparing…" : "Export my data"}
+        </Button>
+      </motion.section>
+
+      <motion.section
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl bg-card border border-card-border p-5 space-y-3"
+      >
+        <div className="flex items-center gap-2">
+          <Keyboard className="h-4 w-4 text-muted-foreground" />
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Keyboard</p>
+        </div>
+        <p className="text-sm text-foreground">
+          Power-user shortcuts. Press{" "}
+          <kbd className="rounded border bg-muted px-1.5 py-0.5 text-xs font-mono">?</kbd>{" "}
+          anytime to see them.
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-xl gap-1.5"
+          onClick={() => dispatchOpenCheatsheet()}
+          data-testid="open-shortcuts"
+        >
+          <Keyboard className="h-3.5 w-3.5" />
+          Keyboard shortcuts
+        </Button>
       </motion.section>
     </div>
   );

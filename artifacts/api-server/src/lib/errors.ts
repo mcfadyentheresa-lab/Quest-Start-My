@@ -1,5 +1,6 @@
 import type { ErrorRequestHandler, RequestHandler } from "express";
 import { logger } from "./logger";
+import { captureError } from "./sentry";
 
 export interface ApiErrorEnvelope {
   error: {
@@ -80,6 +81,7 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     return;
   }
   logger.error({ err }, "Unhandled error");
+  captureError(err);
   const fallback = new ApiError(500, "INTERNAL_SERVER_ERROR", "Internal Server Error");
   res.status(fallback.status).json(fallback.toEnvelope());
 };

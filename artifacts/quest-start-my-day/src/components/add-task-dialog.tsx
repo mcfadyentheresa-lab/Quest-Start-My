@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { trackEvent } from "@/lib/analytics";
 
 interface AddTaskDialogProps {
   date: string;
@@ -96,6 +97,11 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
           queryClient.invalidateQueries({ queryKey: getGetReentryTaskQueryKey() });
           setOpen(false);
           reset();
+          trackEvent("task_created", {
+            category: data.category,
+            hasPillar: data.pillarId !== "none",
+            hasMilestone: data.milestoneId !== "none",
+          });
           toast({ title: "Task added" });
         },
         onError: () => {

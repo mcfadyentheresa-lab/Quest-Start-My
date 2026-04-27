@@ -46,6 +46,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { getUserToday } from "@/lib/time";
 import { RouteError } from "@/components/route-error";
+import { trackEvent } from "@/lib/analytics";
 
 const COLORS = [
   { hex: "#c2a49e", name: "Dusty rose" },
@@ -978,6 +979,7 @@ export default function PillarsPage() {
           queryClient.invalidateQueries({ queryKey: getListPillarsQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
           setAddOpen(false);
+          trackEvent("pillar_created", { category: data.category ?? null });
           toast({ title: "Pillar added" });
         },
         onError: () => toast({ title: "Failed to add pillar", variant: "destructive" }),

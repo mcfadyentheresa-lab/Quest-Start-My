@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Sprout, Trash2, ArrowRight, ArrowLeft, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { trackEvent } from "@/lib/analytics";
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -85,6 +86,7 @@ export default function WelcomePage() {
   const handlePickTemplate = (id: string) => {
     setSelectedTemplateId(id);
     setDraftPillars(pillarsFromTemplate(id));
+    trackEvent("template_selected", { templateId: id });
     setStep(3);
   };
 
@@ -137,6 +139,10 @@ export default function WelcomePage() {
       await queryClient.invalidateQueries({ queryKey: getListPillarsQueryKey() });
       await queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
 
+      trackEvent("onboarding_completed", {
+        pillarCount: cleaned.length,
+        templateId: selectedTemplateId,
+      });
       toast({ title: "You're all set", description: "Welcome to Quest." });
       navigate("/", { replace: true });
     } catch (err) {

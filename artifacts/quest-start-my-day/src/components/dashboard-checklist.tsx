@@ -17,6 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Check, Circle, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { trackEvent } from "@/lib/analytics";
 
 interface ChecklistItem {
   id: string;
@@ -91,6 +92,7 @@ export function DashboardChecklist() {
     try {
       await dismissMutation.mutateAsync();
       await queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY });
+      trackEvent("checklist_dismissed");
     } catch (err) {
       toast({
         title: "Could not dismiss",

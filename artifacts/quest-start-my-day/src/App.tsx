@@ -8,6 +8,8 @@ import { isClerkEnabled } from "@/lib/clerk-config";
 import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/clerk-react";
 import { useListPillars } from "@workspace/api-client-react";
 import { useMe, shouldShowWizard } from "@/data/onboarding";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { ShortcutsCheatsheet } from "@/components/shortcuts-cheatsheet";
 
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const WeeklyPage = lazy(() => import("@/pages/weekly"));
@@ -115,8 +117,18 @@ function Router() {
 
 const rawBase = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
 
+function GlobalShortcuts() {
+  useKeyboardShortcuts();
+  return <ShortcutsCheatsheet />;
+}
+
 function App() {
-  const routerTree = <Router />;
+  const routerTree = (
+    <>
+      <GlobalShortcuts />
+      <Router />
+    </>
+  );
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <TooltipProvider>

@@ -9,6 +9,11 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { errorHandler, notFoundHandler } from "./lib/errors";
 import { ensureOwnerUserExists } from "./middleware/auth";
+import { initSentry } from "./lib/sentry";
+
+initSentry().catch(() => {
+  // initSentry already logs failures internally
+});
 
 // Owner mode: make sure the owner user row exists so foreign keys hold up
 // even on a brand-new database. In Clerk mode this is a no-op; the user
