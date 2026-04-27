@@ -12,6 +12,7 @@ import {
   StepBackTaskParams,
   GetTaskSuggestionsQueryParams,
 } from "@workspace/api-zod";
+import { scoped, userIdFrom } from "../lib/scoped";
 
 const router: IRouter = Router();
 
@@ -75,14 +76,15 @@ function serializeTask(task: typeof tasksTable.$inferSelect) {
 }
 
 router.get("/tasks", async (req, res): Promise<void> => {
+  const s = scoped(userIdFrom(req));
   const query = ListTasksQueryParams.safeParse(req.query);
   const today = new Date().toISOString().slice(0, 10);
   const date = query.success && query.data.date ? query.data.date : today;
   const source = query.success ? query.data.source : undefined;
 
   const whereClause = source
-    ? and(eq(tasksTable.date, date), eq(tasksTable.taskSource, source))
-    : and(eq(tasksTable.date, date), isNull(tasksTable.taskSource));
+    ? and(s.tasks.owns, eq(tasksTable.date, date), eq(tasksTable.taskSource, source))
+    : and(s.tasks.owns, eq(tasksTable.date, date), isNull(tasksTable.taskSource));
 
   const tasks = await db.select().from(tasksTable)
     .where(whereClause)
@@ -98,7 +100,8 @@ router.post("/tasks", async (req, res): Promise<void> => {
     return;
   }
 
-  const [task] = await db.insert(tasksTable).values({
+  const s = scoped(userIdFrom(req));
+  const [task] = await db.insert(tasksTable).values(s.tasks.withUser({
     title: parsed.data.title,
     category: parsed.data.category,
     whyItMatters: parsed.data.whyItMatters ?? null,
@@ -110,12 +113,13 @@ router.post("/tasks", async (req, res): Promise<void> => {
     taskSource: parsed.data.taskSource ?? null,
     date: parsed.data.date,
     status: "pending",
-  }).returning();
+  })).returning();
 
   res.status(201).json(serializeTask(task));
 });
 
 router.get("/tasks/suggestions", async (req, res): Promise<void> => {
+  const s = scoped(userIdFrom(req));
   const queryResult = GetTaskSuggestionsQueryParams.safeParse(req.query);
   if (!queryResult.success) {
     res.status(400).json({ error: queryResult.error.message });
@@ -128,7 +132,7 @@ router.get("/tasks/suggestions", async (req, res): Promise<void> => {
   const activePillars = await db
     .select()
     .from(pillarsTable)
-    .where(eq(pillarsTable.isActiveThisWeek, true))
+    .where(and(s.pillars.owns, eq(pillarsTable.isActiveThisWeek, true)))
     .orderBy(pillarsTable.priority, pillarsTable.id);
 
   if (activePillars.length === 0) {
@@ -140,7 +144,7 @@ router.get("/tasks/suggestions", async (req, res): Promise<void> => {
   const existingTasks = await db
     .select({ pillarId: tasksTable.pillarId })
     .from(tasksTable)
-    .where(and(eq(tasksTable.date, date), isNull(tasksTable.taskSource)));
+    .where(and(s.tasks.owns, eq(tasksTable.date, date), isNull(tasksTable.taskSource)));
 
   const coveredPillarIds = new Set(
     existingTasks.flatMap(t => (t.pillarId != null ? [t.pillarId] : []))
@@ -157,7 +161,7 @@ router.get("/tasks/suggestions", async (req, res): Promise<void> => {
   const allMilestones = await db
     .select()
     .from(milestonesTable)
-    .where(eq(milestonesTable.status, "planned"))
+    .where(and(s.milestones.owns, eq(milestonesTable.status, "planned")))
     .orderBy(milestonesTable.sortOrder, milestonesTable.id);
 
   const milestonesByPillar = new Map<number, typeof allMilestones>();
@@ -226,10 +230,11 @@ router.patch("/tasks/:id", async (req, res): Promise<void> => {
   if (parsed.data.adjustmentReason !== undefined) updates.adjustmentReason = parsed.data.adjustmentReason;
   if (parsed.data.taskSource !== undefined) updates.taskSource = parsed.data.taskSource;
 
+  const s = scoped(userIdFrom(req));
   const [task] = await db
     .update(tasksTable)
     .set(updates)
-    .where(eq(tasksTable.id, params.data.id))
+    .where(and(s.tasks.owns, eq(tasksTable.id, params.data.id)))
     .returning();
 
   if (!task) {
@@ -238,13 +243,13 @@ router.patch("/tasks/:id", async (req, res): Promise<void> => {
   }
 
   if (parsed.data.status && parsed.data.status !== "pending") {
-    await db.insert(progressLogsTable).values({
+    await db.insert(progressLogsTable).values(s.progressLogs.withUser({
       taskId: task.id,
       taskTitle: task.title,
       category: task.category,
       status: task.status,
       date: task.date,
-    });
+    }));
   }
 
   res.json(UpdateTaskResponse.parse(serializeTask(task)));
@@ -257,7 +262,9 @@ router.post("/tasks/:id/step-back", async (req, res): Promise<void> => {
     return;
   }
 
-  const [original] = await db.select().from(tasksTable).where(eq(tasksTable.id, params.data.id));
+  const s = scoped(userIdFrom(req));
+  const [original] = await db.select().from(tasksTable)
+    .where(and(s.tasks.owns, eq(tasksTable.id, params.data.id)));
   if (!original) {
     res.status(404).json({ error: "Task not found" });
     return;
@@ -277,7 +284,7 @@ router.post("/tasks/:id/step-back", async (req, res): Promise<void> => {
 
   const generated = generateStepBackTask(original.title, original.stepBackDepth);
 
-  const [prereq] = await db.insert(tasksTable).values({
+  const [prereq] = await db.insert(tasksTable).values(s.tasks.withUser({
     title: generated.title,
     category: original.category,
     whyItMatters: generated.whyItMatters,
@@ -291,7 +298,7 @@ router.post("/tasks/:id/step-back", async (req, res): Promise<void> => {
     stepBackDepth: original.stepBackDepth + 1,
     adjustmentType: "step_back",
     adjustmentReason: generated.adjustmentReason,
-  }).returning();
+  })).returning();
 
   const [updated] = await db
     .update(tasksTable)
@@ -299,16 +306,16 @@ router.post("/tasks/:id/step-back", async (req, res): Promise<void> => {
       status: "stepped_back",
       adjustmentReason: `Prerequisite created: ${generated.title}`,
     })
-    .where(eq(tasksTable.id, original.id))
+    .where(and(s.tasks.owns, eq(tasksTable.id, original.id)))
     .returning();
 
-  await db.insert(progressLogsTable).values({
+  await db.insert(progressLogsTable).values(s.progressLogs.withUser({
     taskId: original.id,
     taskTitle: original.title,
     category: original.category,
     status: "stepped_back",
     date: original.date,
-  });
+  }));
 
   res.status(201).json({
     originalTask: serializeTask(updated),
@@ -323,9 +330,10 @@ router.delete("/tasks/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const s = scoped(userIdFrom(req));
   const [task] = await db
     .delete(tasksTable)
-    .where(eq(tasksTable.id, params.data.id))
+    .where(and(s.tasks.owns, eq(tasksTable.id, params.data.id)))
     .returning();
 
   if (!task) {

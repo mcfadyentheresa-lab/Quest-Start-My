@@ -5,14 +5,17 @@ import {
   ListProgressLogsQueryParams,
   ListProgressLogsResponse,
 } from "@workspace/api-zod";
+import { scoped, userIdFrom } from "../lib/scoped";
 
 const router: IRouter = Router();
 
 router.get("/progress", async (req, res): Promise<void> => {
+  const s = scoped(userIdFrom(req));
   const query = ListProgressLogsQueryParams.safeParse(req.query);
   const limit = query.success && query.data.limit ? query.data.limit : 30;
 
   const logs = await db.select().from(progressLogsTable)
+    .where(s.progressLogs.owns)
     .orderBy(desc(progressLogsTable.loggedAt))
     .limit(limit);
 

@@ -7,6 +7,7 @@ import {
   UpdateMonthlyReviewBody,
   UpdateMonthlyReviewResponse,
 } from "@workspace/api-zod";
+import { scoped, userIdFrom } from "../lib/scoped";
 
 const router: IRouter = Router();
 
@@ -17,8 +18,10 @@ const serializeReview = (r: typeof monthlyReviewsTable.$inferSelect) => ({
 });
 
 router.get("/monthly", async (req, res): Promise<void> => {
+  const s = scoped(userIdFrom(req));
   const reviews = await db.select()
     .from(monthlyReviewsTable)
+    .where(s.monthlyReviews.owns)
     .orderBy(desc(monthlyReviewsTable.monthOf));
 
   res.json(ListMonthlyReviewsResponse.parse(reviews.map(serializeReview)));
@@ -31,11 +34,12 @@ router.post("/monthly", async (req, res): Promise<void> => {
     return;
   }
   const body = parsed.data;
+  const s = scoped(userIdFrom(req));
 
   // Check for duplicate monthOf (UNIQUE constraint — return 409 instead of DB error)
   const existing = await db.select({ id: monthlyReviewsTable.id })
     .from(monthlyReviewsTable)
-    .where(eq(monthlyReviewsTable.monthOf, body.monthOf))
+    .where(and(s.monthlyReviews.owns, eq(monthlyReviewsTable.monthOf, body.monthOf)))
     .limit(1);
 
   if (existing.length > 0) {
@@ -46,7 +50,7 @@ router.post("/monthly", async (req, res): Promise<void> => {
   let created: typeof monthlyReviewsTable.$inferSelect | undefined;
   try {
     [created] = await db.insert(monthlyReviewsTable)
-      .values({
+      .values(s.monthlyReviews.withUser({
         monthOf: body.monthOf,
         whatMoved: body.whatMoved ?? null,
         pillarsAdvanced: body.pillarsAdvanced ?? null,
@@ -54,7 +58,7 @@ router.post("/monthly", async (req, res): Promise<void> => {
         whatDelayed: body.whatDelayed ?? null,
         whatToPause: body.whatToPause ?? null,
         topPrioritiesNextMonth: body.topPrioritiesNextMonth ?? null,
-      })
+      }))
       .returning();
   } catch (err: any) {
     // Unique constraint violation (race condition between pre-check and insert)
@@ -81,12 +85,13 @@ router.patch("/monthly/:id", async (req, res): Promise<void> => {
     return;
   }
   const body = bodyParsed.data;
+  const s = scoped(userIdFrom(req));
 
   // Check for monthOf conflict before updating (excludes current record)
   if ("monthOf" in body && body.monthOf !== undefined) {
     const conflict = await db.select({ id: monthlyReviewsTable.id })
       .from(monthlyReviewsTable)
-      .where(and(eq(monthlyReviewsTable.monthOf, body.monthOf), ne(monthlyReviewsTable.id, id)))
+      .where(and(s.monthlyReviews.owns, eq(monthlyReviewsTable.monthOf, body.monthOf), ne(monthlyReviewsTable.id, id)))
       .limit(1);
     if (conflict.length > 0) {
       res.status(409).json({ error: "A review for this month already exists", monthOf: body.monthOf });
@@ -110,7 +115,7 @@ router.patch("/monthly/:id", async (req, res): Promise<void> => {
 
   const [updated] = await db.update(monthlyReviewsTable)
     .set(updateFields)
-    .where(eq(monthlyReviewsTable.id, id))
+    .where(and(s.monthlyReviews.owns, eq(monthlyReviewsTable.id, id)))
     .returning();
 
   if (!updated) {

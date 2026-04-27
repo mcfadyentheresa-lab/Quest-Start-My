@@ -9,10 +9,16 @@ import dashboardRouter from "./dashboard";
 import monthlyRouter from "./monthly";
 import frictionRouter from "./friction";
 import dailyRouter from "./daily";
+import { requireAuth } from "../middleware/auth";
 
 const router: IRouter = Router();
 
+// Public routes (no auth)
 router.use(healthRouter);
+
+// Everything below this line requires auth (Clerk mode) or owner-mode fallback.
+router.use(requireAuth);
+
 router.use(pillarsRouter);
 router.use(milestonesRouter);
 router.use(tasksRouter);

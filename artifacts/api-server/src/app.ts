@@ -8,6 +8,14 @@ import fs from "node:fs";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { errorHandler, notFoundHandler } from "./lib/errors";
+import { ensureOwnerUserExists } from "./middleware/auth";
+
+// Owner mode: make sure the owner user row exists so foreign keys hold up
+// even on a brand-new database. In Clerk mode this is a no-op; the user
+// rows are auto-provisioned by requireAuth on first request.
+ensureOwnerUserExists().catch((err) => {
+  logger.error({ err }, "Failed to ensure owner user exists");
+});
 
 const app: Express = express();
 

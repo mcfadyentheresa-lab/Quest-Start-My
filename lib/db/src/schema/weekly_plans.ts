@@ -1,9 +1,11 @@
-import { pgTable, text, serial, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { usersTable } from "./users";
 
 export const weeklyPlansTable = pgTable("weekly_plans", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   weekOf: text("week_of").notNull(),
   priorities: text("priorities").array().notNull().default([]),
   healthFocus: text("health_focus"),
@@ -19,7 +21,9 @@ export const weeklyPlansTable = pgTable("weekly_plans", {
   // Phase 3 additions
   whatToDeprioritize: text("what_to_deprioritize"),
   nextWeekFocus: text("next_week_focus"),
-});
+}, (t) => [
+  unique("weekly_plans_user_id_week_of_unique").on(t.userId, t.weekOf),
+]);
 
 export const insertWeeklyPlanSchema = createInsertSchema(weeklyPlansTable).omit({ id: true, createdAt: true });
 export type InsertWeeklyPlan = z.infer<typeof insertWeeklyPlanSchema>;

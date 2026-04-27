@@ -4,6 +4,8 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Layout from "@/components/layout";
+import { isClerkEnabled } from "@/lib/clerk-config";
+import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/clerk-react";
 
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const TodayPage = lazy(() => import("@/pages/today"));
@@ -13,6 +15,8 @@ const ReviewPage = lazy(() => import("@/pages/review"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
 const HomeModulePage = lazy(() => import("@/pages/home-module"));
 const NotFound = lazy(() => import("@/pages/not-found"));
+const SignInPage = lazy(() => import("@/pages/sign-in"));
+const SignUpPage = lazy(() => import("@/pages/sign-up"));
 
 function RouteFallback() {
   return (
@@ -22,7 +26,7 @@ function RouteFallback() {
   );
 }
 
-function Router() {
+function ProtectedAppRoutes() {
   return (
     <Layout>
       <Suspense fallback={<RouteFallback />}>
@@ -38,6 +42,31 @@ function Router() {
         </Switch>
       </Suspense>
     </Layout>
+  );
+}
+
+function Router() {
+  // Clerk-mode: render sign-in / sign-up routes publicly; gate everything
+  // else behind <SignedIn>/<SignedOut>. Owner-mode: skip the gate entirely.
+  if (!isClerkEnabled()) {
+    return <ProtectedAppRoutes />;
+  }
+
+  return (
+    <Suspense fallback={<RouteFallback />}>
+      <Switch>
+        <Route path="/sign-in/:rest*" component={SignInPage} />
+        <Route path="/sign-up/:rest*" component={SignUpPage} />
+        <Route>
+          <SignedIn>
+            <ProtectedAppRoutes />
+          </SignedIn>
+          <SignedOut>
+            <RedirectToSignIn />
+          </SignedOut>
+        </Route>
+      </Switch>
+    </Suspense>
   );
 }
 

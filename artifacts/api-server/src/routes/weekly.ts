@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, weeklyPlansTable } from "@workspace/db";
 import {
   CreateWeeklyPlanBody,
@@ -9,6 +9,7 @@ import {
   ListWeeklyPlansResponse,
   UpdateWeeklyPlanResponse,
 } from "@workspace/api-zod";
+import { scoped, userIdFrom } from "../lib/scoped";
 
 const router: IRouter = Router();
 
@@ -29,11 +30,12 @@ function serializePlan(plan: typeof weeklyPlansTable.$inferSelect) {
 }
 
 router.get("/weekly", async (req, res): Promise<void> => {
+  const s = scoped(userIdFrom(req));
   const query = ListWeeklyPlansQueryParams.safeParse(req.query);
   const weekOf = query.success && query.data.weekOf ? query.data.weekOf : getWeekStart();
 
   const plans = await db.select().from(weeklyPlansTable)
-    .where(eq(weeklyPlansTable.weekOf, weekOf));
+    .where(and(s.weeklyPlans.owns, eq(weeklyPlansTable.weekOf, weekOf)));
 
   res.json(ListWeeklyPlansResponse.parse(plans.map(serializePlan)));
 });
@@ -45,7 +47,8 @@ router.post("/weekly", async (req, res): Promise<void> => {
     return;
   }
 
-  const [plan] = await db.insert(weeklyPlansTable).values({
+  const s = scoped(userIdFrom(req));
+  const [plan] = await db.insert(weeklyPlansTable).values(s.weeklyPlans.withUser({
     weekOf: parsed.data.weekOf,
     priorities: parsed.data.priorities,
     healthFocus: parsed.data.healthFocus ?? null,
@@ -58,7 +61,7 @@ router.post("/weekly", async (req, res): Promise<void> => {
     whatContinues: parsed.data.whatContinues ?? null,
     whatToDeprioritize: parsed.data.whatToDeprioritize ?? null,
     nextWeekFocus: parsed.data.nextWeekFocus ?? null,
-  }).returning();
+  })).returning();
 
   res.status(201).json(serializePlan(plan!));
 });
@@ -89,10 +92,11 @@ router.patch("/weekly/:id", async (req, res): Promise<void> => {
   if (parsed.data.whatToDeprioritize !== undefined) updates.whatToDeprioritize = parsed.data.whatToDeprioritize;
   if (parsed.data.nextWeekFocus !== undefined) updates.nextWeekFocus = parsed.data.nextWeekFocus;
 
+  const s = scoped(userIdFrom(req));
   const [plan] = await db
     .update(weeklyPlansTable)
     .set(updates)
-    .where(eq(weeklyPlansTable.id, params.data.id))
+    .where(and(s.weeklyPlans.owns, eq(weeklyPlansTable.id, params.data.id)))
     .returning();
 
   if (!plan) {

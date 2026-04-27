@@ -10,6 +10,7 @@ import {
   GetPillarCompletionHistoryResponse,
   GetPillarCompletionHistoryQueryParams as GetPillarCompletionHistoryParams,
 } from "@workspace/api-zod";
+import { scoped, userIdFrom } from "../lib/scoped";
 
 const router: IRouter = Router();
 
@@ -48,14 +49,15 @@ function computeGuidance(status: string, suggestedNextStep: string | null | unde
 }
 
 router.get("/dashboard/summary", async (req, res): Promise<void> => {
+  const s = scoped(userIdFrom(req));
   const today = new Date().toISOString().slice(0, 10);
   const weekOf = getWeekStart();
 
   const [todayTasks, allPillars, weeklyPlans, allWeeklyPlans] = await Promise.all([
-    db.select().from(tasksTable).where(eq(tasksTable.date, today)),
-    db.select().from(pillarsTable).orderBy(pillarsTable.id),
-    db.select().from(weeklyPlansTable).where(eq(weeklyPlansTable.weekOf, weekOf)),
-    db.select({ weekOf: weeklyPlansTable.weekOf }).from(weeklyPlansTable).orderBy(asc(weeklyPlansTable.weekOf)),
+    db.select().from(tasksTable).where(and(s.tasks.owns, eq(tasksTable.date, today))),
+    db.select().from(pillarsTable).where(s.pillars.owns).orderBy(pillarsTable.id),
+    db.select().from(weeklyPlansTable).where(and(s.weeklyPlans.owns, eq(weeklyPlansTable.weekOf, weekOf))),
+    db.select({ weekOf: weeklyPlansTable.weekOf }).from(weeklyPlansTable).where(s.weeklyPlans.owns).orderBy(asc(weeklyPlansTable.weekOf)),
   ]);
 
   const doneCount = todayTasks.filter(t => t.status === "done").length;
@@ -94,15 +96,17 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
 });
 
 router.get("/dashboard/week-summary", async (req, res): Promise<void> => {
+  const s = scoped(userIdFrom(req));
   const weekOf = getWeekStart();
   const weekEnd = getWeekEnd(weekOf);
 
   const [tasks, pillars] = await Promise.all([
     db.select().from(tasksTable).where(and(
+      s.tasks.owns,
       gte(tasksTable.date, weekOf),
       lte(tasksTable.date, weekEnd)
     )),
-    db.select().from(pillarsTable),
+    db.select().from(pillarsTable).where(s.pillars.owns),
   ]);
 
   const totalTasks = tasks.length;
@@ -149,11 +153,13 @@ router.get("/dashboard/week-summary", async (req, res): Promise<void> => {
 });
 
 router.get("/dashboard/reentry", async (req, res): Promise<void> => {
+  const s = scoped(userIdFrom(req));
   const today = new Date().toISOString().slice(0, 10);
 
   // First: look for most recent unfinished (pending) or blocked task from a prior date
   const unfinished = await db.select().from(tasksTable)
     .where(and(
+      s.tasks.owns,
       lt(tasksTable.date, today),
       eq(tasksTable.status, "pending")
     ))
@@ -165,7 +171,7 @@ router.get("/dashboard/reentry", async (req, res): Promise<void> => {
     if (t.milestoneId) {
       const [milestone] = await db.select({ title: milestonesTable.title })
         .from(milestonesTable)
-        .where(eq(milestonesTable.id, t.milestoneId));
+        .where(and(s.milestones.owns, eq(milestonesTable.id, t.milestoneId)));
       milestoneTitle = milestone?.title ?? null;
     }
     return {
@@ -197,6 +203,7 @@ router.get("/dashboard/reentry", async (req, res): Promise<void> => {
   // Also check blocked tasks from prior dates
   const blocked = await db.select().from(tasksTable)
     .where(and(
+      s.tasks.owns,
       lt(tasksTable.date, today),
       eq(tasksTable.status, "blocked")
     ))
@@ -218,6 +225,7 @@ router.get("/dashboard/reentry", async (req, res): Promise<void> => {
   // Check passed tasks from prior dates
   const passed = await db.select().from(tasksTable)
     .where(and(
+      s.tasks.owns,
       lt(tasksTable.date, today),
       eq(tasksTable.status, "passed")
     ))
@@ -238,7 +246,7 @@ router.get("/dashboard/reentry", async (req, res): Promise<void> => {
 
   // Fallback: most recent done task from any date
   const completed = await db.select().from(tasksTable)
-    .where(eq(tasksTable.status, "done"))
+    .where(and(s.tasks.owns, eq(tasksTable.status, "done")))
     .orderBy(desc(tasksTable.date), desc(tasksTable.id))
     .limit(1);
 
@@ -257,21 +265,24 @@ router.get("/dashboard/reentry", async (req, res): Promise<void> => {
 });
 
 router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
+  const s = scoped(userIdFrom(req));
   const weekOf = getWeekStart();
   const weekEnd = getWeekEnd(weekOf);
 
   const [pillars, weekTasks, recentLogs] = await Promise.all([
-    db.select().from(pillarsTable).orderBy(pillarsTable.id),
+    db.select().from(pillarsTable).where(s.pillars.owns).orderBy(pillarsTable.id),
     db.select().from(tasksTable).where(and(
+      s.tasks.owns,
       gte(tasksTable.date, weekOf),
       lte(tasksTable.date, weekEnd)
     )),
-    db.select().from(progressLogsTable).orderBy(desc(progressLogsTable.loggedAt)),
+    db.select().from(progressLogsTable).where(s.progressLogs.owns).orderBy(desc(progressLogsTable.loggedAt)),
   ]);
 
   const totalDoneThisWeek = weekTasks.filter(t => t.status === "done").length;
 
-  const allTasks = await db.select({ id: tasksTable.id, pillarId: tasksTable.pillarId }).from(tasksTable);
+  const allTasks = await db.select({ id: tasksTable.id, pillarId: tasksTable.pillarId })
+    .from(tasksTable).where(s.tasks.owns);
   const taskPillarMap = new Map(allTasks.map(t => [t.id, t.pillarId]));
 
   const pillarEntries = pillars.map(pillar => {
@@ -346,6 +357,7 @@ router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
 });
 
 router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
+  const s = scoped(userIdFrom(req));
   const weekOfParam = typeof req.query.weekOf === "string" ? req.query.weekOf : null;
   if (weekOfParam !== null) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(weekOfParam) || isNaN(Date.parse(weekOfParam + "T00:00:00"))) {
@@ -360,11 +372,12 @@ router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
 
   const [weekTasks, pillars, allMilestones] = await Promise.all([
     db.select().from(tasksTable).where(and(
+      s.tasks.owns,
       gte(tasksTable.date, weekOf),
       lte(tasksTable.date, weekEnd)
     )),
-    db.select().from(pillarsTable).orderBy(pillarsTable.id),
-    db.select().from(milestonesTable),
+    db.select().from(pillarsTable).where(s.pillars.owns).orderBy(pillarsTable.id),
+    db.select().from(milestonesTable).where(s.milestones.owns),
   ]);
 
   // Milestones completed this week: status=complete AND createdAt within this week
@@ -437,6 +450,7 @@ function getPastWeekStarts(n: number, fromWeekStart: string): string[] {
 }
 
 router.get("/dashboard/pillar-completion-history", async (req, res): Promise<void> => {
+  const s = scoped(userIdFrom(req));
   const parsed = GetPillarCompletionHistoryParams.safeParse(req.query);
   const weekCount = parsed.success && parsed.data.weeks !== undefined
     ? Math.min(Math.max(parsed.data.weeks, 1), 52)
@@ -450,10 +464,11 @@ router.get("/dashboard/pillar-completion-history", async (req, res): Promise<voi
 
   const [allTasks, pillars] = await Promise.all([
     db.select().from(tasksTable).where(and(
+      s.tasks.owns,
       gte(tasksTable.date, oldestWeekStart),
       lte(tasksTable.date, newestWeekEnd),
     )),
-    db.select().from(pillarsTable).orderBy(pillarsTable.id),
+    db.select().from(pillarsTable).where(s.pillars.owns).orderBy(pillarsTable.id),
   ]);
 
   const pillarData = pillars.map(pillar => {

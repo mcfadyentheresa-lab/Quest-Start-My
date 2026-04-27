@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { and, lte, ne, eq, desc } from "drizzle-orm";
 import { db, tasksTable, pillarsTable, milestonesTable, progressLogsTable } from "@workspace/db";
 import { GetFrictionSignalsResponse } from "@workspace/api-zod";
+import { scoped, userIdFrom } from "../lib/scoped";
 
 const router: IRouter = Router();
 
@@ -11,6 +12,7 @@ function monthStartFromDate(d: Date): Date {
 }
 
 router.get("/dashboard/friction", async (req, res): Promise<void> => {
+  const s = scoped(userIdFrom(req));
   const weekOfParam = typeof req.query.weekOf === "string" ? req.query.weekOf : null;
   if (weekOfParam !== null) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(weekOfParam) || isNaN(Date.parse(weekOfParam + "T00:00:00"))) {
@@ -44,20 +46,18 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
 
   // Fetch base data — filter logs by week end when a past week is selected
   const passedLogsCondition = weekOfParam
-    ? and(eq(progressLogsTable.status, "passed"), lte(progressLogsTable.date, weekEndStr))
-    : eq(progressLogsTable.status, "passed");
+    ? and(s.progressLogs.owns, eq(progressLogsTable.status, "passed"), lte(progressLogsTable.date, weekEndStr))
+    : and(s.progressLogs.owns, eq(progressLogsTable.status, "passed"));
 
   const allLogsCondition = weekOfParam
-    ? lte(progressLogsTable.date, weekEndStr)
-    : undefined;
+    ? and(s.progressLogs.owns, lte(progressLogsTable.date, weekEndStr))
+    : s.progressLogs.owns;
 
   const [pillars, openMilestones, allPassedLogs, allLogs] = await Promise.all([
-    db.select().from(pillarsTable),
-    db.select().from(milestonesTable).where(ne(milestonesTable.status, "complete")),
+    db.select().from(pillarsTable).where(s.pillars.owns),
+    db.select().from(milestonesTable).where(and(s.milestones.owns, ne(milestonesTable.status, "complete"))),
     db.select().from(progressLogsTable).where(passedLogsCondition),
-    allLogsCondition
-      ? db.select().from(progressLogsTable).where(allLogsCondition).orderBy(desc(progressLogsTable.loggedAt))
-      : db.select().from(progressLogsTable).orderBy(desc(progressLogsTable.loggedAt)),
+    db.select().from(progressLogsTable).where(allLogsCondition).orderBy(desc(progressLogsTable.loggedAt)),
   ]);
 
   const pillarMap = new Map(pillars.map(p => [p.id, p]));
@@ -71,7 +71,7 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
     status: tasksTable.status,
     title: tasksTable.title,
     createdAt: tasksTable.createdAt,
-  }).from(tasksTable);
+  }).from(tasksTable).where(s.tasks.owns);
 
   const taskPillarMap = new Map(allTaskRows.map(t => [t.id, t.pillarId]));
 

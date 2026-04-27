@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and } from "drizzle-orm";
 import { db, dailyPlansTable } from "@workspace/db";
 import {
   CreateDailyPlanBody,
@@ -7,6 +7,7 @@ import {
   UpdateDailyPlanBody,
   UpdateDailyPlanParams,
 } from "@workspace/api-zod";
+import { scoped, userIdFrom } from "../lib/scoped";
 
 const router: IRouter = Router();
 
@@ -26,11 +27,12 @@ router.get("/daily", async (req, res): Promise<void> => {
     return;
   }
 
+  const s = scoped(userIdFrom(req));
   const { date, limit: rawLimit } = parsed.data;
 
   if (date !== undefined) {
     const plans = await db.select().from(dailyPlansTable)
-      .where(eq(dailyPlansTable.date, date));
+      .where(and(s.dailyPlans.owns, eq(dailyPlansTable.date, date)));
     res.json(plans.map(serializePlan));
     return;
   }
@@ -40,6 +42,7 @@ router.get("/daily", async (req, res): Promise<void> => {
     : MAX_DAILY_PLAN_LIMIT;
 
   const plans = await db.select().from(dailyPlansTable)
+    .where(s.dailyPlans.owns)
     .orderBy(desc(dailyPlansTable.date))
     .limit(limit);
 
@@ -53,9 +56,10 @@ router.post("/daily", async (req, res): Promise<void> => {
     return;
   }
 
+  const s = scoped(userIdFrom(req));
   const existing = await db.select({ id: dailyPlansTable.id })
     .from(dailyPlansTable)
-    .where(eq(dailyPlansTable.date, parsed.data.date))
+    .where(and(s.dailyPlans.owns, eq(dailyPlansTable.date, parsed.data.date)))
     .limit(1);
 
   if (existing.length > 0) {
@@ -66,10 +70,10 @@ router.post("/daily", async (req, res): Promise<void> => {
   let created: typeof dailyPlansTable.$inferSelect | undefined;
   try {
     [created] = await db.insert(dailyPlansTable)
-      .values({
+      .values(s.dailyPlans.withUser({
         date: parsed.data.date,
         priorities: parsed.data.priorities,
-      })
+      }))
       .returning();
   } catch (err: any) {
     if (err?.code === "23505") {
@@ -103,9 +107,10 @@ router.patch("/daily/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const s = scoped(userIdFrom(req));
   const [updated] = await db.update(dailyPlansTable)
     .set(updateFields)
-    .where(eq(dailyPlansTable.id, params.data.id))
+    .where(and(s.dailyPlans.owns, eq(dailyPlansTable.id, params.data.id)))
     .returning();
 
   if (!updated) {

@@ -1,8 +1,11 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ClerkProvider } from "@clerk/clerk-react";
 import App from "./App";
 import "./index.css";
+import { CLERK_PUBLISHABLE_KEY, isClerkEnabled } from "./lib/clerk-config";
+import { ClerkAuthBridge } from "./lib/auth-bridge";
 
 const queryClient = new QueryClient();
 
@@ -91,14 +94,33 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-try {
-  createRoot(document.getElementById("root")!).render(
+function Root() {
+  // Owner mode: no Clerk provider, app renders as-is.
+  if (!isClerkEnabled()) {
+    return (
+      <VisibleErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <App />
+        </QueryClientProvider>
+      </VisibleErrorBoundary>
+    );
+  }
+
+  // Clerk mode: provider gates auth, ClerkAuthBridge wires the token getter.
+  return (
     <VisibleErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
+      <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY!}>
+        <ClerkAuthBridge />
+        <QueryClientProvider client={queryClient}>
+          <App />
+        </QueryClientProvider>
+      </ClerkProvider>
     </VisibleErrorBoundary>
   );
+}
+
+try {
+  createRoot(document.getElementById("root")!).render(<Root />);
 } catch (err) {
   renderFallback("createRoot", err instanceof Error ? err : new Error(String(err)));
 }

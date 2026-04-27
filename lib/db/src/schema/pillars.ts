@@ -1,9 +1,11 @@
-import { pgTable, text, serial, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, boolean, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { usersTable } from "./users";
 
 export const pillarsTable = pgTable("pillars", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   priority: text("priority").notNull().default("P1"),
   description: text("description"),
@@ -23,7 +25,9 @@ export const pillarsTable = pgTable("pillars", {
   featureTag: text("feature_tag"),
   // Phase 5 additions
   category: text("category"),
-});
+}, (t) => [
+  unique("pillars_user_id_name_unique").on(t.userId, t.name),
+]);
 
 export const insertPillarSchema = createInsertSchema(pillarsTable).omit({ id: true, createdAt: true });
 export type InsertPillar = z.infer<typeof insertPillarSchema>;

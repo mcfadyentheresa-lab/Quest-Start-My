@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, milestonesTable } from "@workspace/db";
 import {
   ListMilestonesQueryParams,
@@ -11,6 +11,7 @@ import {
   UpdateMilestoneResponse,
   DeleteMilestoneParams,
 } from "@workspace/api-zod";
+import { scoped, userIdFrom } from "../lib/scoped";
 
 const router: IRouter = Router();
 
@@ -23,13 +24,18 @@ function serializeMilestone(m: typeof milestonesTable.$inferSelect) {
 }
 
 router.get("/milestones", async (req, res): Promise<void> => {
+  const s = scoped(userIdFrom(req));
   const query = ListMilestonesQueryParams.safeParse(req.query);
   const pillarId = query.success && query.data.pillarId ? query.data.pillarId : undefined;
+
+  const where = pillarId
+    ? and(s.milestones.owns, eq(milestonesTable.pillarId, pillarId))
+    : s.milestones.owns;
 
   const milestones = await db
     .select()
     .from(milestonesTable)
-    .where(pillarId ? eq(milestonesTable.pillarId, pillarId) : undefined)
+    .where(where)
     .orderBy(milestonesTable.sortOrder, milestonesTable.createdAt);
 
   res.json(ListMilestonesResponse.parse(milestones.map(serializeMilestone)));
@@ -42,7 +48,8 @@ router.post("/milestones", async (req, res): Promise<void> => {
     return;
   }
 
-  const [milestone] = await db.insert(milestonesTable).values({
+  const s = scoped(userIdFrom(req));
+  const [milestone] = await db.insert(milestonesTable).values(s.milestones.withUser({
     pillarId: parsed.data.pillarId,
     title: parsed.data.title,
     status: parsed.data.status ?? "planned",
@@ -51,7 +58,7 @@ router.post("/milestones", async (req, res): Promise<void> => {
     description: parsed.data.description ?? null,
     nextAction: parsed.data.nextAction ?? null,
     sortOrder: parsed.data.sortOrder ?? 0,
-  }).returning();
+  })).returning();
 
   res.status(201).json(serializeMilestone(milestone!));
 });
@@ -64,16 +71,16 @@ router.post("/milestones/bulk", async (req, res): Promise<void> => {
   }
 
   const { pillarId, titles } = parsed.data;
+  const s = scoped(userIdFrom(req));
 
-  // Get current max sort_order for this pillar so new ones go at the bottom
   const existing = await db
     .select({ sortOrder: milestonesTable.sortOrder })
     .from(milestonesTable)
-    .where(eq(milestonesTable.pillarId, pillarId));
+    .where(and(s.milestones.owns, eq(milestonesTable.pillarId, pillarId)));
 
   const maxOrder = existing.reduce((max, m) => Math.max(max, m.sortOrder ?? 0), -1);
 
-  const rows = titles.map((title, i) => ({
+  const rows = titles.map((title, i) => s.milestones.withUser({
     pillarId,
     title: title.trim(),
     status: "planned" as const,
@@ -108,10 +115,11 @@ router.patch("/milestones/:id", async (req, res): Promise<void> => {
   if (parsed.data.sortOrder !== undefined) updates.sortOrder = parsed.data.sortOrder;
   updates.updatedAt = new Date();
 
+  const s = scoped(userIdFrom(req));
   const [milestone] = await db
     .update(milestonesTable)
     .set(updates)
-    .where(eq(milestonesTable.id, params.data.id))
+    .where(and(s.milestones.owns, eq(milestonesTable.id, params.data.id)))
     .returning();
 
   if (!milestone) {
@@ -129,10 +137,11 @@ router.delete("/milestones/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const s = scoped(userIdFrom(req));
   try {
     const [milestone] = await db
       .delete(milestonesTable)
-      .where(eq(milestonesTable.id, params.data.id))
+      .where(and(s.milestones.owns, eq(milestonesTable.id, params.data.id)))
       .returning();
 
     if (!milestone) {

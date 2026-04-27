@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useTheme } from "next-themes";
 import { Sun, Moon, LayoutDashboard, Calendar, CalendarDays, History, Settings, BookOpen, Home } from "lucide-react";
+import { UserButton } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
+import { isClerkEnabled } from "@/lib/clerk-config";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -29,7 +31,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <span className="text-muted-foreground text-sm hidden sm:inline">Start My Day</span>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon"
@@ -39,6 +41,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             >
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
+            {isClerkEnabled() ? <UserButton afterSignOutUrl="/sign-in" /> : null}
           </div>
         </div>
       </header>

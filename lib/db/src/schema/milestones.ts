@@ -2,9 +2,11 @@ import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { pillarsTable } from "./pillars";
+import { usersTable } from "./users";
 
 export const milestonesTable = pgTable("milestones", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   pillarId: integer("pillar_id").notNull().references(() => pillarsTable.id),
   title: text("title").notNull(),
   status: text("status").notNull().default("planned"),

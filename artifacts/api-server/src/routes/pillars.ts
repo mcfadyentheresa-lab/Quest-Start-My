@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, pillarsTable } from "@workspace/db";
 import {
   CreatePillarBody,
@@ -8,6 +8,7 @@ import {
   ListPillarsResponse,
   UpdatePillarResponse,
 } from "@workspace/api-zod";
+import { scoped, userIdFrom } from "../lib/scoped";
 
 const router: IRouter = Router();
 
@@ -19,7 +20,8 @@ function serializePillar(p: typeof pillarsTable.$inferSelect) {
 }
 
 router.get("/pillars", async (req, res): Promise<void> => {
-  const pillars = await db.select().from(pillarsTable).orderBy(pillarsTable.id);
+  const s = scoped(userIdFrom(req));
+  const pillars = await db.select().from(pillarsTable).where(s.pillars.owns).orderBy(pillarsTable.id);
   res.json(ListPillarsResponse.parse(pillars.map(serializePillar)));
 });
 
@@ -30,7 +32,8 @@ router.post("/pillars", async (req, res): Promise<void> => {
     return;
   }
 
-  const [pillar] = await db.insert(pillarsTable).values({
+  const s = scoped(userIdFrom(req));
+  const [pillar] = await db.insert(pillarsTable).values(s.pillars.withUser({
     name: parsed.data.name,
     priority: parsed.data.priority,
     description: parsed.data.description ?? null,
@@ -39,7 +42,7 @@ router.post("/pillars", async (req, res): Promise<void> => {
     portfolioStatus: parsed.data.portfolioStatus ?? null,
     featureTag: parsed.data.featureTag ?? null,
     category: parsed.data.category ?? null,
-  }).returning();
+  })).returning();
 
   res.status(201).json(serializePillar(pillar!));
 });
@@ -74,10 +77,11 @@ router.patch("/pillars/:id", async (req, res): Promise<void> => {
   if (parsed.data.featureTag !== undefined) updates.featureTag = parsed.data.featureTag;
   if (parsed.data.category !== undefined) updates.category = parsed.data.category;
 
+  const s = scoped(userIdFrom(req));
   const [pillar] = await db
     .update(pillarsTable)
     .set(updates)
-    .where(eq(pillarsTable.id, params.data.id))
+    .where(and(s.pillars.owns, eq(pillarsTable.id, params.data.id)))
     .returning();
 
   if (!pillar) {
