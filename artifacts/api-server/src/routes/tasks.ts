@@ -14,17 +14,14 @@ import {
   GetTaskSuggestionsQueryParams,
 } from "@workspace/api-zod";
 import { scoped, userIdFrom } from "../lib/scoped";
+import { getUserToday, getWeekKey } from "../lib/time";
 
 const router: IRouter = Router();
 
 const MAX_STEP_BACK_DEPTH = 3;
 
-function getWeekStart(date: Date = new Date()): string {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().slice(0, 10);
+function tzOf(req: { userTimezone?: string }): string {
+  return req.userTimezone ?? "America/Toronto";
 }
 
 interface GeneratedTask {
@@ -87,7 +84,7 @@ function serializeTask(task: typeof tasksTable.$inferSelect) {
 router.get("/tasks", async (req, res): Promise<void> => {
   const s = scoped(userIdFrom(req));
   const query = ListTasksQueryParams.safeParse(req.query);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getUserToday(tzOf(req));
   const date = query.success && query.data.date ? query.data.date : today;
   const source = query.success ? query.data.source : undefined;
 
@@ -134,12 +131,13 @@ router.get("/tasks/suggestions", async (req, res): Promise<void> => {
     res.status(400).json({ error: queryResult.error.message });
     return;
   }
-  const today = new Date().toISOString().slice(0, 10);
+  const tz = tzOf(req);
+  const today = getUserToday(tz);
   const date = queryResult.data.date ?? today;
 
   // Active pillars: source of truth is weekly_plans.activePillarIds for the
   // current week. Priority is per-week and lives in weekly_plans.pillarPriorities.
-  const weekOf = getWeekStart();
+  const weekOf = getWeekKey(today, tz);
   const [weeklyPlan] = await db
     .select()
     .from(weeklyPlansTable)

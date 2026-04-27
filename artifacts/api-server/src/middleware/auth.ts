@@ -57,7 +57,7 @@ async function getClerkVerifier(): Promise<(token: string) => Promise<ClerkVerif
   return cachedVerifier;
 }
 
-async function ensureUserRow(userId: string, email: string | null): Promise<void> {
+async function ensureUserRow(userId: string, email: string | null): Promise<string> {
   // Upsert: insert if missing, otherwise leave the row alone (don't clobber
   // an existing email/name with a possibly-stale value from token refresh).
   await db
@@ -77,6 +77,12 @@ async function ensureUserRow(userId: string, email: string | null): Promise<void
       .set({ email, updatedAt: sql`now()` })
       .where(eq(usersTable.id, userId));
   }
+
+  const [row] = await db
+    .select({ timezone: usersTable.timezone })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+  return row?.timezone ?? "America/Toronto";
 }
 
 export async function requireAuth(
@@ -89,6 +95,15 @@ export async function requireAuth(
   if (!CLERK_SECRET) {
     req.userId = OWNER_USER_ID;
     req.userEmail = OWNER_EMAIL;
+    try {
+      const [row] = await db
+        .select({ timezone: usersTable.timezone })
+        .from(usersTable)
+        .where(eq(usersTable.id, OWNER_USER_ID));
+      req.userTimezone = row?.timezone ?? "America/Toronto";
+    } catch {
+      req.userTimezone = "America/Toronto";
+    }
     next();
     return;
   }
@@ -107,9 +122,10 @@ export async function requireAuth(
   try {
     const verify = await getClerkVerifier();
     const { userId, email } = await verify(token);
-    await ensureUserRow(userId, email);
+    const timezone = await ensureUserRow(userId, email);
     req.userId = userId;
     if (email) req.userEmail = email;
+    req.userTimezone = timezone;
     next();
   } catch (err) {
     if (err instanceof ApiError) {

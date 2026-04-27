@@ -12,21 +12,18 @@ import {
   GetPillarCompletionHistoryQueryParams as GetPillarCompletionHistoryParams,
 } from "@workspace/api-zod";
 import { scoped, userIdFrom } from "../lib/scoped";
+import {
+  getUserToday,
+  getWeekKey,
+  getWeekEnd,
+  shiftDateString,
+  parseViewDate,
+} from "../lib/time";
 
 const router: IRouter = Router();
 
-function getWeekStart(date: Date = new Date()): string {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().slice(0, 10);
-}
-
-function getWeekEnd(weekStart: string): string {
-  const d = new Date(weekStart);
-  d.setDate(d.getDate() + 6);
-  return d.toISOString().slice(0, 10);
+function tzOf(req: { userTimezone?: string }): string {
+  return req.userTimezone ?? "America/Toronto";
 }
 
 function computePlanningStreak(allPlans: { weekOf: string }[], currentWeekOf: string): number {
@@ -35,9 +32,7 @@ function computePlanningStreak(allPlans: { weekOf: string }[], currentWeekOf: st
   let weekCursor = currentWeekOf;
   while (planWeeks.has(weekCursor)) {
     streak++;
-    const d = new Date(weekCursor + "T00:00:00");
-    d.setDate(d.getDate() - 7);
-    weekCursor = d.toISOString().slice(0, 10);
+    weekCursor = shiftDateString(weekCursor, -7);
   }
   return streak;
 }
@@ -51,8 +46,9 @@ function computeGuidance(status: string, suggestedNextStep: string | null | unde
 
 router.get("/dashboard/summary", async (req, res): Promise<void> => {
   const s = scoped(userIdFrom(req));
-  const today = new Date().toISOString().slice(0, 10);
-  const weekOf = getWeekStart();
+  const tz = tzOf(req);
+  const today = getUserToday(tz);
+  const weekOf = getWeekKey(today, tz);
 
   const [todayTasks, allPillars, weeklyPlans, allWeeklyPlans] = await Promise.all([
     db.select().from(tasksTable).where(and(s.tasks.owns, eq(tasksTable.date, today))),
@@ -108,7 +104,8 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
 
 router.get("/dashboard/week-summary", async (req, res): Promise<void> => {
   const s = scoped(userIdFrom(req));
-  const weekOf = getWeekStart();
+  const tz = tzOf(req);
+  const weekOf = getWeekKey(getUserToday(tz), tz);
   const weekEnd = getWeekEnd(weekOf);
 
   const [tasks, pillars] = await Promise.all([
@@ -165,7 +162,7 @@ router.get("/dashboard/week-summary", async (req, res): Promise<void> => {
 
 router.get("/dashboard/reentry", async (req, res): Promise<void> => {
   const s = scoped(userIdFrom(req));
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getUserToday(tzOf(req));
 
   // First: look for most recent unfinished (pending) or blocked task from a prior date
   const unfinished = await db.select().from(tasksTable)
@@ -277,7 +274,8 @@ router.get("/dashboard/reentry", async (req, res): Promise<void> => {
 
 router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
   const s = scoped(userIdFrom(req));
-  const weekOf = getWeekStart();
+  const tz = tzOf(req);
+  const weekOf = getWeekKey(getUserToday(tz), tz);
   const weekEnd = getWeekEnd(weekOf);
 
   const [pillars, weekTasks, recentLogs] = await Promise.all([
@@ -309,8 +307,8 @@ router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
     let daysSinceLastMovement: number | null = null;
     if (pillarLogs.length > 0 && pillarLogs[0]) {
       const lastDate = new Date(pillarLogs[0].loggedAt);
-      const now = new Date();
-      daysSinceLastMovement = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+      const now = Date.now();
+      daysSinceLastMovement = Math.floor((now - lastDate.getTime()) / (1000 * 60 * 60 * 24));
     }
 
     let nudge: string | null = null;
@@ -369,14 +367,12 @@ router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
 
 router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
   const s = scoped(userIdFrom(req));
-  const weekOfParam = typeof req.query.weekOf === "string" ? req.query.weekOf : null;
-  if (weekOfParam !== null) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(weekOfParam) || isNaN(Date.parse(weekOfParam + "T00:00:00"))) {
-      res.status(400).json({ error: "weekOf must be a valid date in YYYY-MM-DD format" });
-      return;
-    }
-  }
-  const weekOf = weekOfParam ?? getWeekStart();
+  const tz = tzOf(req);
+  const weekOfRaw = req.query.weekOf;
+  const weekOf =
+    weekOfRaw === undefined || weekOfRaw === ""
+      ? getWeekKey(getUserToday(tz), tz)
+      : parseViewDate(weekOfRaw);
   const weekEnd = getWeekEnd(weekOf);
   // Derive month start from the selected week's start date
   const monthStart = weekOf.slice(0, 7) + "-01";
@@ -461,9 +457,7 @@ function getPastWeekStarts(n: number, fromWeekStart: string): string[] {
   let cursor = fromWeekStart;
   for (let i = 0; i < n; i++) {
     weeks.unshift(cursor);
-    const d = new Date(cursor + "T00:00:00");
-    d.setDate(d.getDate() - 7);
-    cursor = d.toISOString().slice(0, 10);
+    cursor = shiftDateString(cursor, -7);
   }
   return weeks;
 }
@@ -475,7 +469,8 @@ router.get("/dashboard/pillar-completion-history", async (req, res): Promise<voi
     ? Math.min(Math.max(parsed.data.weeks, 1), 52)
     : 4;
 
-  const currentWeekOf = getWeekStart();
+  const tz = tzOf(req);
+  const currentWeekOf = getWeekKey(getUserToday(tz), tz);
   const weeks = getPastWeekStarts(weekCount, currentWeekOf);
 
   const oldestWeekStart = weeks[0];
