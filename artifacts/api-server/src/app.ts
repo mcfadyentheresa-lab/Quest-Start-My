@@ -1,10 +1,13 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import pinoHttp from "pino-http";
 import path from "node:path";
 import fs from "node:fs";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { errorHandler, notFoundHandler } from "./lib/errors";
 
 const app: Express = express();
 
@@ -27,11 +30,42 @@ app.use(
     },
   }),
 );
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-app.use("/api", router);
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+  }),
+);
+
+const corsOriginsRaw = process.env["CORS_ORIGINS"];
+const corsOrigins = corsOriginsRaw
+  ? corsOriginsRaw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+  : [];
+if (corsOrigins.length > 0) {
+  app.use(
+    cors({
+      origin: corsOrigins,
+      credentials: true,
+    }),
+  );
+}
+
+app.use(express.json({ limit: "100kb" }));
+app.use(express.urlencoded({ extended: true, limit: "100kb" }));
+
+const rateLimitMax = Number(process.env["RATE_LIMIT_MAX"] ?? 300);
+const rateLimitWindowMs = Number(process.env["RATE_LIMIT_WINDOW_MS"] ?? 900000);
+const apiLimiter = rateLimit({
+  windowMs: rateLimitWindowMs,
+  max: rateLimitMax,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use("/api", apiLimiter, router);
 
 // Optionally serve the built frontend from this server so the whole app runs
 // as a single service (e.g. on Railway). Enable by setting STATIC_DIR to the
@@ -50,6 +84,10 @@ if (staticDir && fs.existsSync(path.join(staticDir, "index.html"))) {
     { staticDir },
     "STATIC_DIR is set but index.html was not found; skipping static serving",
   );
+} else {
+  app.use(notFoundHandler);
 }
+
+app.use(errorHandler);
 
 export default app;
