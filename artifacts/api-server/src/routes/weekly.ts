@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { and, eq } from "drizzle-orm";
 import { db, weeklyPlansTable } from "@workspace/db";
+import type { PillarPriorityMap } from "@workspace/db";
 import {
   CreateWeeklyPlanBody,
   UpdateWeeklyPlanBody,
@@ -8,6 +9,8 @@ import {
   ListWeeklyPlansQueryParams,
   ListWeeklyPlansResponse,
   UpdateWeeklyPlanResponse,
+  UpdateWeeklyPlanPrioritiesBody,
+  UpdateWeeklyPlanPrioritiesParams,
 } from "@workspace/api-zod";
 import { scoped, userIdFrom } from "../lib/scoped";
 
@@ -25,6 +28,7 @@ function serializePlan(plan: typeof weeklyPlansTable.$inferSelect) {
   return {
     ...plan,
     activePillarIds: (plan.activePillarIds ?? []).map(Number),
+    pillarPriorities: (plan.pillarPriorities ?? {}) as PillarPriorityMap,
     createdAt: plan.createdAt.toISOString(),
   };
 }
@@ -61,6 +65,7 @@ router.post("/weekly", async (req, res): Promise<void> => {
     whatContinues: parsed.data.whatContinues ?? null,
     whatToDeprioritize: parsed.data.whatToDeprioritize ?? null,
     nextWeekFocus: parsed.data.nextWeekFocus ?? null,
+    pillarPriorities: (parsed.data.pillarPriorities ?? {}) as PillarPriorityMap,
   })).returning();
 
   res.status(201).json(serializePlan(plan!));
@@ -91,6 +96,7 @@ router.patch("/weekly/:id", async (req, res): Promise<void> => {
   if (parsed.data.whatContinues !== undefined) updates.whatContinues = parsed.data.whatContinues;
   if (parsed.data.whatToDeprioritize !== undefined) updates.whatToDeprioritize = parsed.data.whatToDeprioritize;
   if (parsed.data.nextWeekFocus !== undefined) updates.nextWeekFocus = parsed.data.nextWeekFocus;
+  if (parsed.data.pillarPriorities !== undefined) updates.pillarPriorities = parsed.data.pillarPriorities;
 
   const s = scoped(userIdFrom(req));
   const [plan] = await db
@@ -105,6 +111,48 @@ router.patch("/weekly/:id", async (req, res): Promise<void> => {
   }
 
   res.json(UpdateWeeklyPlanResponse.parse(serializePlan(plan)));
+});
+
+// Per-week priority map: replaces the old pillars.priority concept with a
+// per-week, per-pillar priority. Upserts the plan row for the given weekKey
+// if it doesn't exist yet so the UI can write priorities before any other
+// weekly plan fields are filled in.
+router.patch("/weekly/:weekKey/priorities", async (req, res): Promise<void> => {
+  const paramsParsed = UpdateWeeklyPlanPrioritiesParams.safeParse(req.params);
+  if (!paramsParsed.success) {
+    res.status(400).json({ error: paramsParsed.error.message });
+    return;
+  }
+  const bodyParsed = UpdateWeeklyPlanPrioritiesBody.safeParse(req.body);
+  if (!bodyParsed.success) {
+    res.status(400).json({ error: bodyParsed.error.message });
+    return;
+  }
+
+  const s = scoped(userIdFrom(req));
+  const weekKey = paramsParsed.data.weekKey;
+  const pillarPriorities = bodyParsed.data.pillarPriorities as PillarPriorityMap;
+
+  const existing = await db.select().from(weeklyPlansTable)
+    .where(and(s.weeklyPlans.owns, eq(weeklyPlansTable.weekOf, weekKey)));
+
+  let plan: typeof weeklyPlansTable.$inferSelect | undefined;
+  if (existing.length === 0) {
+    [plan] = await db.insert(weeklyPlansTable).values(s.weeklyPlans.withUser({
+      weekOf: weekKey,
+      priorities: [],
+      activePillarIds: [],
+      pillarPriorities,
+    })).returning();
+  } else {
+    [plan] = await db
+      .update(weeklyPlansTable)
+      .set({ pillarPriorities })
+      .where(and(s.weeklyPlans.owns, eq(weeklyPlansTable.weekOf, weekKey)))
+      .returning();
+  }
+
+  res.json(UpdateWeeklyPlanResponse.parse(serializePlan(plan!)));
 });
 
 export default router;

@@ -1,5 +1,5 @@
-import { lazy, Suspense } from "react";
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { lazy, Suspense, useEffect } from "react";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,11 +8,11 @@ import { isClerkEnabled } from "@/lib/clerk-config";
 import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/clerk-react";
 
 const Dashboard = lazy(() => import("@/pages/dashboard"));
-const TodayPage = lazy(() => import("@/pages/today"));
 const WeeklyPage = lazy(() => import("@/pages/weekly"));
 const HistoryPage = lazy(() => import("@/pages/history"));
 const ReviewPage = lazy(() => import("@/pages/review"));
-const SettingsPage = lazy(() => import("@/pages/settings"));
+const PillarsPage = lazy(() => import("@/pages/pillars"));
+const ProfilePage = lazy(() => import("@/pages/profile"));
 const HomeModulePage = lazy(() => import("@/pages/home-module"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const SignInPage = lazy(() => import("@/pages/sign-in"));
@@ -26,18 +26,29 @@ function RouteFallback() {
   );
 }
 
+function SettingsRedirect() {
+  const [, navigate] = useLocation();
+  useEffect(() => {
+    navigate("/pillars", { replace: true });
+  }, [navigate]);
+  return <RouteFallback />;
+}
+
 function ProtectedAppRoutes() {
   return (
     <Layout>
       <Suspense fallback={<RouteFallback />}>
         <Switch>
           <Route path="/" component={Dashboard} />
-          <Route path="/today" component={TodayPage} />
           <Route path="/weekly" component={WeeklyPage} />
+          <Route path="/pillars" component={PillarsPage} />
           <Route path="/history" component={HistoryPage} />
-          <Route path="/home" component={HomeModulePage} />
+          <Route path="/profile" component={ProfilePage} />
+          {/* Secondary routes — kept accessible but not in primary nav */}
           <Route path="/review" component={ReviewPage} />
-          <Route path="/settings" component={SettingsPage} />
+          <Route path="/home" component={HomeModulePage} />
+          {/* Back-compat: /settings → /pillars (Phase 6 will remove). */}
+          <Route path="/settings" component={SettingsRedirect} />
           <Route component={NotFound} />
         </Switch>
       </Suspense>
@@ -70,9 +81,6 @@ function Router() {
   );
 }
 
-// Resolve the router base once. wouter expects either an absolute prefix
-// like "/app" or no prop at all when mounted at the domain root. Passing "/"
-// or "" can cause matching oddities.
 const rawBase = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
 
 function App() {

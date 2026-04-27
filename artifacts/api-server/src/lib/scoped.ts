@@ -6,7 +6,6 @@ import {
   weeklyPlansTable,
   monthlyReviewsTable,
   progressLogsTable,
-  dailyPlansTable,
 } from "@workspace/db/schema";
 
 /**
@@ -50,10 +49,6 @@ export function scoped(userId: string) {
     },
     progressLogs: {
       owns: eq(progressLogsTable.userId, userId),
-      withUser: <T extends Record<string, unknown>>(values: T) => ({ ...values, userId }),
-    },
-    dailyPlans: {
-      owns: eq(dailyPlansTable.userId, userId),
       withUser: <T extends Record<string, unknown>>(values: T) => ({ ...values, userId }),
     },
   };

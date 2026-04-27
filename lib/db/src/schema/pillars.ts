@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, boolean, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -7,9 +7,7 @@ export const pillarsTable = pgTable("pillars", {
   id: serial("id").primaryKey(),
   userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
-  priority: text("priority").notNull().default("P1"),
   description: text("description"),
-  isActiveThisWeek: boolean("is_active_this_week").notNull().default(true),
   color: text("color"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   // Phase 2 additions (all nullable, no destructive change)

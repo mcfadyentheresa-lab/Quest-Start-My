@@ -24,8 +24,6 @@ tags:
     description: Dashboard summary operations
   - name: monthly
     description: Monthly review operations
-  - name: daily
-    description: Daily planning operations
 paths:
   /healthz:
     get:
@@ -386,6 +384,32 @@ paths:
               schema:
                 $ref: "#/components/schemas/WeeklyPlan"
 
+  /weekly/{weekKey}/priorities:
+    patch:
+      operationId: updateWeeklyPlanPriorities
+      tags: [weekly]
+      summary: Set per-pillar priorities for the given week (upserts the plan if missing)
+      parameters:
+        - name: weekKey
+          in: path
+          required: true
+          schema:
+            type: string
+            description: Week start date in YYYY-MM-DD format (Monday)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWeeklyPlanPrioritiesBody"
+      responses:
+        "200":
+          description: Weekly plan with updated priorities
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklyPlan"
+
   /progress:
     get:
       operationId: listProgressLogs
@@ -576,80 +600,6 @@ paths:
                 $ref: "#/components/schemas/MonthlyReview"
         "404":
           description: Monthly review not found
-
-  /daily:
-    get:
-      operationId: listDailyPlans
-      tags: [daily]
-      summary: List daily plans
-      parameters:
-        - name: date
-          in: query
-          required: false
-          schema:
-            type: string
-            description: Date in YYYY-MM-DD format. When omitted, returns all plans newest first.
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-            description: Maximum number of plans to return when no date filter is applied
-      responses:
-        "200":
-          description: List of daily plans
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/DailyPlan"
-    post:
-      operationId: createDailyPlan
-      tags: [daily]
-      summary: Create a daily plan (409 if date already has a plan)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateDailyPlanBody"
-      responses:
-        "201":
-          description: Created daily plan
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DailyPlan"
-        "409":
-          description: A plan for this date already exists
-
-  /daily/{id}:
-    patch:
-      operationId: updateDailyPlan
-      tags: [daily]
-      summary: Update a daily plan
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateDailyPlanBody"
-      responses:
-        "200":
-          description: Updated daily plan
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DailyPlan"
-        "404":
-          description: Daily plan not found
 
 components:
   schemas:
@@ -865,14 +815,9 @@ components:
           type: integer
         name:
           type: string
-        priority:
-          type: string
-          enum: [P1, P2, P3, P4]
         description:
           type: string
           nullable: true
-        isActiveThisWeek:
-          type: boolean
         color:
           type: string
           nullable: true
@@ -915,23 +860,28 @@ components:
       required:
         - id
         - name
-        - priority
-        - isActiveThisWeek
         - createdAt
+
+    PillarWithPriority:
+      allOf:
+        - $ref: "#/components/schemas/Pillar"
+        - type: object
+          properties:
+            priority:
+              type: string
+              enum: [P1, P2, P3, P4]
+              description: Per-week priority resolved from the current weekly_plans.pillarPriorities (defaults to P4 when unset).
+          required:
+            - priority
 
     CreatePillarBody:
       type: object
       properties:
         name:
           type: string
-        priority:
-          type: string
-          enum: [P1, P2, P3, P4]
         description:
           type: string
           nullable: true
-        isActiveThisWeek:
-          type: boolean
         color:
           type: string
           nullable: true
@@ -950,22 +900,15 @@ components:
           description: Task category for this pillar
       required:
         - name
-        - priority
-        - isActiveThisWeek
 
     UpdatePillarBody:
       type: object
       properties:
         name:
           type: string
-        priority:
-          type: string
-          enum: [P1, P2, P3, P4]
         description:
           type: string
           nullable: true
-        isActiveThisWeek:
-          type: boolean
         color:
           type: string
           nullable: true
@@ -1156,6 +1099,13 @@ components:
         - originalTask
         - prerequisiteTask
 
+    PillarPriorities:
+      type: object
+      additionalProperties:
+        type: string
+        enum: [P1, P2, P3, P4]
+      description: Map of pillarId (string) to priority for this week.
+
     WeeklyPlan:
       type: object
       properties:
@@ -1200,12 +1150,15 @@ components:
         nextWeekFocus:
           type: string
           nullable: true
+        pillarPriorities:
+          $ref: "#/components/schemas/PillarPriorities"
       required:
         - id
         - weekOf
         - priorities
         - activePillarIds
         - createdAt
+        - pillarPriorities
 
     CreateWeeklyPlanBody:
       type: object
@@ -1247,6 +1200,8 @@ components:
         nextWeekFocus:
           type: string
           nullable: true
+        pillarPriorities:
+          $ref: "#/components/schemas/PillarPriorities"
       required:
         - weekOf
         - priorities
@@ -1290,6 +1245,16 @@ components:
         nextWeekFocus:
           type: string
           nullable: true
+        pillarPriorities:
+          $ref: "#/components/schemas/PillarPriorities"
+
+    UpdateWeeklyPlanPrioritiesBody:
+      type: object
+      properties:
+        pillarPriorities:
+          $ref: "#/components/schemas/PillarPriorities"
+      required:
+        - pillarPriorities
 
     ProgressLog:
       type: object
@@ -1337,7 +1302,7 @@ components:
         activePillars:
           type: array
           items:
-            $ref: "#/components/schemas/Pillar"
+            $ref: "#/components/schemas/PillarWithPriority"
         weeklyPlan:
           $ref: "#/components/schemas/WeeklyPlan"
           nullable: true
@@ -1700,44 +1665,3 @@ components:
         - date
         - taskTitle
 
-    DailyPlan:
-      type: object
-      properties:
-        id:
-          type: integer
-        date:
-          type: string
-          description: Date in YYYY-MM-DD format
-        priorities:
-          type: array
-          items:
-            type: string
-        createdAt:
-          type: string
-      required:
-        - id
-        - date
-        - priorities
-        - createdAt
-
-    CreateDailyPlanBody:
-      type: object
-      properties:
-        date:
-          type: string
-          description: Date in YYYY-MM-DD format
-        priorities:
-          type: array
-          items:
-            type: string
-      required:
-        - date
-        - priorities
-
-    UpdateDailyPlanBody:
-      type: object
-      properties:
-        priorities:
-          type: array
-          items:
-            type: string

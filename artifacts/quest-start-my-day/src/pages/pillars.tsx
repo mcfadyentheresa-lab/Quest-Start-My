@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useId } from "react";
+import { useState, useEffect, useId } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   useListPillars,
@@ -15,7 +15,6 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PillarSparklineWidget } from "@/components/pillar-sparkline";
-import { PriorityBadge } from "@/components/priority-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,7 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check, Trash2, GripVertical, AlertCircle, Volume2, VolumeX } from "lucide-react";
+import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check, Trash2, GripVertical, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useForm } from "react-hook-form";
@@ -73,7 +72,6 @@ const milestoneStatusStyles: Record<MilestoneStatus, string> = {
 
 interface PillarFormData {
   name: string;
-  priority: string;
   description: string;
   color: string;
   portfolioStatus: string;
@@ -111,7 +109,6 @@ function PillarForm({
   const { register, handleSubmit, setValue, watch } = useForm<PillarFormData>({
     defaultValues: {
       name: "",
-      priority: "P1",
       description: "",
       color: COLORS[0]!.hex,
       portfolioStatus: "Active",
@@ -126,7 +123,6 @@ function PillarForm({
       ...defaultValues,
     },
   });
-  const priority = watch("priority");
   const color = watch("color");
   const portfolioStatus = watch("portfolioStatus");
   const featureTag = watch("featureTag");
@@ -139,34 +135,19 @@ function PillarForm({
         <Input id={`${uid}-name`} {...register("name", { required: true })} placeholder="e.g. Aster & Spruce Connect" className="rounded-xl" />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label>Priority</Label>
-          <Select value={priority} onValueChange={v => setValue("priority", v)}>
-            <SelectTrigger className="rounded-xl">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="P1">P1 — Must move now</SelectItem>
-              <SelectItem value="P2">P2 — Important, not urgent</SelectItem>
-              <SelectItem value="P3">P3 — Warm / exploratory</SelectItem>
-              <SelectItem value="P4">P4 — Parked / inactive</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label>Portfolio status</Label>
-          <Select value={portfolioStatus} onValueChange={v => setValue("portfolioStatus", v)}>
-            <SelectTrigger className="rounded-xl">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Active">Active</SelectItem>
-              <SelectItem value="Warm">Warm</SelectItem>
-              <SelectItem value="Parked">Parked</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      <div className="space-y-1.5">
+        <Label>Portfolio status</Label>
+        <Select value={portfolioStatus} onValueChange={v => setValue("portfolioStatus", v)}>
+          <SelectTrigger className="rounded-xl">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Active">Active</SelectItem>
+            <SelectItem value="Warm">Warm</SelectItem>
+            <SelectItem value="Parked">Parked</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">Set this week's priority (P1–P4) inline on the Dashboard.</p>
       </div>
 
       <div className="space-y-1.5">
@@ -807,10 +788,8 @@ interface PillarCardProps {
   pillar: {
     id: number;
     name: string;
-    priority: string;
     description?: string | null;
     color?: string | null;
-    isActiveThisWeek: boolean;
     portfolioStatus?: string | null;
     featureTag?: string | null;
     category?: string | null;
@@ -843,7 +822,6 @@ function PillarCard({ pillar, onEdit, onStatusChange, editLoading, statusLoading
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-serif font-medium text-foreground">{pillar.name}</span>
-                <PriorityBadge priority={pillar.priority} />
                 <PortfolioStatusBadge
                   status={pillar.portfolioStatus}
                   onStatusSelect={(s) => onStatusChange(pillar.id, s)}
@@ -889,7 +867,6 @@ function PillarCard({ pillar, onEdit, onStatusChange, editLoading, statusLoading
                 <PillarForm
                   defaultValues={{
                     name: pillar.name,
-                    priority: pillar.priority,
                     description: pillar.description ?? "",
                     color: pillar.color ?? COLORS[0]!.hex,
                     portfolioStatus: pillar.portfolioStatus ?? "Active",
@@ -974,16 +951,7 @@ const P_LEGEND = [
   { level: "P4", label: "Parked / inactive", color: "bg-muted text-muted-foreground" },
 ];
 
-const FOCUS_DURATION_OPTIONS = [5, 10, 15, 25] as const;
-
-function readLocalBool(key: string, fallback: boolean): boolean {
-  try { const v = localStorage.getItem(key); return v === null ? fallback : v === "true"; } catch { return fallback; }
-}
-function readLocalInt(key: string, fallback: number): number {
-  try { const v = localStorage.getItem(key); if (!v) return fallback; const n = parseInt(v, 10); return isNaN(n) ? fallback : n; } catch { return fallback; }
-}
-
-export default function SettingsPage() {
+export default function PillarsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: pillars, isLoading } = useListPillars();
@@ -991,30 +959,12 @@ export default function SettingsPage() {
   const updatePillar = useUpdatePillar();
   const [addOpen, setAddOpen] = useState(false);
 
-  const [soundEnabled, setSoundEnabledState] = useState(() => readLocalBool("quest_sound_enabled", true));
-  const [defaultDuration, setDefaultDurationState] = useState(() => readLocalInt("quest_timer_duration_minutes", 25));
-
-  const toggleSound = useCallback(() => {
-    setSoundEnabledState(prev => {
-      const next = !prev;
-      try { localStorage.setItem("quest_sound_enabled", String(next)); } catch { }
-      return next;
-    });
-  }, []);
-
-  const setDuration = useCallback((d: number) => {
-    setDefaultDurationState(d);
-    try { localStorage.setItem("quest_timer_duration_minutes", String(d)); } catch { }
-  }, []);
-
   const handleCreate = (data: PillarFormData) => {
     createPillar.mutate(
       {
         data: {
           name: data.name,
-          priority: data.priority as "P1" | "P2" | "P3" | "P4",
           description: data.description || undefined,
-          isActiveThisWeek: data.portfolioStatus === "Active",
           color: data.color,
           portfolioStatus: data.portfolioStatus,
           featureTag: (data.featureTag as "personal" | "shared" | "sellable") || undefined,
@@ -1070,7 +1020,6 @@ export default function SettingsPage() {
         id,
         data: {
           name: data.name,
-          priority: data.priority as "P1" | "P2" | "P3" | "P4",
           description: data.description || undefined,
           color: data.color,
           portfolioStatus: data.portfolioStatus,
@@ -1186,72 +1135,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Focus reminders preferences */}
-      <motion.section
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl bg-card border border-card-border p-5 space-y-4"
-      >
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-0.5">Focus reminders</p>
-          <p className="text-xs text-muted-foreground">Optional timed focus blocks with a gentle nudge when time is up.</p>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-foreground">Sound reminders</p>
-            <p className="text-xs text-muted-foreground">Play a soft chime when your focus block ends</p>
-          </div>
-          <button
-            onClick={toggleSound}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
-              soundEnabled ? "bg-violet-600" : "bg-muted"
-            }`}
-            role="switch"
-            aria-checked={soundEnabled}
-            aria-label="Toggle sound reminders"
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                soundEnabled ? "translate-x-6" : "translate-x-1"
-              }`}
-            />
-          </button>
-        </div>
-
-        <div>
-          <p className="text-sm font-medium text-foreground mb-2">Default focus duration</p>
-          <div className="flex gap-2 flex-wrap">
-            {FOCUS_DURATION_OPTIONS.map(d => (
-              <button
-                key={d}
-                onClick={() => setDuration(d)}
-                className={`text-sm px-4 py-1.5 rounded-full border transition-colors font-medium ${
-                  defaultDuration === d
-                    ? "bg-violet-100 border-violet-400 text-violet-700 dark:bg-violet-900/40 dark:border-violet-500 dark:text-violet-300"
-                    : "border-border text-muted-foreground hover:border-violet-300 hover:text-violet-600"
-                }`}
-                aria-pressed={defaultDuration === d}
-              >
-                {d} min
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1.5 pt-1">
-          {soundEnabled ? (
-            <Volume2 className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
-          ) : (
-            <VolumeX className="h-3.5 w-3.5 text-muted-foreground" />
-          )}
-          <p className="text-xs text-muted-foreground">
-            {soundEnabled
-              ? `Sound on · ${defaultDuration}-min default · Browser must allow audio after first interaction`
-              : `Sound off · ${defaultDuration}-min default · Visual reminder only`}
-          </p>
-        </div>
-      </motion.section>
     </div>
   );
 }

@@ -35,9 +35,7 @@ router.post("/pillars", async (req, res): Promise<void> => {
   const s = scoped(userIdFrom(req));
   const [pillar] = await db.insert(pillarsTable).values(s.pillars.withUser({
     name: parsed.data.name,
-    priority: parsed.data.priority,
     description: parsed.data.description ?? null,
-    isActiveThisWeek: parsed.data.isActiveThisWeek,
     color: parsed.data.color ?? null,
     portfolioStatus: parsed.data.portfolioStatus ?? null,
     featureTag: parsed.data.featureTag ?? null,
@@ -62,9 +60,7 @@ router.patch("/pillars/:id", async (req, res): Promise<void> => {
 
   const updates: Record<string, unknown> = {};
   if (parsed.data.name !== undefined) updates.name = parsed.data.name;
-  if (parsed.data.priority !== undefined) updates.priority = parsed.data.priority;
   if (parsed.data.description !== undefined) updates.description = parsed.data.description;
-  if (parsed.data.isActiveThisWeek !== undefined) updates.isActiveThisWeek = parsed.data.isActiveThisWeek;
   if (parsed.data.color !== undefined) updates.color = parsed.data.color;
   if (parsed.data.portfolioStatus !== undefined) updates.portfolioStatus = parsed.data.portfolioStatus;
   if (parsed.data.currentStage !== undefined) updates.currentStage = parsed.data.currentStage;

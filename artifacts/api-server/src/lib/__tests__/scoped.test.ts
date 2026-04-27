@@ -18,7 +18,6 @@ describe("scoped(userId)", () => {
       "weeklyPlans",
       "monthlyReviews",
       "progressLogs",
-      "dailyPlans",
     ] as const) {
       expect(s[key].owns, `missing owns for ${key}`).toBeDefined();
       expect(typeof s[key].withUser, `missing withUser for ${key}`).toBe("function");
@@ -68,7 +67,6 @@ describe("scoped(userId)", () => {
       "weeklyPlans",
       "monthlyReviews",
       "progressLogs",
-      "dailyPlans",
     ] as const) {
       const sql = dialect.sqlToQuery(s[key].owns);
       expect(sql.params, `${key} predicate must bind the userId`).toContain("user_a");

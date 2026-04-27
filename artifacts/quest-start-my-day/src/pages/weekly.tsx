@@ -5,7 +5,6 @@ import {
   useCreateWeeklyPlan,
   useUpdateWeeklyPlan,
   useListPillars,
-  useUpdatePillar,
   useGetDashboardSummary,
   getListWeeklyPlansQueryKey,
   getListPillarsQueryKey,
@@ -50,9 +49,13 @@ export default function WeeklyPage() {
 
   const createPlan = useCreateWeeklyPlan();
   const updatePlan = useUpdateWeeklyPlan();
-  const updatePillar = useUpdatePillar();
 
   const existingPlan = weeklyPlans?.[0];
+  const activePillarIdsFromPlan = (existingPlan?.activePillarIds ?? []) as number[];
+  const isPillarActive = (pillarId: number) => activePillarIdsFromPlan.includes(pillarId);
+  const pillarPriorityMap = (existingPlan?.pillarPriorities ?? {}) as Record<string, "P1" | "P2" | "P3" | "P4">;
+  const priorityFor = (pillarId: number): "P1" | "P2" | "P3" | "P4" =>
+    pillarPriorityMap[String(pillarId)] ?? "P4";
 
   const [priorities, setPriorities] = useState<string[]>([""]);
   const [healthFocus, setHealthFocus] = useState("");
@@ -120,7 +123,7 @@ export default function WeeklyPage() {
             whatContinues: whatContinues || undefined,
             whatToDeprioritize: whatToDeprioritize || undefined,
             nextWeekFocus: nextWeekFocus || undefined,
-            activePillarIds: pillars?.filter(p => p.isActiveThisWeek).map(p => p.id) ?? [],
+            activePillarIds: pillars?.map(p => p.id) ?? [],
           },
         });
       }
@@ -135,15 +138,31 @@ export default function WeeklyPage() {
   };
 
   const togglePillarActive = async (pillarId: number, currentlyActive: boolean) => {
-    await updatePillar.mutateAsync(
-      { id: pillarId, data: { isActiveThisWeek: !currentlyActive } },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListPillarsQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-        },
+    const nextIds = currentlyActive
+      ? activePillarIdsFromPlan.filter(id => id !== pillarId)
+      : [...activePillarIdsFromPlan, pillarId];
+
+    try {
+      if (existingPlan) {
+        await updatePlan.mutateAsync({
+          id: existingPlan.id,
+          data: { activePillarIds: nextIds },
+        });
+      } else {
+        await createPlan.mutateAsync({
+          data: {
+            weekOf,
+            priorities: [],
+            activePillarIds: nextIds,
+          },
+        });
       }
-    );
+      queryClient.invalidateQueries({ queryKey: getListWeeklyPlansQueryKey({ weekOf }) });
+      queryClient.invalidateQueries({ queryKey: getListPillarsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+    } catch {
+      toast({ title: "Failed to update active pillars", variant: "destructive" });
+    }
   };
 
   if (plansLoading || pillarsLoading) {
@@ -177,39 +196,42 @@ export default function WeeklyPage() {
       <section>
         <h2 className="font-serif text-base font-medium text-foreground mb-3">Active pillars</h2>
         <div className="space-y-2">
-          {pillars?.map(pillar => (
-            <div
-              key={pillar.id}
-              className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
-                pillar.isActiveThisWeek
-                  ? "bg-card border-primary/30"
-                  : "bg-muted/30 border-border opacity-60"
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                {pillar.color && (
-                  <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: pillar.color }} />
-                )}
-                <div>
-                  <span className="text-sm font-medium text-foreground">{pillar.name}</span>
-                  {pillar.description && <p className="text-xs text-muted-foreground mt-0.5">{pillar.description}</p>}
-                </div>
-                <PriorityBadge priority={pillar.priority} />
-              </div>
-              <button
-                onClick={() => togglePillarActive(pillar.id, pillar.isActiveThisWeek)}
-                className={`h-9 w-9 rounded-full flex items-center justify-center border-2 transition-all ${
-                  pillar.isActiveThisWeek
-                    ? "bg-primary border-primary text-primary-foreground"
-                    : "bg-transparent border-border text-muted-foreground"
+          {pillars?.map(pillar => {
+            const active = isPillarActive(pillar.id);
+            return (
+              <div
+                key={pillar.id}
+                className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
+                  active
+                    ? "bg-card border-primary/30"
+                    : "bg-muted/30 border-border opacity-60"
                 }`}
-                aria-label={pillar.isActiveThisWeek ? `Deactivate ${pillar.name} this week` : `Activate ${pillar.name} this week`}
-                aria-pressed={pillar.isActiveThisWeek}
               >
-                {pillar.isActiveThisWeek && <Check className="h-4 w-4" />}
-              </button>
-            </div>
-          ))}
+                <div className="flex items-center gap-2.5">
+                  {pillar.color && (
+                    <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: pillar.color }} />
+                  )}
+                  <div>
+                    <span className="text-sm font-medium text-foreground">{pillar.name}</span>
+                    {pillar.description && <p className="text-xs text-muted-foreground mt-0.5">{pillar.description}</p>}
+                  </div>
+                  <PriorityBadge priority={priorityFor(pillar.id)} />
+                </div>
+                <button
+                  onClick={() => togglePillarActive(pillar.id, active)}
+                  className={`h-9 w-9 rounded-full flex items-center justify-center border-2 transition-all ${
+                    active
+                      ? "bg-primary border-primary text-primary-foreground"
+                      : "bg-transparent border-border text-muted-foreground"
+                  }`}
+                  aria-label={active ? `Deactivate ${pillar.name} this week` : `Activate ${pillar.name} this week`}
+                  aria-pressed={active}
+                >
+                  {active && <Check className="h-4 w-4" />}
+                </button>
+              </div>
+            );
+          })}
         </div>
       </section>
 

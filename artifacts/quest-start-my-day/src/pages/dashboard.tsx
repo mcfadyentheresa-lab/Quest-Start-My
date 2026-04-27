@@ -8,12 +8,13 @@ import {
   useCreateTask,
   useListPillars,
   useGetTaskSuggestions,
-  useListDailyPlans,
+  useUpdateWeeklyPlanPriorities,
   getListTasksQueryKey,
   getGetDashboardSummaryQueryKey,
   getGetReentryTaskQueryKey,
   getGetTaskSuggestionsQueryKey,
-  getListDailyPlansQueryKey,
+  getListWeeklyPlansQueryKey,
+  type PillarWithPriorityPriority,
 } from "@workspace/api-client-react";
 import { TaskCard } from "@/components/task-card";
 import { ProgressSummary } from "@/components/progress-summary";
@@ -27,7 +28,17 @@ import { Button } from "@/components/ui/button";
 import { Plus, Sprout, ArrowRight, CheckCircle2, ExternalLink, CalendarDays, Timer, Lightbulb, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useSearch, useLocation, Link } from "wouter";
+import { useSearch, useLocation } from "wouter";
+
+const PRIORITY_LEVELS: PillarWithPriorityPriority[] = ["P1", "P2", "P3", "P4"];
+
+function getWeekStart(date: Date = new Date()): string {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  return d.toISOString().slice(0, 10);
+}
 
 const FOCUS_DURATIONS = [5, 10, 15, 25] as const;
 
@@ -59,11 +70,8 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: dailyPlans } = useListDailyPlans(
-    { date: today },
-    { query: { queryKey: getListDailyPlansQueryKey({ date: today }), enabled: !isViewingHistory } }
-  );
-  const todayPlan = dailyPlans?.[0];
+  const weekOf = getWeekStart();
+  const updatePriorities = useUpdateWeeklyPlanPriorities();
 
   const timer = useFocusTimer();
   const [selectedFocusDuration, setSelectedFocusDuration] = useState<number>(() => timer.defaultDuration);
@@ -385,8 +393,8 @@ export default function Dashboard() {
         </motion.section>
       )}
 
-      {/* Daily plan priorities */}
-      {!isViewingHistory && (
+      {/* Per-pillar priorities for this week (sourced from weekly_plans.pillarPriorities) */}
+      {!isViewingHistory && summary?.activePillars && summary.activePillars.length > 0 && (
         <motion.section
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -394,31 +402,64 @@ export default function Dashboard() {
           className="rounded-2xl bg-card border border-card-border p-5 space-y-3"
         >
           <div className="flex items-center justify-between">
-            <h2 className="font-serif text-base font-medium text-foreground">Today's top priorities</h2>
-            <Link href="/today">
-              <button className="text-xs text-primary hover:underline">
-                {todayPlan && todayPlan.priorities.length > 0 ? "Edit" : "Set priorities"}
-              </button>
-            </Link>
+            <h2 className="font-serif text-base font-medium text-foreground">Today's priorities</h2>
+            <span className="text-xs text-muted-foreground">Week of {weekOf}</span>
           </div>
-          {todayPlan && todayPlan.priorities.length > 0 ? (
-            <ol className="space-y-2">
-              {todayPlan.priorities.map((p, i) => (
-                <li key={i} className="flex items-start gap-2.5">
-                  <span className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold flex items-center justify-center mt-0.5">
-                    {i + 1}
-                  </span>
-                  <p className="text-sm text-foreground leading-snug">{p}</p>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <Link href="/today">
-              <button className="w-full rounded-xl border border-dashed border-border py-4 text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors">
-                Tap to set your priorities for today →
-              </button>
-            </Link>
-          )}
+          <p className="text-xs text-muted-foreground">
+            Set this week's priority on each active pillar. P1 = must move now · P4 = parked.
+          </p>
+          <div className="space-y-2">
+            {summary.activePillars.map(pillar => {
+              const current = (pillar.priority ?? "P4") as PillarWithPriorityPriority;
+              const currentMap = (summary.weeklyPlan?.pillarPriorities ?? {}) as Record<string, PillarWithPriorityPriority>;
+              const handleChange = (next: PillarWithPriorityPriority) => {
+                if (next === current) return;
+                const merged: Record<string, PillarWithPriorityPriority> = { ...currentMap };
+                merged[String(pillar.id)] = next;
+                updatePriorities.mutate(
+                  { weekKey: weekOf, data: { pillarPriorities: merged } },
+                  {
+                    onSuccess: () => {
+                      queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+                      queryClient.invalidateQueries({ queryKey: getListWeeklyPlansQueryKey({ weekOf }) });
+                    },
+                    onError: () => toast({ title: "Couldn't update priority", variant: "destructive" }),
+                  }
+                );
+              };
+              return (
+                <div key={pillar.id} className="flex items-center justify-between gap-3 py-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {pillar.color && (
+                      <span
+                        className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: pillar.color }}
+                      />
+                    )}
+                    <span className="text-sm font-medium text-foreground truncate">{pillar.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {PRIORITY_LEVELS.map(level => (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() => handleChange(level)}
+                        disabled={updatePriorities.isPending}
+                        aria-pressed={current === level}
+                        className={`text-xs font-bold px-2 py-1 rounded-full border transition-colors ${
+                          current === level
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
+                        }`}
+                      >
+                        {level}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </motion.section>
       )}
 

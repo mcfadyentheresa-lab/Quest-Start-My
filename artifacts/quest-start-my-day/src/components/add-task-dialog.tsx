@@ -70,7 +70,8 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
     }
   );
 
-  const activePillars = pillars?.filter(p => p.isActiveThisWeek) ?? [];
+  const activePillarIds = new Set(summary?.activePillars?.map(p => p.id) ?? []);
+  const activePillars = pillars?.filter(p => activePillarIds.has(p.id)) ?? [];
 
   const activeMilestones = milestones?.filter(m => m.status !== "complete" && m.status !== "blocked") ?? [];
 

@@ -1,25 +1,21 @@
-import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useTheme } from "next-themes";
-import { Sun, Moon, LayoutDashboard, Calendar, CalendarDays, History, Settings, BookOpen, Home } from "lucide-react";
+import { Sun, Moon, LayoutDashboard, Calendar, History, User, Sprout } from "lucide-react";
 import { UserButton } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { isClerkEnabled } from "@/lib/clerk-config";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/today", label: "Today", icon: CalendarDays },
   { href: "/weekly", label: "This Week", icon: Calendar },
+  { href: "/pillars", label: "Pillars", icon: Sprout },
   { href: "/history", label: "History", icon: History },
-  { href: "/home", label: "Home", icon: Home },
-  { href: "/review", label: "Month", icon: BookOpen },
-  { href: "/settings", label: "Pillars", icon: Settings },
+  { href: "/profile", label: "Profile", icon: User },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { theme, setTheme } = useTheme();
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

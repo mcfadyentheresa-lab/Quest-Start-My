@@ -1,7 +1,10 @@
-import { pgTable, text, serial, timestamp, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, unique, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
+
+export type PillarPriority = "P1" | "P2" | "P3" | "P4";
+export type PillarPriorityMap = Record<string, PillarPriority>;
 
 export const weeklyPlansTable = pgTable("weekly_plans", {
   id: serial("id").primaryKey(),
@@ -21,6 +24,7 @@ export const weeklyPlansTable = pgTable("weekly_plans", {
   // Phase 3 additions
   whatToDeprioritize: text("what_to_deprioritize"),
   nextWeekFocus: text("next_week_focus"),
+  pillarPriorities: jsonb("pillar_priorities").$type<PillarPriorityMap>().notNull().default({}),
 }, (t) => [
   unique("weekly_plans_user_id_week_of_unique").on(t.userId, t.weekOf),
 ]);

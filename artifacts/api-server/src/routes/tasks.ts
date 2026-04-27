@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
-import { eq, and, isNull } from "drizzle-orm";
-import { db, tasksTable, progressLogsTable, pillarsTable, milestonesTable } from "@workspace/db";
+import { eq, and, isNull, inArray } from "drizzle-orm";
+import { db, tasksTable, progressLogsTable, pillarsTable, milestonesTable, weeklyPlansTable } from "@workspace/db";
+import type { PillarPriorityMap } from "@workspace/db";
 import {
   CreateTaskBody,
   UpdateTaskBody,
@@ -17,6 +18,14 @@ import { scoped, userIdFrom } from "../lib/scoped";
 const router: IRouter = Router();
 
 const MAX_STEP_BACK_DEPTH = 3;
+
+function getWeekStart(date: Date = new Date()): string {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  return d.toISOString().slice(0, 10);
+}
 
 interface GeneratedTask {
   title: string;
@@ -128,12 +137,33 @@ router.get("/tasks/suggestions", async (req, res): Promise<void> => {
   const today = new Date().toISOString().slice(0, 10);
   const date = queryResult.data.date ?? today;
 
-  // Active pillars ordered by priority (P1 first), then id
-  const activePillars = await db
+  // Active pillars: source of truth is weekly_plans.activePillarIds for the
+  // current week. Priority is per-week and lives in weekly_plans.pillarPriorities.
+  const weekOf = getWeekStart();
+  const [weeklyPlan] = await db
+    .select()
+    .from(weeklyPlansTable)
+    .where(and(s.weeklyPlans.owns, eq(weeklyPlansTable.weekOf, weekOf)));
+
+  const activePillarIdsFromPlan = (weeklyPlan?.activePillarIds ?? []).map(Number).filter(Number.isFinite);
+  if (activePillarIdsFromPlan.length === 0) {
+    res.json([]);
+    return;
+  }
+
+  const allPillars = await db
     .select()
     .from(pillarsTable)
-    .where(and(s.pillars.owns, eq(pillarsTable.isActiveThisWeek, true)))
-    .orderBy(pillarsTable.priority, pillarsTable.id);
+    .where(and(s.pillars.owns, inArray(pillarsTable.id, activePillarIdsFromPlan)));
+
+  const priorityMap: PillarPriorityMap = (weeklyPlan?.pillarPriorities ?? {}) as PillarPriorityMap;
+  const priorityRank: Record<string, number> = { P1: 1, P2: 2, P3: 3, P4: 4 };
+  const activePillars = [...allPillars].sort((a, b) => {
+    const ap = priorityRank[priorityMap[String(a.id)] ?? "P4"] ?? 4;
+    const bp = priorityRank[priorityMap[String(b.id)] ?? "P4"] ?? 4;
+    if (ap !== bp) return ap - bp;
+    return a.id - b.id;
+  });
 
   if (activePillars.length === 0) {
     res.json([]);
@@ -157,7 +187,7 @@ router.get("/tasks/suggestions", async (req, res): Promise<void> => {
   }
 
   // Planned milestones for all active pillars, ordered by sort_order then id
-  const activePillarIds = activePillars.map(p => p.id);
+  const activePillarIdsLocal = activePillars.map(p => p.id);
   const allMilestones = await db
     .select()
     .from(milestonesTable)
@@ -166,7 +196,7 @@ router.get("/tasks/suggestions", async (req, res): Promise<void> => {
 
   const milestonesByPillar = new Map<number, typeof allMilestones>();
   for (const m of allMilestones) {
-    if (!activePillarIds.includes(m.pillarId)) continue;
+    if (!activePillarIdsLocal.includes(m.pillarId)) continue;
     if (!milestonesByPillar.has(m.pillarId)) milestonesByPillar.set(m.pillarId, []);
     milestonesByPillar.get(m.pillarId)!.push(m);
   }

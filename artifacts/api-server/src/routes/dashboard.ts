@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, gte, lte, lt, desc, asc } from "drizzle-orm";
 import { db, tasksTable, pillarsTable, weeklyPlansTable, progressLogsTable, milestonesTable } from "@workspace/db";
+import type { PillarPriorityMap } from "@workspace/db";
 import {
   GetDashboardSummaryResponse,
   GetWeekSummaryResponse,
@@ -66,18 +67,28 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
   const blockedCount = todayTasks.filter(t => t.status === "blocked").length;
   const pendingCount = todayTasks.filter(t => t.status === "pending").length;
 
-  const activePillars = allPillars.filter(p => p.isActiveThisWeek);
   const weeklyPlan = weeklyPlans[0] ?? null;
   const planningStreak = computePlanningStreak(allWeeklyPlans, weekOf);
 
+  const activePillarIdSet = new Set(
+    (weeklyPlan?.activePillarIds ?? []).map(id => Number(id)).filter(n => Number.isFinite(n)),
+  );
+  const activePillars = allPillars.filter(p => activePillarIdSet.has(p.id));
+
+  const priorityMap: PillarPriorityMap = (weeklyPlan?.pillarPriorities ?? {}) as PillarPriorityMap;
+  const priorityFor = (pillarId: number): "P1" | "P2" | "P3" | "P4" =>
+    (priorityMap[String(pillarId)] ?? "P4") as "P1" | "P2" | "P3" | "P4";
+
   const serializePillar = (p: typeof allPillars[0]) => ({
     ...p,
+    priority: priorityFor(p.id),
     createdAt: p.createdAt.toISOString(),
   });
 
   const serializePlan = (p: typeof weeklyPlan) => p ? {
     ...p,
     activePillarIds: (p.activePillarIds ?? []).map(Number),
+    pillarPriorities: (p.pillarPriorities ?? {}) as PillarPriorityMap,
     createdAt: p.createdAt.toISOString(),
   } : null;
 
@@ -370,7 +381,7 @@ router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
   // Derive month start from the selected week's start date
   const monthStart = weekOf.slice(0, 7) + "-01";
 
-  const [weekTasks, pillars, allMilestones] = await Promise.all([
+  const [weekTasks, pillars, allMilestones, weeklyPlanRow] = await Promise.all([
     db.select().from(tasksTable).where(and(
       s.tasks.owns,
       gte(tasksTable.date, weekOf),
@@ -378,7 +389,10 @@ router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
     )),
     db.select().from(pillarsTable).where(s.pillars.owns).orderBy(pillarsTable.id),
     db.select().from(milestonesTable).where(s.milestones.owns),
+    db.select().from(weeklyPlansTable).where(and(s.weeklyPlans.owns, eq(weeklyPlansTable.weekOf, weekOf))),
   ]);
+  const weeklyPlanForMetrics = weeklyPlanRow[0];
+  const priorityMapForMetrics: PillarPriorityMap = (weeklyPlanForMetrics?.pillarPriorities ?? {}) as PillarPriorityMap;
 
   // Milestones completed this week: status=complete AND createdAt within this week
   const milestonesCompletedThisWeek = allMilestones.filter(m => {
@@ -417,8 +431,13 @@ router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
     return { pillarId: pillar.id, pillarName: pillar.name, completionRate, doneCount, totalCount, blockedCount, passedCount };
   });
 
-  // P1 vs Warm/Parked effort ratio this week
-  const p1PillarIds = new Set(pillars.filter(p => p.priority === "P1").map(p => p.id));
+  // P1 vs Warm/Parked effort ratio this week. Per-week priority is sourced
+  // from weekly_plans.pillarPriorities (Phase 3 onwards).
+  const p1PillarIds = new Set(
+    pillars
+      .filter(p => priorityMapForMetrics[String(p.id)] === "P1")
+      .map(p => p.id),
+  );
   const warmParkedPillarIds = new Set(pillars.filter(p => p.portfolioStatus === "Warm" || p.portfolioStatus === "Parked").map(p => p.id));
   const p1CompletedThisWeek = weekTasks.filter(t => t.status === "done" && t.pillarId !== null && p1PillarIds.has(t.pillarId!)).length;
   const warmParkedCompletedThisWeek = weekTasks.filter(t => t.status === "done" && t.pillarId !== null && warmParkedPillarIds.has(t.pillarId!)).length;
