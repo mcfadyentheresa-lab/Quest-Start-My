@@ -1,16 +1,34 @@
 # Custom Nixpacks config for this pnpm workspace monorepo.
-# The repo has no pnpm-lock.yaml at the root, so the default
-# `pnpm i --frozen-lockfile` fails. Override install, build, and start
-# phases to skip the frozen lockfile check.
+#
+# Root cause of the previous deploy failures:
+# Nixpacks' default Node/pnpm provider only stages `package.json` +
+# `pnpm-lock.yaml` into the install layer for caching. It does NOT copy
+# `pnpm-workspace.yaml` or the per-workspace `package.json` files. When
+# `pnpm install` ran without those files visible, pnpm fell back to a plain
+# (non-workspace) install at the repo root and only installed the two root
+# devDependencies (typescript, prettier) — finishing in ~500ms. Workspace
+# packages like `artifacts/quest-start-my-day` (which owns `vite`) were
+# never installed, so the build phase failed with `sh: 1: vite: not found`.
+#
+# Fix: tell Nixpacks to copy the whole repo before the install phase runs
+# (`paths = ["."]`) so pnpm sees `pnpm-workspace.yaml` and every workspace
+# `package.json`, then install the entire workspace in one go.
 
 [phases.setup]
 nixPkgs = ["nodejs_24", "pnpm-9_x"]
 
 [phases.install]
+# Copy the full repo into the install layer before running install. Without
+# this, Nixpacks only stages the root package.json + lockfile and pnpm
+# installs only root devDeps (no vite, no workspace packages).
+paths = ["."]
 cmds = [
   "npm install -g corepack@0.31.0",
   "corepack enable",
-  "pnpm install --no-frozen-lockfile && pnpm -r install --no-frozen-lockfile",
+  # NODE_ENV=development forces pnpm to install devDependencies even when
+  # Railway sets NODE_ENV=production in the build environment. vite and
+  # the other build-time tools live in devDependencies.
+  "NODE_ENV=development pnpm install --no-frozen-lockfile",
 ]
 
 [phases.build]
