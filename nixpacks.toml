@@ -10,7 +10,7 @@ nixPkgs = ["nodejs_24", "pnpm-9_x"]
 cmds = [
   "npm install -g corepack@0.31.0",
   "corepack enable",
-  "pnpm install --no-frozen-lockfile",
+  "pnpm install --no-frozen-lockfile && pnpm -r install --no-frozen-lockfile",
 ]
 
 [phases.build]
