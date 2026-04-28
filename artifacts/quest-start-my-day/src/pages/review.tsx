@@ -430,7 +430,7 @@ export default function ReviewPage() {
                     <Textarea
                       id="review-areas-advanced"
                       {...register("areasAdvanced")}
-                      placeholder="Which projects or areas made meaningful strides?"
+                      placeholder="Which areas made meaningful strides?"
                       className="rounded-xl resize-none"
                       rows={2}
                     />
