@@ -3,6 +3,7 @@ import { useLocation, Link } from "wouter";
 import { useTheme } from "next-themes";
 import { Sun, Moon, LayoutDashboard, Calendar, CalendarDays, History, Settings, BookOpen, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FocusTimerHeaderPill } from "@/components/focus-timer-header-pill";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -29,7 +30,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <span className="text-muted-foreground text-sm hidden sm:inline">Start My Day</span>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
+            <FocusTimerHeaderPill />
             <Button
               variant="ghost"
               size="icon"
