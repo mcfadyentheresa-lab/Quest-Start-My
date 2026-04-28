@@ -4,11 +4,11 @@ import {
   useListWeeklyPlans,
   useCreateWeeklyPlan,
   useUpdateWeeklyPlan,
-  useListPillars,
-  useUpdatePillar,
+  useListAreas,
+  useUpdateArea,
   useGetDashboardSummary,
   getListWeeklyPlansQueryKey,
-  getListPillarsQueryKey,
+  getListAreasQueryKey,
   getGetDashboardSummaryQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -45,12 +45,12 @@ export default function WeeklyPage() {
     { weekOf },
     { query: { queryKey: getListWeeklyPlansQueryKey({ weekOf }) } }
   );
-  const { data: pillars, isLoading: pillarsLoading } = useListPillars();
+  const { data: areas, isLoading: areasLoading } = useListAreas();
   const { data: dashboardSummary } = useGetDashboardSummary();
 
   const createPlan = useCreateWeeklyPlan();
   const updatePlan = useUpdateWeeklyPlan();
-  const updatePillar = useUpdatePillar();
+  const updateArea = useUpdateArea();
 
   const existingPlan = weeklyPlans?.[0];
 
@@ -120,7 +120,7 @@ export default function WeeklyPage() {
             whatContinues: whatContinues || undefined,
             whatToDeprioritize: whatToDeprioritize || undefined,
             nextWeekFocus: nextWeekFocus || undefined,
-            activePillarIds: pillars?.filter(p => p.isActiveThisWeek).map(p => p.id) ?? [],
+            areaPriorities: areas?.filter(p => p.isActiveThisWeek).map(p => p.id) ?? [],
           },
         });
       }
@@ -134,19 +134,19 @@ export default function WeeklyPage() {
     }
   };
 
-  const togglePillarActive = async (pillarId: number, currentlyActive: boolean) => {
-    await updatePillar.mutateAsync(
-      { id: pillarId, data: { isActiveThisWeek: !currentlyActive } },
+  const toggleAreaActive = async (areaId: number, currentlyActive: boolean) => {
+    await updateArea.mutateAsync(
+      { id: areaId, data: { isActiveThisWeek: !currentlyActive } },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListPillarsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListAreasQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
         },
       }
     );
   };
 
-  if (plansLoading || pillarsLoading) {
+  if (plansLoading || areasLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-48 rounded-xl" />
@@ -173,40 +173,40 @@ export default function WeeklyPage() {
         )}
       </motion.div>
 
-      {/* Active pillars */}
+      {/* Active areas */}
       <section>
-        <h2 className="font-serif text-base font-medium text-foreground mb-3">Active pillars</h2>
+        <h2 className="font-serif text-base font-medium text-foreground mb-3">Active areas</h2>
         <div className="space-y-2">
-          {pillars?.map(pillar => (
+          {areas?.map(area => (
             <div
-              key={pillar.id}
+              key={area.id}
               className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
-                pillar.isActiveThisWeek
+                area.isActiveThisWeek
                   ? "bg-card border-primary/30"
                   : "bg-muted/30 border-border opacity-60"
               }`}
             >
               <div className="flex items-center gap-2.5">
-                {pillar.color && (
-                  <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: pillar.color }} />
+                {area.color && (
+                  <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: area.color }} />
                 )}
                 <div>
-                  <span className="text-sm font-medium text-foreground">{pillar.name}</span>
-                  {pillar.description && <p className="text-xs text-muted-foreground mt-0.5">{pillar.description}</p>}
+                  <span className="text-sm font-medium text-foreground">{area.name}</span>
+                  {area.description && <p className="text-xs text-muted-foreground mt-0.5">{area.description}</p>}
                 </div>
-                <PriorityBadge priority={pillar.priority} />
+                <PriorityBadge priority={area.priority} />
               </div>
               <button
-                onClick={() => togglePillarActive(pillar.id, pillar.isActiveThisWeek)}
+                onClick={() => toggleAreaActive(area.id, area.isActiveThisWeek)}
                 className={`h-9 w-9 rounded-full flex items-center justify-center border-2 transition-all ${
-                  pillar.isActiveThisWeek
+                  area.isActiveThisWeek
                     ? "bg-primary border-primary text-primary-foreground"
                     : "bg-transparent border-border text-muted-foreground"
                 }`}
-                aria-label={pillar.isActiveThisWeek ? `Deactivate ${pillar.name} this week` : `Activate ${pillar.name} this week`}
-                aria-pressed={pillar.isActiveThisWeek}
+                aria-label={area.isActiveThisWeek ? `Deactivate ${area.name} this week` : `Activate ${area.name} this week`}
+                aria-pressed={area.isActiveThisWeek}
               >
-                {pillar.isActiveThisWeek && <Check className="h-4 w-4" />}
+                {area.isActiveThisWeek && <Check className="h-4 w-4" />}
               </button>
             </div>
           ))}

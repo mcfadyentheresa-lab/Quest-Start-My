@@ -10,10 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
-  - name: pillars
-    description: Project pillar operations
+  - name: areas
+    description: Project area operations
   - name: milestones
-    description: Pillar milestone operations
+    description: Area milestone operations
   - name: tasks
     description: Daily task operations
   - name: weekly
@@ -40,43 +40,43 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
-  /pillars:
+  /areas:
     get:
-      operationId: listPillars
-      tags: [pillars]
-      summary: List all project pillars
+      operationId: listAreas
+      tags: [areas]
+      summary: List all project areas
       responses:
         "200":
-          description: List of pillars
+          description: List of areas
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Pillar"
+                  $ref: "#/components/schemas/Area"
     post:
-      operationId: createPillar
-      tags: [pillars]
-      summary: Create a new pillar
+      operationId: createArea
+      tags: [areas]
+      summary: Create a new area
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreatePillarBody"
+              $ref: "#/components/schemas/CreateAreaBody"
       responses:
         "201":
-          description: Created pillar
+          description: Created area
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Pillar"
+                $ref: "#/components/schemas/Area"
 
-  /pillars/{id}:
+  /areas/{id}:
     patch:
-      operationId: updatePillar
-      tags: [pillars]
-      summary: Update a pillar
+      operationId: updateArea
+      tags: [areas]
+      summary: Update a area
       parameters:
         - name: id
           in: path
@@ -88,22 +88,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdatePillarBody"
+              $ref: "#/components/schemas/UpdateAreaBody"
       responses:
         "200":
-          description: Updated pillar
+          description: Updated area
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Pillar"
+                $ref: "#/components/schemas/Area"
 
   /milestones:
     get:
       operationId: listMilestones
       tags: [milestones]
-      summary: List milestones for a pillar
+      summary: List milestones for a area
       parameters:
-        - name: pillarId
+        - name: areaId
           in: query
           required: false
           schema:
@@ -139,7 +139,7 @@ paths:
     post:
       operationId: bulkCreateMilestones
       tags: [milestones]
-      summary: Create multiple milestones at once for a pillar
+      summary: Create multiple milestones at once for a area
       requestBody:
         required: true
         content:
@@ -281,7 +281,7 @@ paths:
     get:
       operationId: getTaskSuggestions
       tags: [tasks]
-      summary: Get suggested tasks for a given date based on active pillars and milestones
+      summary: Get suggested tasks for a given date based on active areas and milestones
       parameters:
         - name: date
           in: query
@@ -447,18 +447,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/ReentryInfo"
 
-  /dashboard/pillar-health:
+  /dashboard/briefing:
     get:
-      operationId: getPillarHealth
+      operationId: getBriefing
       tags: [dashboard]
-      summary: Get per-pillar health stats for this week
+      summary: Get the chief-of-staff briefing narrative for today
       responses:
         "200":
-          description: Pillar health with portfolio balance
+          description: Briefing
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PillarHealthResponse"
+                $ref: "#/components/schemas/Briefing"
+
+  /dashboard/area-health:
+    get:
+      operationId: getAreaHealth
+      tags: [dashboard]
+      summary: Get per-area health stats for this week
+      responses:
+        "200":
+          description: Area health with portfolio balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AreaHealthResponse"
 
   /dashboard/outcome-metrics:
     get:
@@ -480,11 +493,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/OutcomeMetrics"
 
-  /dashboard/pillar-completion-history:
+  /dashboard/area-completion-history:
     get:
-      operationId: getPillarCompletionHistory
+      operationId: getAreaCompletionHistory
       tags: [dashboard]
-      summary: Get per-pillar completion rates for the last N weeks
+      summary: Get per-area completion rates for the last N weeks
       parameters:
         - name: weeks
           in: query
@@ -495,17 +508,17 @@ paths:
           description: Number of past weeks to include (default 4)
       responses:
         "200":
-          description: Pillar completion history
+          description: Area completion history
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PillarCompletionHistory"
+                $ref: "#/components/schemas/AreaCompletionHistory"
 
   /dashboard/friction:
     get:
       operationId: getFrictionSignals
       tags: [dashboard]
-      summary: Get detected friction signals across pillars, tasks, and milestones
+      summary: Get detected friction signals across areas, tasks, and milestones
       responses:
         "200":
           description: List of friction signals
@@ -658,26 +671,26 @@ components:
       properties:
         title:
           type: string
-        pillarId:
+        areaId:
           type: integer
-        pillarName:
+        areaName:
           type: string
-        pillarColor:
+        areaColor:
           type: string
           nullable: true
-        pillarCategory:
+        areaCategory:
           type: string
           nullable: true
           enum: [business, creative, wellness]
-          description: Task category derived from the pillar's category setting
+          description: Task category derived from the area's category setting
         milestoneId:
           type: integer
         milestoneTitle:
           type: string
       required:
         - title
-        - pillarId
-        - pillarName
+        - areaId
+        - areaName
         - milestoneId
         - milestoneTitle
 
@@ -686,7 +699,7 @@ components:
       properties:
         id:
           type: integer
-        pillarId:
+        areaId:
           type: integer
         title:
           type: string
@@ -712,7 +725,7 @@ components:
           type: string
       required:
         - id
-        - pillarId
+        - areaId
         - title
         - status
         - sortOrder
@@ -721,7 +734,7 @@ components:
     CreateMilestoneBody:
       type: object
       properties:
-        pillarId:
+        areaId:
           type: integer
         title:
           type: string
@@ -744,13 +757,13 @@ components:
         sortOrder:
           type: integer
       required:
-        - pillarId
+        - areaId
         - title
 
     BulkCreateMilestonesBody:
       type: object
       properties:
-        pillarId:
+        areaId:
           type: integer
         titles:
           type: array
@@ -760,7 +773,7 @@ components:
           minItems: 1
           maxItems: 50
       required:
-        - pillarId
+        - areaId
         - titles
 
     UpdateMilestoneBody:
@@ -787,12 +800,26 @@ components:
         sortOrder:
           type: integer
 
-    PillarHealthEntry:
+    Briefing:
       type: object
       properties:
-        pillarId:
+        narrative:
+          type: string
+          description: Short paragraph the chief-of-staff card displays
+        source:
+          type: string
+          enum: [llm, fallback]
+          description: Which renderer produced this narrative
+      required:
+        - narrative
+        - source
+
+    AreaHealthEntry:
+      type: object
+      properties:
+        areaId:
           type: integer
-        pillarName:
+        areaName:
           type: string
         portfolioStatus:
           type: string
@@ -813,10 +840,10 @@ components:
         portfolioSharePercent:
           type: number
           nullable: true
-          description: Percentage of this week's done tasks attributable to this pillar
+          description: Percentage of this week's done tasks attributable to this area
       required:
-        - pillarId
-        - pillarName
+        - areaId
+        - areaName
         - tasksDoneThisWeek
         - tasksPushedOrPassedThisWeek
 
@@ -825,29 +852,29 @@ components:
       properties:
         activeShare:
           type: number
-          description: Percentage of done tasks from Active pillars
+          description: Percentage of done tasks from Active areas
         warmShare:
           type: number
-          description: Percentage of done tasks from Warm pillars
+          description: Percentage of done tasks from Warm areas
         parkedShare:
           type: number
-          description: Percentage of done tasks from Parked pillars
+          description: Percentage of done tasks from Parked areas
       required:
         - activeShare
         - warmShare
         - parkedShare
 
-    PillarHealthResponse:
+    AreaHealthResponse:
       type: object
       properties:
-        pillars:
+        areas:
           type: array
           items:
-            $ref: "#/components/schemas/PillarHealthEntry"
+            $ref: "#/components/schemas/AreaHealthEntry"
         portfolioBalance:
           $ref: "#/components/schemas/PortfolioBalance"
       required:
-        - pillars
+        - areas
         - portfolioBalance
 
     HealthStatus:
@@ -858,7 +885,7 @@ components:
       required:
         - status
 
-    Pillar:
+    Area:
       type: object
       properties:
         id:
@@ -911,7 +938,7 @@ components:
           type: string
           nullable: true
           enum: [business, creative, wellness]
-          description: Task category for this pillar, used to auto-categorize suggested tasks
+          description: Task category for this area, used to auto-categorize suggested tasks
       required:
         - id
         - name
@@ -919,7 +946,7 @@ components:
         - isActiveThisWeek
         - createdAt
 
-    CreatePillarBody:
+    CreateAreaBody:
       type: object
       properties:
         name:
@@ -947,13 +974,13 @@ components:
           type: string
           nullable: true
           enum: [business, creative, wellness]
-          description: Task category for this pillar
+          description: Task category for this area
       required:
         - name
         - priority
         - isActiveThisWeek
 
-    UpdatePillarBody:
+    UpdateAreaBody:
       type: object
       properties:
         name:
@@ -1001,7 +1028,7 @@ components:
           type: string
           nullable: true
           enum: [business, creative, wellness]
-          description: Task category for this pillar
+          description: Task category for this area
 
     Task:
       type: object
@@ -1025,7 +1052,7 @@ components:
         status:
           type: string
           enum: [pending, done, pushed, passed, blocked, stepped_back]
-        pillarId:
+        areaId:
           type: integer
           nullable: true
         milestoneId:
@@ -1084,7 +1111,7 @@ components:
         suggestedNextStep:
           type: string
           nullable: true
-        pillarId:
+        areaId:
           type: integer
           nullable: true
         milestoneId:
@@ -1124,7 +1151,7 @@ components:
         status:
           type: string
           enum: [pending, done, pushed, passed, blocked, stepped_back]
-        pillarId:
+        areaId:
           type: integer
           nullable: true
         milestoneId:
@@ -1173,7 +1200,7 @@ components:
         notes:
           type: string
           nullable: true
-        activePillarIds:
+        areaPriorities:
           type: array
           items:
             type: integer
@@ -1204,7 +1231,7 @@ components:
         - id
         - weekOf
         - priorities
-        - activePillarIds
+        - areaPriorities
         - createdAt
 
     CreateWeeklyPlanBody:
@@ -1222,7 +1249,7 @@ components:
         notes:
           type: string
           nullable: true
-        activePillarIds:
+        areaPriorities:
           type: array
           items:
             type: integer
@@ -1250,7 +1277,7 @@ components:
       required:
         - weekOf
         - priorities
-        - activePillarIds
+        - areaPriorities
 
     UpdateWeeklyPlanBody:
       type: object
@@ -1265,7 +1292,7 @@ components:
         notes:
           type: string
           nullable: true
-        activePillarIds:
+        areaPriorities:
           type: array
           items:
             type: integer
@@ -1334,10 +1361,10 @@ components:
           type: integer
         pendingCount:
           type: integer
-        activePillars:
+        activeAreas:
           type: array
           items:
-            $ref: "#/components/schemas/Pillar"
+            $ref: "#/components/schemas/Area"
         weeklyPlan:
           $ref: "#/components/schemas/WeeklyPlan"
           nullable: true
@@ -1352,7 +1379,7 @@ components:
         - passedCount
         - blockedCount
         - pendingCount
-        - activePillars
+        - activeAreas
         - planningStreak
 
     WeekSummary:
@@ -1372,14 +1399,14 @@ components:
           type: integer
         completionRate:
           type: number
-        pillarActivity:
+        areaActivity:
           type: array
           items:
             type: object
             properties:
-              pillarId:
+              areaId:
                 type: integer
-              pillarName:
+              areaName:
                 type: string
               taskCount:
                 type: integer
@@ -1402,8 +1429,8 @@ components:
                     - status
                     - category
             required:
-              - pillarId
-              - pillarName
+              - areaId
+              - areaName
               - taskCount
               - tasks
       required:
@@ -1414,7 +1441,7 @@ components:
         - passedCount
         - blockedCount
         - completionRate
-        - pillarActivity
+        - areaActivity
 
     ReentryInfo:
       type: object
@@ -1448,7 +1475,7 @@ components:
               type: string
             category:
               type: string
-            pillarId:
+            areaId:
               type: integer
               nullable: true
           required:
@@ -1475,7 +1502,7 @@ components:
         whatMoved:
           type: string
           nullable: true
-        pillarsAdvanced:
+        areasAdvanced:
           type: string
           nullable: true
         milestonesCompleted:
@@ -1509,7 +1536,7 @@ components:
         whatMoved:
           type: string
           nullable: true
-        pillarsAdvanced:
+        areasAdvanced:
           type: string
           nullable: true
         milestonesCompleted:
@@ -1539,7 +1566,7 @@ components:
         whatMoved:
           type: string
           nullable: true
-        pillarsAdvanced:
+        areasAdvanced:
           type: string
           nullable: true
         milestonesCompleted:
@@ -1568,14 +1595,14 @@ components:
           type: number
           nullable: true
           description: Average days a milestone stays active before completion
-        pillarMetrics:
+        areaMetrics:
           type: array
           items:
             type: object
             properties:
-              pillarId:
+              areaId:
                 type: integer
-              pillarName:
+              areaName:
                 type: string
               completionRate:
                 type: number
@@ -1589,8 +1616,8 @@ components:
               passedCount:
                 type: integer
             required:
-              - pillarId
-              - pillarName
+              - areaId
+              - areaName
               - completionRate
               - doneCount
               - totalCount
@@ -1598,10 +1625,10 @@ components:
               - passedCount
         p1CompletedThisWeek:
           type: integer
-          description: Done tasks from P1-priority pillars this week
+          description: Done tasks from P1-priority areas this week
         warmParkedCompletedThisWeek:
           type: integer
-          description: Done tasks from Warm or Parked pillars this week
+          description: Done tasks from Warm or Parked areas this week
         p1VsWarmParkedRatio:
           type: number
           nullable: true
@@ -1609,11 +1636,11 @@ components:
       required:
         - milestonesCompletedThisWeek
         - milestonesCompletedThisMonth
-        - pillarMetrics
+        - areaMetrics
         - p1CompletedThisWeek
         - warmParkedCompletedThisWeek
 
-    PillarCompletionHistory:
+    AreaCompletionHistory:
       type: object
       properties:
         weeks:
@@ -1621,14 +1648,14 @@ components:
           items:
             type: string
           description: Week start dates (YYYY-MM-DD), oldest to newest
-        pillars:
+        areas:
           type: array
           items:
             type: object
             properties:
-              pillarId:
+              areaId:
                 type: integer
-              pillarName:
+              areaName:
                 type: string
               weeklyRates:
                 type: array
@@ -1636,12 +1663,12 @@ components:
                   type: number
                 description: Completion rate (0–1) per week, same order as weeks[]
             required:
-              - pillarId
-              - pillarName
+              - areaId
+              - areaName
               - weeklyRates
       required:
         - weeks
-        - pillars
+        - areas
 
     FrictionSignal:
       type: object
@@ -1649,10 +1676,10 @@ components:
         type:
           type: string
           enum: [repeated_pass, repeated_block, stalled_milestone, low_completion_ratio]
-        pillarId:
+        areaId:
           type: integer
           nullable: true
-        pillarName:
+        areaName:
           type: string
           nullable: true
         taskId:

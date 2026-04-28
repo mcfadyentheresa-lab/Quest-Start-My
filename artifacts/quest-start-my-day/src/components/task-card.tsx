@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { TaskDetailSheet } from "@/components/task-detail-sheet";
 
-interface Pillar {
+interface Area {
   id: number;
   name: string;
   color?: string | null;
@@ -29,7 +29,7 @@ interface Task {
   blockerReason?: string | null;
   status: string;
   date: string;
-  pillarId?: number | null;
+  areaId?: number | null;
   milestoneId?: number | null;
   parentTaskId?: number | null;
   stepBackDepth?: number | null;
@@ -41,8 +41,8 @@ interface Task {
 interface TaskCardProps {
   task: Task;
   date: string;
-  pillarMap?: Map<number, Pillar>;
-  activePillarIds?: number[];
+  areaMap?: Map<number, Area>;
+  areaPriorities?: number[];
 }
 
 const MAX_STEP_BACK_DEPTH = 3;
@@ -91,7 +91,7 @@ const BLOCKER_TYPES = [
   { value: "dependency", label: "Outside dependency" },
 ] as const;
 
-export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardProps) {
+export function TaskCard({ task, date, areaMap, areaPriorities }: TaskCardProps) {
   const [expanded, setExpanded] = useState(task.status === "pending" || task.status === "stepped_back");
   const [blockerDraft, setBlockerDraft] = useState("");
   const [selectedBlockerType, setSelectedBlockerType] = useState<string>("");
@@ -104,8 +104,8 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
   const stepBackTask = useStepBackTask();
 
   const statusInfo = statusConfig[task.status as keyof typeof statusConfig] ?? statusConfig.pending;
-  const pillar = task.pillarId && pillarMap ? pillarMap.get(task.pillarId) : undefined;
-  const isActivePillar = pillar && activePillarIds ? activePillarIds.includes(pillar.id) : false;
+  const area = task.areaId && areaMap ? areaMap.get(task.areaId) : undefined;
+  const isActiveArea = area && areaPriorities ? areaPriorities.includes(area.id) : false;
   const depth = task.stepBackDepth ?? 0;
   const canStepBack = depth < MAX_STEP_BACK_DEPTH;
   const isPrerequisite = !!task.parentTaskId && task.adjustmentType === "step_back";
@@ -198,19 +198,19 @@ export function TaskCard({ task, date, pillarMap, activePillarIds }: TaskCardPro
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <CategoryBadge category={task.category} />
-            {pillar && isActivePillar && (
+            {area && isActiveArea && (
               <span
                 className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border"
                 style={{
-                  borderColor: pillar.color ? `${pillar.color}55` : undefined,
-                  backgroundColor: pillar.color ? `${pillar.color}18` : undefined,
-                  color: pillar.color ?? undefined,
+                  borderColor: area.color ? `${area.color}55` : undefined,
+                  backgroundColor: area.color ? `${area.color}18` : undefined,
+                  color: area.color ?? undefined,
                 }}
               >
-                {pillar.color && (
-                  <span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: pillar.color }} />
+                {area.color && (
+                  <span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: area.color }} />
                 )}
-                {pillar.name}
+                {area.name}
               </span>
             )}
             {task.status !== "pending" && (

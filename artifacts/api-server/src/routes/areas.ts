@@ -1,36 +1,36 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, pillarsTable } from "@workspace/db";
+import { db, areasTable } from "@workspace/db";
 import {
-  CreatePillarBody,
-  UpdatePillarBody,
-  UpdatePillarParams,
-  ListPillarsResponse,
-  UpdatePillarResponse,
+  CreateAreaBody,
+  UpdateAreaBody,
+  UpdateAreaParams,
+  ListAreasResponse,
+  UpdateAreaResponse,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
-function serializePillar(p: typeof pillarsTable.$inferSelect) {
+function serializeArea(p: typeof areasTable.$inferSelect) {
   return {
     ...p,
     createdAt: p.createdAt.toISOString(),
   };
 }
 
-router.get("/pillars", async (req, res): Promise<void> => {
-  const pillars = await db.select().from(pillarsTable).orderBy(pillarsTable.id);
-  res.json(ListPillarsResponse.parse(pillars.map(serializePillar)));
+router.get("/areas", async (req, res): Promise<void> => {
+  const areas = await db.select().from(areasTable).orderBy(areasTable.id);
+  res.json(ListAreasResponse.parse(areas.map(serializeArea)));
 });
 
-router.post("/pillars", async (req, res): Promise<void> => {
-  const parsed = CreatePillarBody.safeParse(req.body);
+router.post("/areas", async (req, res): Promise<void> => {
+  const parsed = CreateAreaBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
 
-  const [pillar] = await db.insert(pillarsTable).values({
+  const [area] = await db.insert(areasTable).values({
     name: parsed.data.name,
     priority: parsed.data.priority,
     description: parsed.data.description ?? null,
@@ -41,17 +41,17 @@ router.post("/pillars", async (req, res): Promise<void> => {
     category: parsed.data.category ?? null,
   }).returning();
 
-  res.status(201).json(serializePillar(pillar!));
+  res.status(201).json(serializeArea(area!));
 });
 
-router.patch("/pillars/:id", async (req, res): Promise<void> => {
-  const params = UpdatePillarParams.safeParse(req.params);
+router.patch("/areas/:id", async (req, res): Promise<void> => {
+  const params = UpdateAreaParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
 
-  const parsed = UpdatePillarBody.safeParse(req.body);
+  const parsed = UpdateAreaBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -74,18 +74,18 @@ router.patch("/pillars/:id", async (req, res): Promise<void> => {
   if (parsed.data.featureTag !== undefined) updates.featureTag = parsed.data.featureTag;
   if (parsed.data.category !== undefined) updates.category = parsed.data.category;
 
-  const [pillar] = await db
-    .update(pillarsTable)
+  const [area] = await db
+    .update(areasTable)
     .set(updates)
-    .where(eq(pillarsTable.id, params.data.id))
+    .where(eq(areasTable.id, params.data.id))
     .returning();
 
-  if (!pillar) {
-    res.status(404).json({ error: "Pillar not found" });
+  if (!area) {
+    res.status(404).json({ error: "Area not found" });
     return;
   }
 
-  res.json(UpdatePillarResponse.parse(serializePillar(pillar)));
+  res.json(UpdateAreaResponse.parse(serializeArea(area)));
 });
 
 export default router;

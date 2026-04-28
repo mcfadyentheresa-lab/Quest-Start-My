@@ -49,7 +49,7 @@ router.post("/monthly", async (req, res): Promise<void> => {
       .values({
         monthOf: body.monthOf,
         whatMoved: body.whatMoved ?? null,
-        pillarsAdvanced: body.pillarsAdvanced ?? null,
+        areasAdvanced: body.areasAdvanced ?? null,
         milestonesCompleted: body.milestonesCompleted ?? null,
         whatDelayed: body.whatDelayed ?? null,
         whatToPause: body.whatToPause ?? null,
@@ -97,7 +97,7 @@ router.patch("/monthly/:id", async (req, res): Promise<void> => {
   const updateFields: Partial<typeof monthlyReviewsTable.$inferInsert> = {};
   if ("monthOf" in body && body.monthOf !== undefined) updateFields.monthOf = body.monthOf;
   if ("whatMoved" in body) updateFields.whatMoved = body.whatMoved ?? null;
-  if ("pillarsAdvanced" in body) updateFields.pillarsAdvanced = body.pillarsAdvanced ?? null;
+  if ("areasAdvanced" in body) updateFields.areasAdvanced = body.areasAdvanced ?? null;
   if ("milestonesCompleted" in body) updateFields.milestonesCompleted = body.milestonesCompleted ?? null;
   if ("whatDelayed" in body) updateFields.whatDelayed = body.whatDelayed ?? null;
   if ("whatToPause" in body) updateFields.whatToPause = body.whatToPause ?? null;

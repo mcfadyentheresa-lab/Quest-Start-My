@@ -1,11 +1,11 @@
 import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
-import { pillarsTable } from "./pillars";
+import { areasTable } from "./areas";
 
 export const milestonesTable = pgTable("milestones", {
   id: serial("id").primaryKey(),
-  pillarId: integer("pillar_id").notNull().references(() => pillarsTable.id),
+  areaId: integer("area_id").notNull().references(() => areasTable.id),
   title: text("title").notNull(),
   status: text("status").notNull().default("planned"),
   priority: text("priority"),

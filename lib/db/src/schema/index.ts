@@ -1,4 +1,4 @@
-export * from "./pillars";
+export * from "./areas";
 export * from "./milestones";
 export * from "./tasks";
 export * from "./weekly_plans";

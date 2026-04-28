@@ -1,20 +1,20 @@
 import { useState, useEffect, useCallback, useId } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  useListPillars,
-  useCreatePillar,
-  useUpdatePillar,
+  useListAreas,
+  useCreateArea,
+  useUpdateArea,
   useListMilestones,
   useCreateMilestone,
   useBulkCreateMilestones,
   useUpdateMilestone,
   useDeleteMilestone,
-  getListPillarsQueryKey,
+  getListAreasQueryKey,
   getGetDashboardSummaryQueryKey,
   getListMilestonesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { PillarSparklineWidget } from "@/components/pillar-sparkline";
+import { AreaSparklineWidget } from "@/components/area-sparkline";
 import { PriorityBadge } from "@/components/priority-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,7 +72,7 @@ const milestoneStatusStyles: Record<MilestoneStatus, string> = {
   complete: "text-muted-foreground bg-muted/50",
 };
 
-interface PillarFormData {
+interface AreaFormData {
   name: string;
   priority: string;
   description: string;
@@ -97,19 +97,19 @@ interface MilestoneFormData {
   nextAction: string;
 }
 
-function PillarForm({
+function AreaForm({
   defaultValues,
   onSubmit,
   loading,
   submitLabel,
 }: {
-  defaultValues?: Partial<PillarFormData>;
-  onSubmit: (data: PillarFormData) => void;
+  defaultValues?: Partial<AreaFormData>;
+  onSubmit: (data: AreaFormData) => void;
   loading: boolean;
   submitLabel: string;
 }) {
   const uid = useId();
-  const { register, handleSubmit, setValue, watch } = useForm<PillarFormData>({
+  const { register, handleSubmit, setValue, watch } = useForm<AreaFormData>({
     defaultValues: {
       name: "",
       priority: "P1",
@@ -136,7 +136,7 @@ function PillarForm({
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2 max-h-[70vh] overflow-y-auto pr-1">
       <div className="space-y-1.5">
-        <Label htmlFor={`${uid}-name`}>Pillar name</Label>
+        <Label htmlFor={`${uid}-name`}>Area name</Label>
         <Input id={`${uid}-name`} {...register("name", { required: true })} placeholder="e.g. Aster & Spruce Connect" className="rounded-xl" />
       </div>
 
@@ -198,7 +198,7 @@ function PillarForm({
             <SelectItem value="wellness">Wellness</SelectItem>
           </SelectContent>
         </Select>
-        <p className="text-xs text-muted-foreground">Suggested tasks from this pillar will use this category</p>
+        <p className="text-xs text-muted-foreground">Suggested tasks from this area will use this category</p>
       </div>
 
       <div className="space-y-1.5">
@@ -541,10 +541,10 @@ function SortableMilestoneRow({
   );
 }
 
-function MilestonesSection({ pillarId }: { pillarId: number }) {
+function MilestonesSection({ areaId }: { areaId: number }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: milestones, isLoading } = useListMilestones({ pillarId });
+  const { data: milestones, isLoading } = useListMilestones({ areaId });
   const createMilestone = useCreateMilestone();
   const updateMilestone = useUpdateMilestone();
   const deleteMilestone = useDeleteMilestone();
@@ -567,7 +567,7 @@ function MilestonesSection({ pillarId }: { pillarId: number }) {
   );
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: getListMilestonesQueryKey({ pillarId }) });
+    queryClient.invalidateQueries({ queryKey: getListMilestonesQueryKey({ areaId }) });
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -594,7 +594,7 @@ function MilestonesSection({ pillarId }: { pillarId: number }) {
     createMilestone.mutate(
       {
         data: {
-          pillarId,
+          areaId,
           title: data.title,
           status: data.status as "planned" | "active" | "blocked" | "complete",
           priority: (data.priority || undefined) as "P1" | "P2" | "P3" | "P4" | undefined,
@@ -619,7 +619,7 @@ function MilestonesSection({ pillarId }: { pillarId: number }) {
     if (titles.length === 0) return;
 
     bulkCreateMilestones.mutate(
-      { data: { pillarId, titles } },
+      { data: { areaId, titles } },
       {
         onSuccess: (created) => {
           invalidate();
@@ -740,7 +740,7 @@ function MilestonesSection({ pillarId }: { pillarId: number }) {
             <DialogContent className="rounded-2xl max-w-sm mx-4">
               <DialogHeader>
                 <DialogTitle className="font-serif text-lg">New milestone</DialogTitle>
-                <DialogDescription className="sr-only">Add a new milestone to track progress for this pillar.</DialogDescription>
+                <DialogDescription className="sr-only">Add a new milestone to track progress for this area.</DialogDescription>
               </DialogHeader>
               <MilestoneForm
                 onSubmit={handleCreate}
@@ -804,8 +804,8 @@ const featureTagLabels: Record<string, string> = {
 };
 
 
-interface PillarCardProps {
-  pillar: {
+interface AreaCardProps {
+  area: {
     id: number;
     name: string;
     priority: string;
@@ -822,88 +822,88 @@ interface PillarCardProps {
     laterFocus?: string | null;
     blockers?: string | null;
   };
-  onEdit: (id: number, data: PillarFormData) => void;
+  onEdit: (id: number, data: AreaFormData) => void;
   onStatusChange: (id: number, status: PortfolioStatus) => void;
   editLoading: boolean;
   statusLoading: boolean;
 }
 
-function PillarCard({ pillar, onEdit, onStatusChange, editLoading, statusLoading }: PillarCardProps) {
+function AreaCard({ area, onEdit, onStatusChange, editLoading, statusLoading }: AreaCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const hasDetail = pillar.whyItMatters || pillar.nowFocus || pillar.nextFocus || pillar.laterFocus || pillar.blockers || pillar.currentStage;
+  const hasDetail = area.whyItMatters || area.nowFocus || area.nextFocus || area.laterFocus || area.blockers || area.currentStage;
 
   return (
     <div className="rounded-2xl bg-card border border-card-border">
       <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 flex-1 min-w-0">
-            {pillar.color && (
-              <span className="h-3 w-3 rounded-full flex-shrink-0 mt-1" style={{ backgroundColor: pillar.color }} />
+            {area.color && (
+              <span className="h-3 w-3 rounded-full flex-shrink-0 mt-1" style={{ backgroundColor: area.color }} />
             )}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-serif font-medium text-foreground">{pillar.name}</span>
-                <PriorityBadge priority={pillar.priority} />
+                <span className="font-serif font-medium text-foreground">{area.name}</span>
+                <PriorityBadge priority={area.priority} />
                 <PortfolioStatusBadge
-                  status={pillar.portfolioStatus}
-                  onStatusSelect={(s) => onStatusChange(pillar.id, s)}
+                  status={area.portfolioStatus}
+                  onStatusSelect={(s) => onStatusChange(area.id, s)}
                   loading={statusLoading}
                 />
-                {pillar.featureTag && featureTagLabels[pillar.featureTag] && (
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${featureTagStyles[pillar.featureTag] ?? ""}`}>
-                    {featureTagLabels[pillar.featureTag]}
+                {area.featureTag && featureTagLabels[area.featureTag] && (
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${featureTagStyles[area.featureTag] ?? ""}`}>
+                    {featureTagLabels[area.featureTag]}
                   </span>
                 )}
               </div>
-              {pillar.description && (
-                <p className="text-xs text-muted-foreground mt-1">{pillar.description}</p>
+              {area.description && (
+                <p className="text-xs text-muted-foreground mt-1">{area.description}</p>
               )}
-              {pillar.currentStage && (
-                <p className="text-xs text-muted-foreground/70 mt-0.5 italic">Stage: {pillar.currentStage}</p>
+              {area.currentStage && (
+                <p className="text-xs text-muted-foreground/70 mt-0.5 italic">Stage: {area.currentStage}</p>
               )}
             </div>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
-            <PillarSparklineWidget pillarId={pillar.id} />
+            <AreaSparklineWidget areaId={area.id} />
             <Button
               variant="ghost"
               size="icon"
               className="h-8 w-8 rounded-xl"
               onClick={() => setExpanded(!expanded)}
-              aria-label={expanded ? `Collapse ${pillar.name} details` : `Expand ${pillar.name} details`}
+              aria-label={expanded ? `Collapse ${area.name} details` : `Expand ${area.name} details`}
               aria-expanded={expanded}
             >
               {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             </Button>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl" aria-label={`Edit ${pillar.name}`}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl" aria-label={`Edit ${area.name}`}>
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
               </DialogTrigger>
               <DialogContent className="rounded-2xl max-w-md mx-4">
                 <DialogHeader>
-                  <DialogTitle className="font-serif text-xl">Edit pillar</DialogTitle>
-                  <DialogDescription className="sr-only">Update the details for this pillar project.</DialogDescription>
+                  <DialogTitle className="font-serif text-xl">Edit area</DialogTitle>
+                  <DialogDescription className="sr-only">Update the details for this area project.</DialogDescription>
                 </DialogHeader>
-                <PillarForm
+                <AreaForm
                   defaultValues={{
-                    name: pillar.name,
-                    priority: pillar.priority,
-                    description: pillar.description ?? "",
-                    color: pillar.color ?? COLORS[0]!.hex,
-                    portfolioStatus: pillar.portfolioStatus ?? "Active",
-                    featureTag: pillar.featureTag ?? "",
-                    category: pillar.category ?? "",
-                    currentStage: pillar.currentStage ?? "",
-                    whyItMatters: pillar.whyItMatters ?? "",
-                    nowFocus: pillar.nowFocus ?? "",
-                    nextFocus: pillar.nextFocus ?? "",
-                    laterFocus: pillar.laterFocus ?? "",
-                    blockers: pillar.blockers ?? "",
+                    name: area.name,
+                    priority: area.priority,
+                    description: area.description ?? "",
+                    color: area.color ?? COLORS[0]!.hex,
+                    portfolioStatus: area.portfolioStatus ?? "Active",
+                    featureTag: area.featureTag ?? "",
+                    category: area.category ?? "",
+                    currentStage: area.currentStage ?? "",
+                    whyItMatters: area.whyItMatters ?? "",
+                    nowFocus: area.nowFocus ?? "",
+                    nextFocus: area.nextFocus ?? "",
+                    laterFocus: area.laterFocus ?? "",
+                    blockers: area.blockers ?? "",
                   }}
-                  onSubmit={(data) => { onEdit(pillar.id, data); setDialogOpen(false); }}
+                  onSubmit={(data) => { onEdit(area.id, data); setDialogOpen(false); }}
                   loading={editLoading}
                   submitLabel="Save changes"
                 />
@@ -925,40 +925,40 @@ function PillarCard({ pillar, onEdit, onStatusChange, editLoading, statusLoading
           >
             <div className="border-t border-border mx-4" />
             <div className="px-4 pb-4 pt-3 space-y-3">
-              {pillar.whyItMatters && (
+              {area.whyItMatters && (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Why it matters</p>
-                  <p className="text-sm text-foreground/80">{pillar.whyItMatters}</p>
+                  <p className="text-sm text-foreground/80">{area.whyItMatters}</p>
                 </div>
               )}
-              {pillar.nowFocus && (
+              {area.nowFocus && (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Now</p>
-                  <p className="text-sm text-foreground/80">{pillar.nowFocus}</p>
+                  <p className="text-sm text-foreground/80">{area.nowFocus}</p>
                 </div>
               )}
-              {pillar.nextFocus && (
+              {area.nextFocus && (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Next</p>
-                  <p className="text-sm text-foreground/80">{pillar.nextFocus}</p>
+                  <p className="text-sm text-foreground/80">{area.nextFocus}</p>
                 </div>
               )}
-              {pillar.laterFocus && (
+              {area.laterFocus && (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Later</p>
-                  <p className="text-sm text-foreground/80">{pillar.laterFocus}</p>
+                  <p className="text-sm text-foreground/80">{area.laterFocus}</p>
                 </div>
               )}
-              {pillar.blockers && (
+              {area.blockers && (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-rose-500 dark:text-rose-400 mb-1">Blockers</p>
-                  <p className="text-sm text-foreground/80">{pillar.blockers}</p>
+                  <p className="text-sm text-foreground/80">{area.blockers}</p>
                 </div>
               )}
 
               {/* Milestones section */}
               <div className="border-t border-border pt-3">
-                <MilestonesSection pillarId={pillar.id} />
+                <MilestonesSection areaId={area.id} />
               </div>
             </div>
           </motion.div>
@@ -980,9 +980,9 @@ const FOCUS_DURATION_OPTIONS = [5, 10, 15, 25] as const;
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: pillars, isLoading } = useListPillars();
-  const createPillar = useCreatePillar();
-  const updatePillar = useUpdatePillar();
+  const { data: areas, isLoading } = useListAreas();
+  const createArea = useCreateArea();
+  const updateArea = useUpdateArea();
   const [addOpen, setAddOpen] = useState(false);
 
   const focus = useFocusTimer();
@@ -1039,8 +1039,8 @@ export default function SettingsPage() {
     }
   }, [focus, toast]);
 
-  const handleCreate = (data: PillarFormData) => {
-    createPillar.mutate(
+  const handleCreate = (data: AreaFormData) => {
+    createArea.mutate(
       {
         data: {
           name: data.name,
@@ -1055,19 +1055,19 @@ export default function SettingsPage() {
       },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListPillarsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListAreasQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
           setAddOpen(false);
-          toast({ title: "Pillar added" });
+          toast({ title: "Area added" });
         },
-        onError: () => toast({ title: "Failed to add pillar", variant: "destructive" }),
+        onError: () => toast({ title: "Failed to add area", variant: "destructive" }),
       }
     );
   };
 
   const handleStatusChange = (id: number, status: PortfolioStatus, previousStatus?: PortfolioStatus) => {
-    const prevStatus = previousStatus ?? ((pillars?.find(p => p.id === id)?.portfolioStatus ?? "Active") as PortfolioStatus);
-    updatePillar.mutate(
+    const prevStatus = previousStatus ?? ((areas?.find(p => p.id === id)?.portfolioStatus ?? "Active") as PortfolioStatus);
+    updateArea.mutate(
       {
         id,
         data: {
@@ -1076,7 +1076,7 @@ export default function SettingsPage() {
       },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListPillarsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListAreasQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
           toast({
             title: `Moved to ${status}`,
@@ -1095,9 +1095,9 @@ export default function SettingsPage() {
     );
   };
 
-  const handleEdit = (id: number, data: PillarFormData) => {
+  const handleEdit = (id: number, data: AreaFormData) => {
     const today = new Date().toISOString().slice(0, 10);
-    updatePillar.mutate(
+    updateArea.mutate(
       {
         id,
         data: {
@@ -1119,9 +1119,9 @@ export default function SettingsPage() {
       },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListPillarsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListAreasQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-          toast({ title: "Pillar updated" });
+          toast({ title: "Area updated" });
         },
         onError: () => toast({ title: "Failed to update", variant: "destructive" }),
       }
@@ -1137,10 +1137,10 @@ export default function SettingsPage() {
     );
   }
 
-  const activeP = pillars?.filter(p => p.portfolioStatus === "Active") ?? [];
-  const warmP = pillars?.filter(p => p.portfolioStatus === "Warm") ?? [];
-  const parkedP = pillars?.filter(p => p.portfolioStatus === "Parked") ?? [];
-  const ungrouped = pillars?.filter(p => !p.portfolioStatus) ?? [];
+  const activeP = areas?.filter(p => p.portfolioStatus === "Active") ?? [];
+  const warmP = areas?.filter(p => p.portfolioStatus === "Warm") ?? [];
+  const parkedP = areas?.filter(p => p.portfolioStatus === "Parked") ?? [];
+  const ungrouped = areas?.filter(p => !p.portfolioStatus) ?? [];
 
   const groups: { label: string; items: typeof activeP }[] = [
     { label: "Active", items: [...activeP, ...ungrouped] },
@@ -1153,21 +1153,21 @@ export default function SettingsPage() {
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
         <div>
           <h1 className="font-serif text-2xl font-medium text-foreground">Projects</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Your pillar projects</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Your area projects</p>
         </div>
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger asChild>
             <Button size="sm" className="rounded-xl gap-1.5">
               <Plus className="h-4 w-4" />
-              Add pillar
+              Add area
             </Button>
           </DialogTrigger>
           <DialogContent className="rounded-2xl max-w-md mx-4">
             <DialogHeader>
-              <DialogTitle className="font-serif text-xl">New pillar project</DialogTitle>
-              <DialogDescription className="sr-only">Create a new pillar project to organize your work.</DialogDescription>
+              <DialogTitle className="font-serif text-xl">New area project</DialogTitle>
+              <DialogDescription className="sr-only">Create a new area project to organize your work.</DialogDescription>
             </DialogHeader>
-            <PillarForm onSubmit={handleCreate} loading={createPillar.isPending} submitLabel="Create pillar" />
+            <AreaForm onSubmit={handleCreate} loading={createArea.isPending} submitLabel="Create area" />
           </DialogContent>
         </Dialog>
       </motion.div>
@@ -1185,10 +1185,10 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {pillars?.length === 0 ? (
+      {areas?.length === 0 ? (
         <div className="text-center py-16 rounded-2xl bg-card border border-dashed border-border">
           <Settings className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm font-medium text-foreground">No pillar projects yet</p>
+          <p className="text-sm font-medium text-foreground">No area projects yet</p>
           <p className="text-xs text-muted-foreground mt-1 mb-4">Add your major projects to start organizing your days</p>
         </div>
       ) : (
@@ -1202,14 +1202,14 @@ export default function SettingsPage() {
             >
               <h2 className="font-serif text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wide">{group.label}</h2>
               <div className="space-y-3">
-                {group.items.map(pillar => (
-                  <PillarCard
-                    key={pillar.id}
-                    pillar={pillar}
+                {group.items.map(area => (
+                  <AreaCard
+                    key={area.id}
+                    area={area}
                     onEdit={handleEdit}
                     onStatusChange={handleStatusChange}
-                    editLoading={updatePillar.isPending}
-                    statusLoading={updatePillar.isPending}
+                    editLoading={updateArea.isPending}
+                    statusLoading={updateArea.isPending}
                   />
                 ))}
               </div>

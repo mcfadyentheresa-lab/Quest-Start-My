@@ -30,7 +30,7 @@ import {
 
 interface ReviewFormData {
   whatMoved: string;
-  pillarsAdvanced: string;
+  areasAdvanced: string;
   milestonesCompleted: string;
   whatDelayed: string;
   whatToPause: string;
@@ -61,7 +61,7 @@ function reviewToFormValues(review: MonthlyReview): ReviewFormData {
   const [p1 = "", p2 = "", p3 = ""] = review.topPrioritiesNextMonth ?? [];
   return {
     whatMoved: review.whatMoved ?? "",
-    pillarsAdvanced: review.pillarsAdvanced ?? "",
+    areasAdvanced: review.areasAdvanced ?? "",
     milestonesCompleted: review.milestonesCompleted ?? "",
     whatDelayed: review.whatDelayed ?? "",
     whatToPause: review.whatToPause ?? "",
@@ -100,7 +100,7 @@ function reviewMatchesQuery(review: MonthlyReview, query: string): boolean {
   const q = query.toLowerCase();
   const fields = [
     review.whatMoved,
-    review.pillarsAdvanced,
+    review.areasAdvanced,
     review.milestonesCompleted,
     review.whatDelayed,
     review.whatToPause,
@@ -231,7 +231,7 @@ export default function ReviewPage() {
   const { register, handleSubmit, reset, formState: { isDirty } } = useForm<ReviewFormData>({
     defaultValues: {
       whatMoved: "",
-      pillarsAdvanced: "",
+      areasAdvanced: "",
       milestonesCompleted: "",
       whatDelayed: "",
       whatToPause: "",
@@ -249,7 +249,7 @@ export default function ReviewPage() {
     } else {
       reset({
         whatMoved: "",
-        pillarsAdvanced: "",
+        areasAdvanced: "",
         milestonesCompleted: "",
         whatDelayed: "",
         whatToPause: "",
@@ -264,7 +264,7 @@ export default function ReviewPage() {
     const priorities = [data.priority1, data.priority2, data.priority3].filter(Boolean);
     const payload = {
       whatMoved: data.whatMoved || null,
-      pillarsAdvanced: data.pillarsAdvanced || null,
+      areasAdvanced: data.areasAdvanced || null,
       milestonesCompleted: data.milestonesCompleted || null,
       whatDelayed: data.whatDelayed || null,
       whatToPause: data.whatToPause || null,
@@ -426,10 +426,10 @@ export default function ReviewPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="review-pillars-advanced">Pillars advanced</Label>
+                    <Label htmlFor="review-areas-advanced">Areas advanced</Label>
                     <Textarea
-                      id="review-pillars-advanced"
-                      {...register("pillarsAdvanced")}
+                      id="review-areas-advanced"
+                      {...register("areasAdvanced")}
                       placeholder="Which projects or areas made meaningful strides?"
                       className="rounded-xl resize-none"
                       rows={2}

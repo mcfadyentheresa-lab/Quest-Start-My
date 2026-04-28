@@ -2,7 +2,7 @@ import { and, desc, eq, gte, lte, lt, sql } from "drizzle-orm";
 import {
   db,
   tasksTable,
-  pillarsTable,
+  areasTable,
   weeklyPlansTable,
   progressLogsTable,
   dailyBriefingsTable,
@@ -47,7 +47,7 @@ async function loadInput(deps: BriefingDeps): Promise<BriefingInput> {
     .slice(0, 10);
 
   const [pillars, plans, openTasks, recentlyCompleted, recentLogs] = await Promise.all([
-    db.select().from(pillarsTable).orderBy(pillarsTable.id),
+    db.select().from(areasTable).orderBy(areasTable.id),
     db
       .select()
       .from(weeklyPlansTable)

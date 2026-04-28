@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, isNull } from "drizzle-orm";
-import { db, tasksTable, progressLogsTable, pillarsTable, milestonesTable } from "@workspace/db";
+import { db, tasksTable, progressLogsTable, areasTable, milestonesTable } from "@workspace/db";
 import {
   CreateTaskBody,
   UpdateTaskBody,
@@ -104,7 +104,7 @@ router.post("/tasks", async (req, res): Promise<void> => {
     whyItMatters: parsed.data.whyItMatters ?? null,
     doneLooksLike: parsed.data.doneLooksLike ?? null,
     suggestedNextStep: parsed.data.suggestedNextStep ?? null,
-    pillarId: parsed.data.pillarId ?? null,
+    areaId: parsed.data.areaId ?? null,
     milestoneId: parsed.data.milestoneId ?? null,
     blockerReason: parsed.data.blockerReason ?? null,
     taskSource: parsed.data.taskSource ?? null,
@@ -124,26 +124,26 @@ router.get("/tasks/suggestions", async (req, res): Promise<void> => {
   const today = new Date().toISOString().slice(0, 10);
   const date = queryResult.data.date ?? today;
 
-  // Active pillars ordered by priority (P1 first), then id
-  const activePillars = await db
+  // Active areas ordered by priority (P1 first), then id
+  const activeAreas = await db
     .select()
-    .from(pillarsTable)
-    .where(eq(pillarsTable.isActiveThisWeek, true))
-    .orderBy(pillarsTable.priority, pillarsTable.id);
+    .from(areasTable)
+    .where(eq(areasTable.isActiveThisWeek, true))
+    .orderBy(areasTable.priority, areasTable.id);
 
-  if (activePillars.length === 0) {
+  if (activeAreas.length === 0) {
     res.json([]);
     return;
   }
 
   // Tasks already on this date (non-home tasks)
   const existingTasks = await db
-    .select({ pillarId: tasksTable.pillarId })
+    .select({ areaId: tasksTable.areaId })
     .from(tasksTable)
     .where(and(eq(tasksTable.date, date), isNull(tasksTable.taskSource)));
 
-  const coveredPillarIds = new Set(
-    existingTasks.flatMap(t => (t.pillarId != null ? [t.pillarId] : []))
+  const coveredAreaIds = new Set(
+    existingTasks.flatMap(t => (t.areaId != null ? [t.areaId] : []))
   );
   const slotsAvailable = Math.max(0, 3 - existingTasks.length);
 
@@ -152,45 +152,45 @@ router.get("/tasks/suggestions", async (req, res): Promise<void> => {
     return;
   }
 
-  // Planned milestones for all active pillars, ordered by sort_order then id
-  const activePillarIds = activePillars.map(p => p.id);
+  // Planned milestones for all active areas, ordered by sort_order then id
+  const activeAreaIds = activeAreas.map(p => p.id);
   const allMilestones = await db
     .select()
     .from(milestonesTable)
     .where(eq(milestonesTable.status, "planned"))
     .orderBy(milestonesTable.sortOrder, milestonesTable.id);
 
-  const milestonesByPillar = new Map<number, typeof allMilestones>();
+  const milestonesByArea = new Map<number, typeof allMilestones>();
   for (const m of allMilestones) {
-    if (!activePillarIds.includes(m.pillarId)) continue;
-    if (!milestonesByPillar.has(m.pillarId)) milestonesByPillar.set(m.pillarId, []);
-    milestonesByPillar.get(m.pillarId)!.push(m);
+    if (!activeAreaIds.includes(m.areaId)) continue;
+    if (!milestonesByArea.has(m.areaId)) milestonesByArea.set(m.areaId, []);
+    milestonesByArea.get(m.areaId)!.push(m);
   }
 
   const suggestions: {
     title: string;
-    pillarId: number;
-    pillarName: string;
-    pillarColor: string | null;
-    pillarCategory: string | null;
+    areaId: number;
+    areaName: string;
+    areaColor: string | null;
+    areaCategory: string | null;
     milestoneId: number;
     milestoneTitle: string;
   }[] = [];
 
-  for (const pillar of activePillars) {
+  for (const area of activeAreas) {
     if (suggestions.length >= slotsAvailable) break;
-    if (coveredPillarIds.has(pillar.id)) continue;
+    if (coveredAreaIds.has(area.id)) continue;
 
-    const candidateMilestones = milestonesByPillar.get(pillar.id) ?? [];
+    const candidateMilestones = milestonesByArea.get(area.id) ?? [];
     const milestone = candidateMilestones.find(m => m.nextAction && m.nextAction.trim());
     if (!milestone) continue;
 
     suggestions.push({
       title: milestone.nextAction!.trim(),
-      pillarId: pillar.id,
-      pillarName: pillar.name,
-      pillarColor: pillar.color ?? null,
-      pillarCategory: pillar.category ?? null,
+      areaId: area.id,
+      areaName: area.name,
+      areaColor: area.color ?? null,
+      areaCategory: area.category ?? null,
       milestoneId: milestone.id,
       milestoneTitle: milestone.title,
     });
@@ -219,7 +219,7 @@ router.patch("/tasks/:id", async (req, res): Promise<void> => {
   if (parsed.data.doneLooksLike !== undefined) updates.doneLooksLike = parsed.data.doneLooksLike;
   if (parsed.data.suggestedNextStep !== undefined) updates.suggestedNextStep = parsed.data.suggestedNextStep;
   if (parsed.data.status !== undefined) updates.status = parsed.data.status;
-  if (parsed.data.pillarId !== undefined) updates.pillarId = parsed.data.pillarId;
+  if (parsed.data.areaId !== undefined) updates.areaId = parsed.data.areaId;
   if (parsed.data.milestoneId !== undefined) updates.milestoneId = parsed.data.milestoneId;
   if (parsed.data.blockerReason !== undefined) updates.blockerReason = parsed.data.blockerReason;
   if (parsed.data.blockerType !== undefined) updates.blockerType = parsed.data.blockerType;
@@ -283,7 +283,7 @@ router.post("/tasks/:id/step-back", async (req, res): Promise<void> => {
     whyItMatters: generated.whyItMatters,
     doneLooksLike: generated.doneLooksLike,
     suggestedNextStep: generated.suggestedNextStep,
-    pillarId: original.pillarId ?? null,
+    areaId: original.areaId ?? null,
     milestoneId: original.milestoneId ?? null,
     date: original.date,
     status: "pending",

@@ -24,12 +24,12 @@ function serializeMilestone(m: typeof milestonesTable.$inferSelect) {
 
 router.get("/milestones", async (req, res): Promise<void> => {
   const query = ListMilestonesQueryParams.safeParse(req.query);
-  const pillarId = query.success && query.data.pillarId ? query.data.pillarId : undefined;
+  const areaId = query.success && query.data.areaId ? query.data.areaId : undefined;
 
   const milestones = await db
     .select()
     .from(milestonesTable)
-    .where(pillarId ? eq(milestonesTable.pillarId, pillarId) : undefined)
+    .where(areaId ? eq(milestonesTable.areaId, areaId) : undefined)
     .orderBy(milestonesTable.sortOrder, milestonesTable.createdAt);
 
   res.json(ListMilestonesResponse.parse(milestones.map(serializeMilestone)));
@@ -43,7 +43,7 @@ router.post("/milestones", async (req, res): Promise<void> => {
   }
 
   const [milestone] = await db.insert(milestonesTable).values({
-    pillarId: parsed.data.pillarId,
+    areaId: parsed.data.areaId,
     title: parsed.data.title,
     status: parsed.data.status ?? "planned",
     priority: parsed.data.priority ?? null,
@@ -63,18 +63,18 @@ router.post("/milestones/bulk", async (req, res): Promise<void> => {
     return;
   }
 
-  const { pillarId, titles } = parsed.data;
+  const { areaId, titles } = parsed.data;
 
-  // Get current max sort_order for this pillar so new ones go at the bottom
+  // Get current max sort_order for this area so new ones go at the bottom
   const existing = await db
     .select({ sortOrder: milestonesTable.sortOrder })
     .from(milestonesTable)
-    .where(eq(milestonesTable.pillarId, pillarId));
+    .where(eq(milestonesTable.areaId, areaId));
 
   const maxOrder = existing.reduce((max, m) => Math.max(max, m.sortOrder ?? 0), -1);
 
   const rows = titles.map((title, i) => ({
-    pillarId,
+    areaId,
     title: title.trim(),
     status: "planned" as const,
     sortOrder: maxOrder + 1 + i,

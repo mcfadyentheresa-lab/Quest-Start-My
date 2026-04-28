@@ -7,7 +7,7 @@ export const monthlyReviewsTable = pgTable("monthly_reviews", {
   id: serial("id").primaryKey(),
   monthOf: text("month_of").notNull(),
   whatMoved: text("what_moved"),
-  pillarsAdvanced: text("pillars_advanced"),
+  areasAdvanced: text("areas_advanced"),
   milestonesCompleted: text("milestones_completed"),
   whatDelayed: text("what_delayed"),
   whatToPause: text("what_to_pause"),

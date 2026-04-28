@@ -5,7 +5,7 @@ import {
   useListTasks,
   useUpdateTask,
   useCreateTask,
-  useListPillars,
+  useListAreas,
   useListDailyPlans,
   useGetBriefingToday,
   useReshuffleBriefing,
@@ -100,14 +100,14 @@ export default function Dashboard() {
     { date: viewDate },
     { query: { queryKey: getListTasksQueryKey({ date: viewDate }) } },
   );
-  const { data: pillars } = useListPillars();
+  const { data: areas } = useListAreas();
   const updateTask = useUpdateTask();
   const createTask = useCreateTask();
 
   const briefingQuery = useGetBriefingToday({
     query: {
       queryKey: getBriefingTodayQueryKey(),
-      enabled: !isViewingHistory && (summary?.activePillars?.length ?? 0) > 0,
+      enabled: !isViewingHistory && (summary?.activeAreas?.length ?? 0) > 0,
       staleTime: 60 * 1000,
     },
   });
@@ -141,29 +141,29 @@ export default function Dashboard() {
   const pendingTasks = tasks?.filter((t) => t.status === "pending") ?? [];
   const completedTasks = tasks?.filter((t) => t.status !== "pending") ?? [];
 
-  function groupByPillar(taskList: typeof pendingTasks) {
-    if (!pillars || pillars.length === 0) return null;
-    const pillarIds = new Set(pillars.map((p) => p.id));
+  function groupByArea(taskList: typeof pendingTasks) {
+    if (!areas || areas.length === 0) return null;
+    const areaIds = new Set(areas.map((a) => a.id));
     const groups = new Map<number | null, typeof pendingTasks>();
     for (const task of taskList) {
-      const key = task.pillarId && pillarIds.has(task.pillarId) ? task.pillarId : null;
+      const key = task.areaId && areaIds.has(task.areaId) ? task.areaId : null;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(task);
     }
-    const result: { pillarId: number | null; label: string; color?: string | null; tasks: typeof pendingTasks }[] = [];
-    for (const pillar of pillars) {
-      if (groups.has(pillar.id)) {
-        result.push({ pillarId: pillar.id, label: pillar.name, color: pillar.color, tasks: groups.get(pillar.id)! });
+    const result: { areaId: number | null; label: string; color?: string | null; tasks: typeof pendingTasks }[] = [];
+    for (const area of areas) {
+      if (groups.has(area.id)) {
+        result.push({ areaId: area.id, label: area.name, color: area.color, tasks: groups.get(area.id)! });
       }
     }
     if (groups.has(null)) {
-      result.push({ pillarId: null, label: "Unassigned", color: null, tasks: groups.get(null)! });
+      result.push({ areaId: null, label: "Unassigned", color: null, tasks: groups.get(null)! });
     }
     return result.length > 0 ? result : null;
   }
 
-  const pendingGroups = groupByPillar(pendingTasks);
-  const completedGroups = groupByPillar(completedTasks);
+  const pendingGroups = groupByArea(pendingTasks);
+  const completedGroups = groupByArea(completedTasks);
 
   const pendingTasksToday = tasks?.filter((t) => t.status === "pending" && t.date === today) ?? [];
   const focusedTask = pendingTasksToday.find((t) => t.id === timer.taskId) ?? pendingTasksToday[0] ?? null;
@@ -209,15 +209,15 @@ export default function Dashboard() {
       handleStartFocusBlock({ id: Number(item.taskId), title: item.title });
       return;
     }
-    const pillar = pillars?.find((p) => p.name === item.pillarName) ?? null;
-    const category = pillar?.category ?? "business";
+    const area = areas?.find((a) => a.name === item.pillarName) ?? null;
+    const category = area?.category ?? "business";
     createTask.mutate(
       {
         data: {
           title: item.title,
           category,
           date: today,
-          pillarId: pillar?.id ?? null,
+          areaId: area?.id ?? null,
           suggestedNextStep: item.suggestedNextStep,
         },
       },
@@ -292,11 +292,11 @@ export default function Dashboard() {
     );
   }
 
-  const pillarMap = new Map(pillars?.map((p) => [p.id, p]) ?? []);
+  const areaMap = new Map(areas?.map((a) => [a.id, a]) ?? []);
   const briefing = briefingQuery.data;
   const headlineFromBriefing = briefing?.headline ?? "Today, in focus.";
   const greetingFromBriefing = briefing?.greeting ?? "";
-  const showBriefing = !isViewingHistory && (summary?.activePillars?.length ?? 0) > 0;
+  const showBriefing = !isViewingHistory && (summary?.activeAreas?.length ?? 0) > 0;
 
   return (
     <div className="space-y-6">
@@ -352,27 +352,27 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* Empty pillars state */}
-      {!isViewingHistory && (summary?.activePillars?.length ?? 0) === 0 && (
+      {/* Empty areas state */}
+      {!isViewingHistory && (summary?.activeAreas?.length ?? 0) === 0 && (
         <motion.section
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           className="rounded-2xl border border-dashed border-border bg-card p-6 text-center"
         >
           <p className="font-serif text-base text-foreground mb-1">
-            Set up your pillars to get a daily briefing.
+            Set up your areas to get a daily briefing.
           </p>
           <p className="text-sm text-muted-foreground mb-4">
-            Pillars give your assistant the context to draft today's plan.
+            Areas give your assistant the context to draft today's plan.
           </p>
-          <Button onClick={() => navigate("/pillars")} size="sm" className="rounded-xl">
-            Add your pillars
+          <Button onClick={() => navigate("/areas")} size="sm" className="rounded-xl">
+            Add your areas
           </Button>
         </motion.section>
       )}
 
-      {/* Active pillars (kept) */}
-      {summary?.activePillars && summary.activePillars.length > 0 && (
+      {/* Active areas (kept) */}
+      {summary?.activeAreas && summary.activeAreas.length > 0 && (
         <motion.section
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -382,19 +382,19 @@ export default function Dashboard() {
             Active this week
           </h2>
           <div className="flex flex-wrap gap-2">
-            {summary.activePillars.map((pillar) => (
+            {summary.activeAreas.map((area) => (
               <div
-                key={pillar.id}
+                key={area.id}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-card-border text-sm"
               >
-                {pillar.color && (
+                {area.color && (
                   <span
                     className="h-2.5 w-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: pillar.color }}
+                    style={{ backgroundColor: area.color }}
                   />
                 )}
-                <span className="font-medium text-foreground">{pillar.name}</span>
-                <PriorityBadge priority={pillar.priority} />
+                <span className="font-medium text-foreground">{area.name}</span>
+                <PriorityBadge priority={area.priority} />
               </div>
             ))}
           </div>
@@ -628,8 +628,8 @@ export default function Dashboard() {
           <div className="space-y-3">
             {pendingGroups ? (
               pendingGroups.map((group) => (
-                <div key={group.pillarId ?? "unassigned"} className="space-y-2">
-                  {(pendingGroups.length > 1 || group.pillarId === null) && (
+                <div key={group.areaId ?? "unassigned"} className="space-y-2">
+                  {(pendingGroups.length > 1 || group.areaId === null) && (
                     <div className="flex items-center gap-2 px-1 pt-1">
                       {group.color && (
                         <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
@@ -645,8 +645,8 @@ export default function Dashboard() {
                         key={task.id}
                         task={task}
                         date={viewDate}
-                        pillarMap={pillarMap}
-                        activePillarIds={summary?.activePillars?.map((p) => p.id) ?? []}
+                        areaMap={areaMap}
+                        areaPriorities={summary?.weeklyPlan?.areaPriorities ?? []}
                       />
                     ))}
                   </AnimatePresence>
@@ -659,8 +659,8 @@ export default function Dashboard() {
                     key={task.id}
                     task={task}
                     date={viewDate}
-                    pillarMap={pillarMap}
-                    activePillarIds={summary?.activePillars?.map((p) => p.id) ?? []}
+                    areaMap={areaMap}
+                    areaPriorities={summary?.weeklyPlan?.areaPriorities ?? []}
                   />
                 ))}
               </AnimatePresence>
@@ -671,8 +671,8 @@ export default function Dashboard() {
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">Completed</p>
                 {completedGroups ? (
                   completedGroups.map((group) => (
-                    <div key={group.pillarId ?? "unassigned"} className="space-y-2">
-                      {(completedGroups.length > 1 || group.pillarId === null) && (
+                    <div key={group.areaId ?? "unassigned"} className="space-y-2">
+                      {(completedGroups.length > 1 || group.areaId === null) && (
                         <div className="flex items-center gap-2 px-1 pt-1">
                           {group.color && (
                             <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
@@ -688,8 +688,8 @@ export default function Dashboard() {
                             key={task.id}
                             task={task}
                             date={viewDate}
-                            pillarMap={pillarMap}
-                            activePillarIds={summary?.activePillars?.map((p) => p.id) ?? []}
+                            areaMap={areaMap}
+                            areaPriorities={summary?.weeklyPlan?.areaPriorities ?? []}
                           />
                         ))}
                       </AnimatePresence>
@@ -702,8 +702,8 @@ export default function Dashboard() {
                         key={task.id}
                         task={task}
                         date={viewDate}
-                        pillarMap={pillarMap}
-                        activePillarIds={summary?.activePillars?.map((p) => p.id) ?? []}
+                        areaMap={areaMap}
+                        areaPriorities={summary?.weeklyPlan?.areaPriorities ?? []}
                       />
                     ))}
                   </AnimatePresence>

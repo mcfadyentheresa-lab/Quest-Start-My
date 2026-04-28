@@ -91,7 +91,7 @@ function buildUserPrompt(input: BriefingInput): string {
     .slice(0, 25)
     .map(
       (t) =>
-        `- id=${t.id} status=${t.status} title="${t.title}" pillarId=${t.pillarId ?? "null"}${t.suggestedNextStep ? ` next="${t.suggestedNextStep}"` : ""}${t.blockerReason ? ` blocker="${t.blockerReason}"` : ""}`,
+        `- id=${t.id} status=${t.status} title="${t.title}" pillarId=${t.areaId ?? "null"}${t.suggestedNextStep ? ` next="${t.suggestedNextStep}"` : ""}${t.blockerReason ? ` blocker="${t.blockerReason}"` : ""}`,
     )
     .join("\n");
 
@@ -153,8 +153,8 @@ function parseAiResponse(
 
     const pillarNameRaw = typeof e.pillarName === "string" ? e.pillarName : "";
     let pillar = pillarByName.get(pillarNameRaw.toLowerCase()) ?? null;
-    if (!pillar && referencedTask?.pillarId !== undefined && referencedTask.pillarId !== null) {
-      pillar = pillarById.get(referencedTask.pillarId) ?? null;
+    if (!pillar && referencedTask?.areaId !== undefined && referencedTask.areaId !== null) {
+      pillar = pillarById.get(referencedTask.areaId) ?? null;
     }
 
     const priority = isPriority(e.priority) ? e.priority : "P3";
