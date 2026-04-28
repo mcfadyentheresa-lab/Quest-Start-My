@@ -8,6 +8,13 @@
       "when": 1745884800000,
       "tag": "0000_daily_briefings",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1761609600000,
+      "tag": "0002_daily_recaps",
+      "breakpoints": true
     }
   ]
 }

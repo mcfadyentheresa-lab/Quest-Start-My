@@ -10,12 +10,17 @@ import {
   useGetBriefingToday,
   useReshuffleBriefing,
   useApproveBriefing,
+  useGetDashboardRecap,
+  useRegenerateRecap,
+  useSaveRecapReflection,
   getListTasksQueryKey,
   getGetDashboardSummaryQueryKey,
   getListDailyPlansQueryKey,
   getBriefingTodayQueryKey,
+  getDashboardRecapQueryKey,
 } from "@workspace/api-client-react";
 import type { BriefingItem } from "@workspace/api-client-react";
+import { isAfterLocalHour } from "@/lib/timezone";
 import { TaskCard } from "@/components/task-card";
 import { ProgressSummary } from "@/components/progress-summary";
 import { PriorityBadge } from "@/components/priority-badge";
@@ -34,6 +39,11 @@ import {
   BriefingCardSkeleton,
   BriefingCardError,
 } from "@/components/briefing-card";
+import {
+  EveningRecapCard,
+  EveningRecapCardSkeleton,
+  EveningRecapCardError,
+} from "@/components/evening-recap-card";
 
 const FOCUS_DURATIONS = [5, 10, 15, 25] as const;
 
@@ -104,11 +114,46 @@ export default function Dashboard() {
   const updateTask = useUpdateTask();
   const createTask = useCreateTask();
 
+  const showEveningRecap = !isViewingHistory && isAfterLocalHour(new Date(), 17);
+  const briefingEnabled = !isViewingHistory && !showEveningRecap && (summary?.activeAreas?.length ?? 0) > 0;
+  const recapEnabled = !isViewingHistory && showEveningRecap;
+
   const briefingQuery = useGetBriefingToday({
     query: {
       queryKey: getBriefingTodayQueryKey(),
-      enabled: !isViewingHistory && (summary?.activeAreas?.length ?? 0) > 0,
+      enabled: briefingEnabled,
       staleTime: 60 * 1000,
+    },
+  });
+
+  const recapQuery = useGetDashboardRecap({
+    query: {
+      queryKey: getDashboardRecapQueryKey(),
+      enabled: recapEnabled,
+      staleTime: 60 * 1000,
+    },
+  });
+
+  const regenerateRecapMutation = useRegenerateRecap({
+    mutation: {
+      onSuccess: (data) => {
+        queryClient.setQueryData(getDashboardRecapQueryKey(), data);
+        toast({ title: "Recap refreshed" });
+      },
+      onError: () => {
+        toast({ title: "Couldn't refresh recap", variant: "destructive" });
+      },
+    },
+  });
+
+  const saveReflectionMutation = useSaveRecapReflection({
+    mutation: {
+      onSuccess: (data) => {
+        queryClient.setQueryData(getDashboardRecapQueryKey(), data);
+      },
+      onError: () => {
+        toast({ title: "Couldn't save reflection", variant: "destructive" });
+      },
     },
   });
 
@@ -243,6 +288,7 @@ export default function Dashboard() {
           queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date: today }) });
           queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
           queryClient.invalidateQueries({ queryKey: getBriefingTodayQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getDashboardRecapQueryKey() });
           toast({ title: "Marked done", description: item.title });
         },
       },
@@ -258,6 +304,7 @@ export default function Dashboard() {
           queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date: today }) });
           queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
           queryClient.invalidateQueries({ queryKey: getBriefingTodayQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getDashboardRecapQueryKey() });
           toast({ title: "Pushed to tomorrow", description: item.title });
         },
       },
@@ -273,6 +320,7 @@ export default function Dashboard() {
           queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date: today }) });
           queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
           queryClient.invalidateQueries({ queryKey: getBriefingTodayQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getDashboardRecapQueryKey() });
           toast({ title: "Marked blocked", description: item.title });
         },
       },
@@ -287,16 +335,21 @@ export default function Dashboard() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-20 rounded-2xl" />
-        <BriefingCardSkeleton />
+        {showEveningRecap ? <EveningRecapCardSkeleton /> : <BriefingCardSkeleton />}
       </div>
     );
   }
 
   const areaMap = new Map(areas?.map((a) => [a.id, a]) ?? []);
   const briefing = briefingQuery.data;
-  const headlineFromBriefing = briefing?.headline ?? "Today, in focus.";
-  const greetingFromBriefing = briefing?.greeting ?? "";
-  const showBriefing = !isViewingHistory && (summary?.activeAreas?.length ?? 0) > 0;
+  const recap = recapQuery.data;
+  const headlineFromBriefing = showEveningRecap
+    ? recap?.headline ?? "Day's done."
+    : briefing?.headline ?? "Today, in focus.";
+  const greetingFromBriefing = showEveningRecap
+    ? recap?.greeting ?? ""
+    : briefing?.greeting ?? "";
+  const showBriefing = !isViewingHistory && !showEveningRecap && (summary?.activeAreas?.length ?? 0) > 0;
 
   return (
     <div className="space-y-6">
@@ -321,7 +374,7 @@ export default function Dashboard() {
         </motion.section>
       )}
 
-      {/* Briefing zone */}
+      {/* Briefing zone (morning) */}
       {showBriefing && (
         <>
           {briefingQuery.isLoading && <BriefingCardSkeleton />}
@@ -352,8 +405,36 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* Empty areas state */}
-      {!isViewingHistory && (summary?.activeAreas?.length ?? 0) === 0 && (
+      {/* Evening recap zone */}
+      {recapEnabled && (
+        <>
+          {recapQuery.isLoading && <EveningRecapCardSkeleton />}
+          {recapQuery.isError && (
+            <EveningRecapCardError onRetry={() => recapQuery.refetch()} />
+          )}
+          {recap && (
+            <>
+              <EveningRecapCard
+                recap={recap}
+                isRegenerating={regenerateRecapMutation.isPending}
+                onRegenerate={() => regenerateRecapMutation.mutate()}
+                onPlanTomorrow={() => navigate("/weekly")}
+                onSaveReflection={(text) =>
+                  saveReflectionMutation.mutate({ reflection: text })
+                }
+              />
+              {recap.signoff && (
+                <p className="text-sm italic text-muted-foreground px-1">
+                  {recap.signoff}
+                </p>
+              )}
+            </>
+          )}
+        </>
+      )}
+
+      {/* Empty areas state — only show in morning briefing mode */}
+      {!isViewingHistory && !showEveningRecap && (summary?.activeAreas?.length ?? 0) === 0 && (
         <motion.section
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
