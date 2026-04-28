@@ -3,49 +3,51 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   useGetDashboardSummary,
   useListTasks,
-  useGetReentryTask,
   useUpdateTask,
   useCreateTask,
   useListPillars,
-  useGetTaskSuggestions,
   useListDailyPlans,
+  useGetBriefingToday,
+  useReshuffleBriefing,
+  useApproveBriefing,
   getListTasksQueryKey,
   getGetDashboardSummaryQueryKey,
-  getGetReentryTaskQueryKey,
-  getGetTaskSuggestionsQueryKey,
   getListDailyPlansQueryKey,
+  getBriefingTodayQueryKey,
 } from "@workspace/api-client-react";
+import type { BriefingItem } from "@workspace/api-client-react";
 import { TaskCard } from "@/components/task-card";
 import { ProgressSummary } from "@/components/progress-summary";
-import { PriorityBadge, PriorityLegend } from "@/components/priority-badge";
+import { PriorityBadge } from "@/components/priority-badge";
 import { AddTaskDialog } from "@/components/add-task-dialog";
 import { FocusTimerWidget } from "@/components/focus-timer-widget";
 import { FocusNudgeDialog } from "@/components/focus-nudge-dialog";
 import { useFocusTimer, clampDuration, MIN_DURATION_MINUTES, MAX_DURATION_MINUTES } from "@/hooks/use-focus-timer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Plus, Sprout, ArrowRight, CheckCircle2, ExternalLink, CalendarDays, Timer, Lightbulb, X } from "lucide-react";
+import { Plus, Sprout, ArrowRight, CalendarDays, Timer } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useSearch, useLocation, Link } from "wouter";
+import { useSearch, useLocation } from "wouter";
+import {
+  BriefingCard,
+  BriefingCardSkeleton,
+  BriefingCardError,
+} from "@/components/briefing-card";
 
 const FOCUS_DURATIONS = [5, 10, 15, 25] as const;
-
-function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-}
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-}
 
 function formatShortDate(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function formatDateMono(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  const weekday = d.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
+  const month = d.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
+  const day = d.getDate();
+  return `${weekday} · ${month} ${day}`;
 }
 
 export default function Dashboard() {
@@ -55,15 +57,15 @@ export default function Dashboard() {
   const viewDate = new URLSearchParams(search).get("date") ?? today;
   const isViewingHistory = viewDate !== today;
 
-  const setDateParam = (date: string) => navigate(`/?date=${date}`);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const { data: dailyPlans } = useListDailyPlans(
     { date: today },
-    { query: { queryKey: getListDailyPlansQueryKey({ date: today }), enabled: !isViewingHistory } }
+    { query: { queryKey: getListDailyPlansQueryKey({ date: today }), enabled: !isViewingHistory } },
   );
-  const todayPlan = dailyPlans?.[0];
+  // Keep daily-plan side effect even though we no longer render the priorities form prominently.
+  void dailyPlans;
 
   const timer = useFocusTimer();
   const [selectedFocusDuration, setSelectedFocusDuration] = useState<number>(() => timer.defaultDuration);
@@ -93,115 +95,61 @@ export default function Dashboard() {
     setCustomDurationInput(String(safe));
   };
 
-  const [dismissedMilestoneIds, setDismissedMilestoneIds] = useState<Set<number>>(new Set());
-  const [addingSuggestionId, setAddingSuggestionId] = useState<number | null>(null);
-  const [editingTitleId, setEditingTitleId] = useState<number | null>(null);
-  const [editedTitles, setEditedTitles] = useState<Map<number, string>>(new Map());
-
   const { data: summary, isLoading: summaryLoading } = useGetDashboardSummary();
   const { data: tasks, isLoading: tasksLoading } = useListTasks(
     { date: viewDate },
-    { query: { queryKey: getListTasksQueryKey({ date: viewDate }) } }
+    { query: { queryKey: getListTasksQueryKey({ date: viewDate }) } },
   );
-  const { data: reentry } = useGetReentryTask({
-    query: { queryKey: getGetReentryTaskQueryKey() }
-  });
   const { data: pillars } = useListPillars();
   const updateTask = useUpdateTask();
   const createTask = useCreateTask();
 
-  const todayTaskCount = !isViewingHistory ? (tasks?.length ?? 0) : 3;
-  const { data: rawSuggestions } = useGetTaskSuggestions(
-    { date: today },
-    { query: { enabled: !isViewingHistory && todayTaskCount < 3, queryKey: getGetTaskSuggestionsQueryKey({ date: today }) } }
-  );
-  const visibleSuggestions = (rawSuggestions ?? []).filter(s => !dismissedMilestoneIds.has(s.milestoneId));
+  const briefingQuery = useGetBriefingToday({
+    query: {
+      queryKey: getBriefingTodayQueryKey(),
+      enabled: !isViewingHistory && (summary?.activePillars?.length ?? 0) > 0,
+      staleTime: 60 * 1000,
+    },
+  });
 
-  const handleAddSuggestion = (suggestion: typeof visibleSuggestions[number]) => {
-    setAddingSuggestionId(suggestion.milestoneId);
-    setEditingTitleId(null);
-    const title = editedTitles.get(suggestion.milestoneId)?.trim() || suggestion.title;
-    createTask.mutate(
-      {
-        data: {
-          title,
-          category: suggestion.pillarCategory ?? "business",
-          date: today,
-          pillarId: suggestion.pillarId,
-          milestoneId: suggestion.milestoneId,
-        },
+  const reshuffleMutation = useReshuffleBriefing({
+    mutation: {
+      onSuccess: (data) => {
+        queryClient.setQueryData(getBriefingTodayQueryKey(), data);
+        toast({ title: "New plan generated" });
       },
-      {
-        onSuccess: () => {
-          setDismissedMilestoneIds(prev => new Set([...prev, suggestion.milestoneId]));
-          queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date: today }) });
-          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetTaskSuggestionsQueryKey({ date: today }) });
-          toast({ title: "Task added", description: title });
-        },
-        onSettled: () => setAddingSuggestionId(null),
-      }
-    );
-  };
+      onError: () => {
+        toast({ title: "Couldn't reshuffle", variant: "destructive" });
+      },
+    },
+  });
 
-  const handleAddAllSuggestions = async () => {
-    let added = 0;
-    let failed = 0;
-    for (const suggestion of visibleSuggestions) {
-      const title = editedTitles.get(suggestion.milestoneId)?.trim() || suggestion.title;
-      await new Promise<void>((resolve) => {
-        createTask.mutate(
-          {
-            data: {
-              title,
-              category: suggestion.pillarCategory ?? "business",
-              date: today,
-              pillarId: suggestion.pillarId,
-              milestoneId: suggestion.milestoneId,
-            },
-          },
-          {
-            onSuccess: () => {
-              added++;
-              setDismissedMilestoneIds(prev => new Set([...prev, suggestion.milestoneId]));
-            },
-            onError: () => { failed++; },
-            onSettled: () => resolve(),
-          }
-        );
-      });
-    }
-    queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date: today }) });
-    queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-    queryClient.invalidateQueries({ queryKey: getGetTaskSuggestionsQueryKey({ date: today }) });
-    if (failed === 0) {
-      toast({ title: "Tasks added", description: `${added} task${added !== 1 ? "s" : ""} added for today` });
-    } else {
-      toast({
-        title: added > 0 ? "Some tasks added" : "Could not add tasks",
-        description: added > 0
-          ? `${added} added, ${failed} failed — try again for the rest`
-          : "Something went wrong. Please try adding tasks individually.",
-        variant: "destructive",
-      });
-    }
-  };
+  const approveMutation = useApproveBriefing({
+    mutation: {
+      onSuccess: (data) => {
+        if (data.briefing) {
+          queryClient.setQueryData(getBriefingTodayQueryKey(), data.briefing);
+        }
+        toast({ title: "Plan locked in" });
+      },
+      onError: () => {
+        toast({ title: "Couldn't approve", variant: "destructive" });
+      },
+    },
+  });
 
-  const pendingTasks = tasks?.filter(t => t.status === "pending") ?? [];
-  const completedTasks = tasks?.filter(t => t.status !== "pending") ?? [];
+  const pendingTasks = tasks?.filter((t) => t.status === "pending") ?? [];
+  const completedTasks = tasks?.filter((t) => t.status !== "pending") ?? [];
 
-  // Group tasks by pillar. Returns ordered groups: pillar groups first (sorted by pillar name), then unassigned.
   function groupByPillar(taskList: typeof pendingTasks) {
     if (!pillars || pillars.length === 0) return null;
-    const pillarIds = new Set(pillars.map(p => p.id));
+    const pillarIds = new Set(pillars.map((p) => p.id));
     const groups = new Map<number | null, typeof pendingTasks>();
     for (const task of taskList) {
-      // Treat tasks whose pillarId is missing from the current pillar list as Unassigned
-      const key = (task.pillarId && pillarIds.has(task.pillarId)) ? task.pillarId : null;
+      const key = task.pillarId && pillarIds.has(task.pillarId) ? task.pillarId : null;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(task);
     }
-    // Build ordered list: pillar groups in pillar order, then unassigned
     const result: { pillarId: number | null; label: string; color?: string | null; tasks: typeof pendingTasks }[] = [];
     for (const pillar of pillars) {
       if (groups.has(pillar.id)) {
@@ -217,22 +165,13 @@ export default function Dashboard() {
   const pendingGroups = groupByPillar(pendingTasks);
   const completedGroups = groupByPillar(completedTasks);
 
-  const handleJumpToTask = () => {
-    if (!reentry?.task) return;
-    setDateParam(reentry.task.date);
-    setTimeout(() => {
-      document.getElementById("tasks-section")?.scrollIntoView({ behavior: "smooth" });
-    }, 200);
-  };
-
-  const pendingTasksToday = tasks?.filter(t => t.status === "pending" && t.date === today) ?? [];
-
-  const focusedTask = pendingTasksToday.find(t => t.id === timer.taskId) ?? pendingTasksToday[0] ?? null;
+  const pendingTasksToday = tasks?.filter((t) => t.status === "pending" && t.date === today) ?? [];
+  const focusedTask = pendingTasksToday.find((t) => t.id === timer.taskId) ?? pendingTasksToday[0] ?? null;
   const nextPendingTask = focusedTask
-    ? pendingTasksToday.find(t => t.id !== focusedTask.id)
+    ? pendingTasksToday.find((t) => t.id !== focusedTask.id)
     : null;
 
-  const handleStartFocusBlock = (task: typeof pendingTasksToday[0]) => {
+  const handleStartFocusBlock = (task: { id: number; title: string }) => {
     timer.startTimer({ taskTitle: task.title, taskId: task.id, durationMins: selectedFocusDuration });
     timer.unlockAudio();
   };
@@ -241,7 +180,7 @@ export default function Dashboard() {
     const currentId = timer.taskId;
     timer.dismissNudge();
     if (currentId !== null) {
-      const currentTask = tasks?.find(t => t.id === currentId);
+      const currentTask = tasks?.find((t) => t.id === currentId);
       if (currentTask && currentTask.status === "pending") {
         updateTask.mutate(
           { id: currentId, data: { status: "done" } },
@@ -249,105 +188,201 @@ export default function Dashboard() {
             onSuccess: () => {
               queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date: today }) });
               queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-              queryClient.invalidateQueries({ queryKey: getGetReentryTaskQueryKey() });
               if (nextPendingTask) {
                 toast({ title: "Starting next task", description: nextPendingTask.title });
               } else {
                 toast({ title: "Task marked done", description: "All clear — no more tasks!" });
               }
             },
-          }
+          },
         );
       }
     }
   };
 
-  const handleMarkReentryDone = () => {
-    if (!reentry?.task) return;
+  const handleBriefingStart = (item: BriefingItem) => {
+    if (typeof item.taskId === "number") {
+      handleStartFocusBlock({ id: item.taskId, title: item.title });
+      return;
+    }
+    if (typeof item.taskId === "string" && /^\d+$/.test(item.taskId)) {
+      handleStartFocusBlock({ id: Number(item.taskId), title: item.title });
+      return;
+    }
+    const pillar = pillars?.find((p) => p.name === item.pillarName) ?? null;
+    const category = pillar?.category ?? "business";
+    createTask.mutate(
+      {
+        data: {
+          title: item.title,
+          category,
+          date: today,
+          pillarId: pillar?.id ?? null,
+          suggestedNextStep: item.suggestedNextStep,
+        },
+      },
+      {
+        onSuccess: (created) => {
+          queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date: today }) });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          handleStartFocusBlock({ id: created.id, title: created.title });
+        },
+      },
+    );
+  };
+
+  const handleBriefingMarkDone = (item: BriefingItem) => {
+    if (typeof item.taskId !== "number") {
+      toast({ title: "This is a suggestion — add it to today first." });
+      return;
+    }
     updateTask.mutate(
-      { id: reentry.task.id, data: { status: "done" } },
+      { id: item.taskId, data: { status: "done" } },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetReentryTaskQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date: today }) });
           queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-          toast({ title: "Marked as done" });
+          queryClient.invalidateQueries({ queryKey: getBriefingTodayQueryKey() });
+          toast({ title: "Marked done", description: item.title });
         },
-      }
+      },
     );
+  };
+
+  const handleBriefingPush = (item: BriefingItem) => {
+    if (typeof item.taskId !== "number") return;
+    updateTask.mutate(
+      { id: item.taskId, data: { status: "pushed" } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date: today }) });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getBriefingTodayQueryKey() });
+          toast({ title: "Pushed to tomorrow", description: item.title });
+        },
+      },
+    );
+  };
+
+  const handleBriefingBlocked = (item: BriefingItem) => {
+    if (typeof item.taskId !== "number") return;
+    updateTask.mutate(
+      { id: item.taskId, data: { status: "blocked" } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date: today }) });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getBriefingTodayQueryKey() });
+          toast({ title: "Marked blocked", description: item.title });
+        },
+      },
+    );
+  };
+
+  const handleAddOwn = () => {
+    document.getElementById("tasks-section")?.scrollIntoView({ behavior: "smooth" });
   };
 
   if (summaryLoading && tasksLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-20 rounded-2xl" />
-        <Skeleton className="h-24 rounded-2xl" />
-        <Skeleton className="h-48 rounded-2xl" />
+        <BriefingCardSkeleton />
       </div>
     );
   }
 
-  // Build a quick pillar map for task chips
-  const pillarMap = new Map(pillars?.map(p => [p.id, p]) ?? []);
+  const pillarMap = new Map(pillars?.map((p) => [p.id, p]) ?? []);
+  const briefing = briefingQuery.data;
+  const headlineFromBriefing = briefing?.headline ?? "Today, in focus.";
+  const greetingFromBriefing = briefing?.greeting ?? "";
+  const showBriefing = !isViewingHistory && (summary?.activePillars?.length ?? 0) > 0;
 
   return (
     <div className="space-y-6">
-      {/* Greeting header */}
-      <motion.section
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="text-center py-4"
-      >
-        <p className="text-sm font-medium text-muted-foreground tracking-wide uppercase">
-          {summary?.todayDate ? formatDate(summary.todayDate) : formatDate(today)}
-        </p>
-        <h1 className="font-serif text-3xl font-medium text-foreground mt-1">
-          {getGreeting()}
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1 italic">Let's make today count.</p>
-      </motion.section>
-
-      {/* Priority legend */}
-      <section>
-        <PriorityLegend />
-      </section>
-
-      {/* Weekly plan nudge - show when no plan or plan lacks businessFocus/creativeFocus */}
-      {!summaryLoading && summary && (!summary.weeklyPlan || (!summary.weeklyPlan.businessFocus && !summary.weeklyPlan.creativeFocus)) && (
+      {/* Confident header */}
+      {!isViewingHistory && (
         <motion.section
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.08 }}
-          className="rounded-2xl border border-dashed border-primary/40 bg-primary/5 px-5 py-4 flex items-center justify-between gap-3"
+          transition={{ duration: 0.3 }}
+          className="pt-2"
+          data-testid="briefing-header"
         >
-          <div className="flex items-center gap-3">
-            <CalendarDays className="h-5 w-5 text-primary flex-shrink-0" />
-            <p className="text-sm font-medium text-foreground">
-              Start your week with intention
-            </p>
-          </div>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="rounded-xl gap-1.5 text-primary text-xs font-semibold shrink-0"
-            onClick={() => navigate("/weekly")}
-          >
-            Plan now
-            <ArrowRight className="h-3.5 w-3.5" />
+          <p className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
+            {formatDateMono(today)}
+          </p>
+          <h1 className="font-serif text-3xl font-medium text-foreground mt-2 leading-tight">
+            {greetingFromBriefing || "Welcome back."}
+          </h1>
+          <p className="font-serif text-xl text-foreground/70 mt-1">
+            {headlineFromBriefing}
+          </p>
+        </motion.section>
+      )}
+
+      {/* Briefing zone */}
+      {showBriefing && (
+        <>
+          {briefingQuery.isLoading && <BriefingCardSkeleton />}
+          {briefingQuery.isError && (
+            <BriefingCardError onRetry={() => briefingQuery.refetch()} />
+          )}
+          {briefing && (
+            <>
+              <BriefingCard
+                briefing={briefing}
+                isReshuffling={reshuffleMutation.isPending}
+                isApproving={approveMutation.isPending}
+                onApprove={() => approveMutation.mutate()}
+                onReshuffle={() => reshuffleMutation.mutate()}
+                onAddOwn={handleAddOwn}
+                onStartFocus={handleBriefingStart}
+                onMarkDone={handleBriefingMarkDone}
+                onPushTask={handleBriefingPush}
+                onMarkBlocked={handleBriefingBlocked}
+              />
+              {briefing.signoff && (
+                <p className="text-sm italic text-muted-foreground px-1">
+                  {briefing.signoff}
+                </p>
+              )}
+            </>
+          )}
+        </>
+      )}
+
+      {/* Empty pillars state */}
+      {!isViewingHistory && (summary?.activePillars?.length ?? 0) === 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-dashed border-border bg-card p-6 text-center"
+        >
+          <p className="font-serif text-base text-foreground mb-1">
+            Set up your pillars to get a daily briefing.
+          </p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Pillars give your assistant the context to draft today's plan.
+          </p>
+          <Button onClick={() => navigate("/pillars")} size="sm" className="rounded-xl">
+            Add your pillars
           </Button>
         </motion.section>
       )}
 
-      {/* Active pillars */}
+      {/* Active pillars (kept) */}
       {summary?.activePillars && summary.activePillars.length > 0 && (
         <motion.section
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <h2 className="font-serif text-base font-medium text-foreground mb-3">Active this week</h2>
+          <h2 className="font-serif text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wide">
+            Active this week
+          </h2>
           <div className="flex flex-wrap gap-2">
-            {summary.activePillars.map(pillar => (
+            {summary.activePillars.map((pillar) => (
               <div
                 key={pillar.id}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-card-border text-sm"
@@ -366,17 +401,16 @@ export default function Dashboard() {
         </motion.section>
       )}
 
-      {/* Weekly focus */}
+      {/* This week's focus (kept, simplified) */}
       {summary?.weeklyPlan && (
         <motion.section
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="rounded-2xl bg-card border border-card-border p-5"
+          className="rounded-2xl bg-card border border-card-border p-4"
         >
-          <h2 className="font-serif text-base font-medium text-foreground mb-3">This week's focus</h2>
           {summary.weeklyPlan.priorities.length > 0 && (
-            <ul className="space-y-1.5 mb-3">
+            <ul className="space-y-1.5 mb-2">
               {summary.weeklyPlan.priorities.map((p, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
                   <span className="text-primary font-bold mt-0.5">·</span>
@@ -386,258 +420,31 @@ export default function Dashboard() {
             </ul>
           )}
           {(summary.weeklyPlan.healthFocus || summary.weeklyPlan.businessFocus || summary.weeklyPlan.creativeFocus) && (
-            <div className="pt-2 border-t border-border space-y-1.5">
+            <div className="space-y-1.5">
               {summary.weeklyPlan.healthFocus && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-0.5">Health</p>
-                  <p className="text-sm text-foreground/80">{summary.weeklyPlan.healthFocus}</p>
-                </div>
+                <FocusLine label="Health" value={summary.weeklyPlan.healthFocus} />
               )}
               {summary.weeklyPlan.businessFocus && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-0.5">Business</p>
-                  <p className="text-sm text-foreground/80">{summary.weeklyPlan.businessFocus}</p>
-                </div>
+                <FocusLine label="Business" value={summary.weeklyPlan.businessFocus} />
               )}
               {summary.weeklyPlan.creativeFocus && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-0.5">Creative</p>
-                  <p className="text-sm text-foreground/80">{summary.weeklyPlan.creativeFocus}</p>
-                </div>
+                <FocusLine label="Creative" value={summary.weeklyPlan.creativeFocus} />
               )}
             </div>
           )}
         </motion.section>
       )}
 
-      {/* Daily plan priorities */}
-      {!isViewingHistory && (
-        <motion.section
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.17 }}
-          className="rounded-2xl bg-card border border-card-border p-5 space-y-3"
-        >
-          <div className="flex items-center justify-between">
-            <h2 className="font-serif text-base font-medium text-foreground">Today's top priorities</h2>
-            <Link href="/today">
-              <button className="text-xs text-primary hover:underline">
-                {todayPlan && todayPlan.priorities.length > 0 ? "Edit" : "Set priorities"}
-              </button>
-            </Link>
-          </div>
-          {todayPlan && todayPlan.priorities.length > 0 ? (
-            <ol className="space-y-2">
-              {todayPlan.priorities.map((p, i) => (
-                <li key={i} className="flex items-start gap-2.5">
-                  <span className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold flex items-center justify-center mt-0.5">
-                    {i + 1}
-                  </span>
-                  <p className="text-sm text-foreground leading-snug">{p}</p>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <Link href="/today">
-              <button className="w-full rounded-xl border border-dashed border-border py-4 text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors">
-                Tap to set your priorities for today →
-              </button>
-            </Link>
-          )}
-        </motion.section>
-      )}
-
-      {/* Daily task suggestions from milestones */}
-      {!isViewingHistory && visibleSuggestions.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.19 }}
-          className="rounded-2xl bg-card border border-card-border p-5"
-        >
-          <div className="flex items-center justify-between mb-3 gap-2">
-            <div className="flex items-center gap-2">
-              <Lightbulb className="h-4 w-4 text-amber-500 flex-shrink-0" />
-              <h2 className="font-serif text-base font-medium text-foreground">Suggested for today</h2>
-            </div>
-            {visibleSuggestions.length > 1 && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-xl text-xs gap-1.5 shrink-0"
-                onClick={handleAddAllSuggestions}
-                disabled={createTask.isPending}
-              >
-                <Plus className="h-3 w-3" />
-                Add all
-              </Button>
-            )}
-          </div>
-          <div className="space-y-3">
-            <AnimatePresence mode="popLayout">
-              {visibleSuggestions.map(suggestion => (
-                <motion.div
-                  key={suggestion.milestoneId}
-                  layout
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                  className="rounded-xl border border-border bg-muted/30 px-4 py-3"
-                >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {suggestion.pillarColor && (
-                        <span
-                          className="h-2.5 w-2.5 rounded-full flex-shrink-0 mt-0.5"
-                          style={{ backgroundColor: suggestion.pillarColor }}
-                        />
-                      )}
-                      <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground truncate">{suggestion.pillarName}</p>
-                        <p className="text-xs text-primary/70 truncate">↑ {suggestion.milestoneTitle}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setDismissedMilestoneIds(prev => new Set([...prev, suggestion.milestoneId]))}
-                      className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 p-0.5"
-                      aria-label={`Dismiss suggestion: ${suggestion.title}`}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  {editingTitleId === suggestion.milestoneId ? (
-                    <input
-                      autoFocus
-                      value={editedTitles.get(suggestion.milestoneId) ?? suggestion.title}
-                      onChange={e =>
-                        setEditedTitles(prev => new Map(prev).set(suggestion.milestoneId, e.target.value))
-                      }
-                      onBlur={() => setEditingTitleId(null)}
-                      onKeyDown={e => {
-                        if (e.key === "Enter" || e.key === "Escape") setEditingTitleId(null);
-                      }}
-                      className="w-full text-sm font-medium text-foreground leading-snug mb-3 bg-background border border-primary/40 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  ) : (
-                    <p
-                      className="text-sm font-medium text-foreground leading-snug mb-3 cursor-text hover:text-primary transition-colors"
-                      title="Click to edit title"
-                      onClick={() => {
-                        if (!editedTitles.has(suggestion.milestoneId)) {
-                          setEditedTitles(prev => new Map(prev).set(suggestion.milestoneId, suggestion.title));
-                        }
-                        setEditingTitleId(suggestion.milestoneId);
-                      }}
-                    >
-                      {editedTitles.get(suggestion.milestoneId) ?? suggestion.title}
-                    </p>
-                  )}
-                  <Button
-                    size="sm"
-                    className="rounded-xl text-xs w-full gap-1.5"
-                    onClick={() => handleAddSuggestion(suggestion)}
-                    disabled={addingSuggestionId === suggestion.milestoneId || createTask.isPending}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Add this task
-                  </Button>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-        </motion.section>
-      )}
-
-      {/* Re-entry panel */}
-      {reentry && reentry.type !== "none" && reentry.task && (
-        <motion.section
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.18 }}
-          className={`rounded-2xl border-2 p-5 ${
-            reentry.type === "unfinished"
-              ? "border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/10"
-              : "border-border bg-muted/30"
-          }`}
-        >
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
-            {reentry.type === "unfinished" ? "Pick up where you left off" : "Your last completed task"}
-          </p>
-
-          {/* Milestone context */}
-          {reentry.task.milestoneTitle && (
-            <p className="text-xs text-primary/80 font-medium mb-1">
-              ↑ {reentry.task.milestoneTitle}
-            </p>
-          )}
-
-          <p className="font-serif text-base font-medium text-foreground leading-snug">
-            {reentry.task.title}
-          </p>
-          {reentry.task.date !== today && (
-            <p className="text-xs text-muted-foreground mt-0.5">From {formatShortDate(reentry.task.date)}</p>
-          )}
-
-          {/* Why it matters */}
-          {reentry.task.whyItMatters && (
-            <p className="text-xs text-foreground/60 mt-1.5 italic leading-relaxed">{reentry.task.whyItMatters}</p>
-          )}
-
-          {/* Blocker reason */}
-          {reentry.task.blockerReason && (
-            <div className="mt-2 rounded-lg bg-rose-100/70 dark:bg-rose-900/20 px-3 py-2">
-              <p className="text-xs font-semibold uppercase tracking-widest text-rose-600 dark:text-rose-400 mb-0.5">Was blocked</p>
-              <p className="text-xs text-foreground/70">{reentry.task.blockerReason}</p>
-            </div>
-          )}
-
-          {/* Suggested next step */}
-          {reentry.task.suggestedNextStep && (
-            <div className="mt-2 flex items-start gap-1.5">
-              <ArrowRight className="h-3.5 w-3.5 text-primary flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-foreground/80">{reentry.task.suggestedNextStep}</p>
-            </div>
-          )}
-
-          {/* Guidance */}
-          {reentry.guidance && (
-            <p className="mt-2 text-xs text-amber-700 dark:text-amber-400 italic">{reentry.guidance}</p>
-          )}
-
-          {reentry.type === "unfinished" && (
-            <div className="mt-4 flex gap-2 flex-wrap">
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-xl gap-1.5"
-                onClick={handleJumpToTask}
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                Jump to task
-              </Button>
-              <Button
-                size="sm"
-                className="rounded-xl gap-1.5"
-                onClick={handleMarkReentryDone}
-                disabled={updateTask.isPending}
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Mark done
-              </Button>
-            </div>
-          )}
-        </motion.section>
-      )}
-
-      {/* Progress summary */}
+      {/* Today's progress (kept) */}
       {tasks && tasks.length > 0 && (
         <motion.section
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <h2 className="font-serif text-base font-medium text-foreground mb-3">Today's progress</h2>
+          <h2 className="font-serif text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wide">
+            Today's progress
+          </h2>
           <ProgressSummary
             doneCount={summary?.doneCount ?? 0}
             pushedCount={summary?.pushedCount ?? 0}
@@ -648,15 +455,42 @@ export default function Dashboard() {
         </motion.section>
       )}
 
+      {/* Weekly plan nudge — small banner only when no plan exists */}
+      {!summaryLoading &&
+        summary &&
+        !summary.weeklyPlan && (
+          <motion.section
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl border border-dashed border-primary/40 bg-primary/5 px-4 py-2.5 flex items-center justify-between gap-3"
+          >
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-primary flex-shrink-0" />
+              <p className="text-xs font-medium text-foreground">
+                Plan this week to give your assistant more context.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="rounded-xl gap-1.5 text-primary text-xs font-semibold shrink-0"
+              onClick={() => navigate("/weekly")}
+            >
+              Plan
+              <ArrowRight className="h-3 w-3" />
+            </Button>
+          </motion.section>
+        )}
+
       {/* Historical date banner */}
       {isViewingHistory && (
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           className="rounded-xl bg-amber-50 border border-amber-200 dark:bg-amber-900/10 dark:border-amber-700 px-4 py-3 flex items-center justify-between"
         >
           <p className="text-sm text-foreground/80">
-            Viewing tasks from <strong>{formatDate(viewDate)}</strong>
+            Viewing tasks from <strong>{formatShortDate(viewDate)}</strong>
           </p>
           <Button size="sm" variant="ghost" className="text-xs rounded-xl" onClick={() => navigate("/")}>
             Back to today
@@ -664,7 +498,7 @@ export default function Dashboard() {
         </motion.div>
       )}
 
-      {/* Focus nudge dialog — rendered at page level so it overlays everything */}
+      {/* Focus nudge dialog */}
       <FocusNudgeDialog
         open={timer.isNudging}
         taskTitle={timer.taskTitle}
@@ -694,7 +528,6 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Focus block controls */}
         {!isViewingHistory && !timer.isRunning && !timer.isNudging && pendingTasksToday.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: -6 }}
@@ -708,7 +541,7 @@ export default function Dashboard() {
                 <span className="text-xs text-muted-foreground hidden sm:inline">on: {focusedTask?.title ?? "first task"}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                {FOCUS_DURATIONS.map(d => (
+                {FOCUS_DURATIONS.map((d) => (
                   <button
                     key={d}
                     onClick={() => { setSelectedFocusDuration(d); setCustomDurationInput(""); }}
@@ -751,15 +584,9 @@ export default function Dashboard() {
                 </Button>
               </div>
             </div>
-            {focusedTask && (
-              <p className="text-xs text-muted-foreground mt-1.5 sm:hidden truncate">
-                on: {focusedTask.title}
-              </p>
-            )}
           </motion.div>
         )}
 
-        {/* Active timer widget */}
         {!isViewingHistory && (timer.isRunning || (!timer.isNudging && timer.remaining > 0)) && (
           <div className="mb-3">
             <FocusTimerWidget
@@ -813,16 +640,28 @@ export default function Dashboard() {
                     </div>
                   )}
                   <AnimatePresence mode="popLayout">
-                    {group.tasks.map(task => (
-                      <TaskCard key={task.id} task={task} date={viewDate} pillarMap={pillarMap} activePillarIds={summary?.activePillars?.map(p => p.id) ?? []} />
+                    {group.tasks.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        date={viewDate}
+                        pillarMap={pillarMap}
+                        activePillarIds={summary?.activePillars?.map((p) => p.id) ?? []}
+                      />
                     ))}
                   </AnimatePresence>
                 </div>
               ))
             ) : (
               <AnimatePresence mode="popLayout">
-                {pendingTasks.map(task => (
-                  <TaskCard key={task.id} task={task} date={viewDate} pillarMap={pillarMap} activePillarIds={summary?.activePillars?.map(p => p.id) ?? []} />
+                {pendingTasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    date={viewDate}
+                    pillarMap={pillarMap}
+                    activePillarIds={summary?.activePillars?.map((p) => p.id) ?? []}
+                  />
                 ))}
               </AnimatePresence>
             )}
@@ -844,16 +683,28 @@ export default function Dashboard() {
                         </div>
                       )}
                       <AnimatePresence mode="popLayout">
-                        {group.tasks.map(task => (
-                          <TaskCard key={task.id} task={task} date={viewDate} pillarMap={pillarMap} activePillarIds={summary?.activePillars?.map(p => p.id) ?? []} />
+                        {group.tasks.map((task) => (
+                          <TaskCard
+                            key={task.id}
+                            task={task}
+                            date={viewDate}
+                            pillarMap={pillarMap}
+                            activePillarIds={summary?.activePillars?.map((p) => p.id) ?? []}
+                          />
                         ))}
                       </AnimatePresence>
                     </div>
                   ))
                 ) : (
                   <AnimatePresence mode="popLayout">
-                    {completedTasks.map(task => (
-                      <TaskCard key={task.id} task={task} date={viewDate} pillarMap={pillarMap} activePillarIds={summary?.activePillars?.map(p => p.id) ?? []} />
+                    {completedTasks.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        date={viewDate}
+                        pillarMap={pillarMap}
+                        activePillarIds={summary?.activePillars?.map((p) => p.id) ?? []}
+                      />
                     ))}
                   </AnimatePresence>
                 )}
@@ -862,6 +713,15 @@ export default function Dashboard() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function FocusLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-0.5">{label}</p>
+      <p className="text-sm text-foreground/80">{value}</p>
     </div>
   );
 }
