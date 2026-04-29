@@ -127,10 +127,60 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     return;
   }
 
+  // ZodError on a response means our generated response schema is
+  // out-of-sync with what the DB / application actually produces.
+  // Return a 500 with the offending issues so we can diagnose without
+  // needing log access (production logs are not always reachable).
+  // The path tells us exactly which field failed validation.
+  const errName =
+    err instanceof Error ? err.name : typeof err === "object" && err !== null && "name" in err && typeof (err as { name: unknown }).name === "string"
+      ? (err as { name: string }).name
+      : "UnknownError";
+  if (errName === "ZodError") {
+    const issues = (err as { issues?: unknown }).issues;
+    logger.error(
+      { err, url: req.url, method: req.method, issues },
+      "Response validation failed (ZodError) — generated schema is out of sync with runtime data",
+    );
+    const apiError = new ApiError(
+      500,
+      "RESPONSE_VALIDATION_FAILED",
+      "The server produced data that didn't match its declared response schema.",
+      { issues },
+    );
+    res.status(apiError.status).json(apiError.toEnvelope());
+    return;
+  }
+
+  // Generic Postgres errors that aren't schema mismatches (connection,
+  // permission, etc.) — surface the pg code so we can diagnose.
+  if (isPgError(err)) {
+    logger.error(
+      {
+        err,
+        url: req.url,
+        method: req.method,
+        pgCode: err.code,
+      },
+      "Database error",
+    );
+    const apiError = new ApiError(
+      500,
+      "DATABASE_ERROR",
+      "A database error occurred.",
+      { pgCode: err.code },
+    );
+    res.status(apiError.status).json(apiError.toEnvelope());
+    return;
+  }
+
   logger.error(
-    { err, url: req.url, method: req.method },
+    { err, url: req.url, method: req.method, errName },
     "Unhandled error",
   );
-  const fallback = new ApiError(500, "INTERNAL_SERVER_ERROR", "Internal Server Error");
+  // Surface the error class name (but never the message/stack — those can
+  // contain user data or internal paths). This is enough to differentiate
+  // a TypeError from a SyntaxError without leaking secrets.
+  const fallback = new ApiError(500, "INTERNAL_SERVER_ERROR", "Internal Server Error", { errName });
   res.status(fallback.status).json(fallback.toEnvelope());
 };
