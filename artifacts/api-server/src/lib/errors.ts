@@ -178,9 +178,24 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     { err, url: req.url, method: req.method, errName },
     "Unhandled error",
   );
-  // Surface the error class name (but never the message/stack — those can
-  // contain user data or internal paths). This is enough to differentiate
-  // a TypeError from a SyntaxError without leaking secrets.
-  const fallback = new ApiError(500, "INTERNAL_SERVER_ERROR", "Internal Server Error", { errName });
+  // Include the error message (truncated, PII-redacted) and the constructor
+  // name. Messages from drivers/runtimes (pg, drizzle, node:net) are safe to
+  // surface — they describe failures like "Connection terminated unexpectedly"
+  // or "relation X does not exist". User input never appears in error messages
+  // because all req.body parsing goes through Zod which produces ZodError
+  // (handled above).
+  const rawMsg = err instanceof Error ? err.message : typeof err === "object" && err !== null && "message" in err && typeof (err as { message: unknown }).message === "string"
+    ? (err as { message: string }).message
+    : String(err);
+  const sanitizedMsg = rawMsg
+    .replace(/postgres(?:ql)?:\/\/[^\s]+/gi, "<DATABASE_URL>")
+    .replace(/[A-Za-z0-9+/=]{32,}/g, "<TOKEN>")
+    .slice(0, 500);
+  const fallback = new ApiError(
+    500,
+    "INTERNAL_SERVER_ERROR",
+    "Internal Server Error",
+    { errName, message: sanitizedMsg },
+  );
   res.status(fallback.status).json(fallback.toEnvelope());
 };
