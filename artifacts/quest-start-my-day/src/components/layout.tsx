@@ -12,7 +12,7 @@ const navItems = [
   { href: "/history", label: "History", icon: History },
   { href: "/home", label: "Home", icon: Home },
   { href: "/review", label: "Month", icon: BookOpen },
-  { href: "/settings", label: "Pillars", icon: Settings },
+  { href: "/areas", label: "Areas", icon: Settings },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {

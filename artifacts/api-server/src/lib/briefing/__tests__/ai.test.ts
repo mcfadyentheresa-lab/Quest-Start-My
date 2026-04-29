@@ -26,7 +26,7 @@ function pillar(id: number, name: string, priority: "P1" | "P2" | "P3" | "P4", a
   } as BriefingInput["pillars"][number];
 }
 
-function task(id: number, title: string, pillarId: number | null) {
+function task(id: number, title: string, areaId: number | null) {
   return {
     id,
     title,
@@ -35,7 +35,7 @@ function task(id: number, title: string, pillarId: number | null) {
     doneLooksLike: null,
     suggestedNextStep: null,
     status: "pending",
-    pillarId,
+    areaId,
     milestoneId: null,
     blockerReason: null,
     date: "2026-04-28",

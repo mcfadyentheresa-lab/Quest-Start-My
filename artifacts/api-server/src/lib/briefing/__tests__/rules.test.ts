@@ -29,7 +29,7 @@ function pillar(id: number, name: string, priority: "P1" | "P2" | "P3" | "P4", a
 function task(
   id: number,
   title: string,
-  pillarId: number | null,
+  areaId: number | null,
   status: "pending" | "blocked" | "done" = "pending",
   blockerReason: string | null = null,
 ): BriefingInput["openTasks"][number] {
@@ -41,7 +41,7 @@ function task(
     doneLooksLike: null,
     suggestedNextStep: null,
     status,
-    pillarId,
+    areaId,
     milestoneId: null,
     blockerReason,
     date: "2026-04-28",

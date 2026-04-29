@@ -23,7 +23,7 @@ function getWeekStart(date: Date = new Date()): string {
 function serializePlan(plan: typeof weeklyPlansTable.$inferSelect) {
   return {
     ...plan,
-    activePillarIds: (plan.activePillarIds ?? []).map(Number),
+    areaPriorities: (plan.areaPriorities ?? []).map(Number),
     createdAt: plan.createdAt.toISOString(),
   };
 }
@@ -50,7 +50,7 @@ router.post("/weekly", async (req, res): Promise<void> => {
     priorities: parsed.data.priorities,
     healthFocus: parsed.data.healthFocus ?? null,
     notes: parsed.data.notes ?? null,
-    activePillarIds: parsed.data.activePillarIds.map(String),
+    areaPriorities: parsed.data.areaPriorities.map(String),
     businessFocus: parsed.data.businessFocus ?? null,
     creativeFocus: parsed.data.creativeFocus ?? null,
     whatMovedForward: parsed.data.whatMovedForward ?? null,
@@ -80,7 +80,7 @@ router.patch("/weekly/:id", async (req, res): Promise<void> => {
   if (parsed.data.priorities !== undefined) updates.priorities = parsed.data.priorities;
   if (parsed.data.healthFocus !== undefined) updates.healthFocus = parsed.data.healthFocus;
   if (parsed.data.notes !== undefined) updates.notes = parsed.data.notes;
-  if (parsed.data.activePillarIds !== undefined) updates.activePillarIds = parsed.data.activePillarIds.map(String);
+  if (parsed.data.areaPriorities !== undefined) updates.areaPriorities = parsed.data.areaPriorities.map(String);
   if (parsed.data.businessFocus !== undefined) updates.businessFocus = parsed.data.businessFocus;
   if (parsed.data.creativeFocus !== undefined) updates.creativeFocus = parsed.data.creativeFocus;
   if (parsed.data.whatMovedForward !== undefined) updates.whatMovedForward = parsed.data.whatMovedForward;

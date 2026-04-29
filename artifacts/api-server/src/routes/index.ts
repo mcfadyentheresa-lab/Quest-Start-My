@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
-import pillarsRouter from "./pillars";
+import areasRouter from "./areas";
 import milestonesRouter from "./milestones";
 import tasksRouter from "./tasks";
 import weeklyRouter from "./weekly";
@@ -14,7 +14,7 @@ import briefingRouter from "./briefing";
 const router: IRouter = Router();
 
 router.use(healthRouter);
-router.use(pillarsRouter);
+router.use(areasRouter);
 router.use(milestonesRouter);
 router.use(tasksRouter);
 router.use(weeklyRouter);

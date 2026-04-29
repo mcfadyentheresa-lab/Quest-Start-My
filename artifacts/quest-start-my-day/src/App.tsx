@@ -11,7 +11,7 @@ const TodayPage = lazy(() => import("@/pages/today"));
 const WeeklyPage = lazy(() => import("@/pages/weekly"));
 const HistoryPage = lazy(() => import("@/pages/history"));
 const ReviewPage = lazy(() => import("@/pages/review"));
-const SettingsPage = lazy(() => import("@/pages/settings"));
+const AreasPage = lazy(() => import("@/pages/areas"));
 const HomeModulePage = lazy(() => import("@/pages/home-module"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
@@ -34,7 +34,7 @@ function Router() {
           <Route path="/history" component={HistoryPage} />
           <Route path="/home" component={HomeModulePage} />
           <Route path="/review" component={ReviewPage} />
-          <Route path="/settings" component={SettingsPage} />
+          <Route path="/areas" component={AreasPage} />
           <Route component={NotFound} />
         </Switch>
       </Suspense>

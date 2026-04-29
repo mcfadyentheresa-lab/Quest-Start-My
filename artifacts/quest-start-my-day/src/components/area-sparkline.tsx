@@ -19,7 +19,7 @@ export function shiftWeek(weekOf: string, delta: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function PillarSparkline({
+export function AreaSparkline({
   rates,
   weeks,
   label,
@@ -64,7 +64,7 @@ export function PillarSparkline({
   );
 }
 
-export function PillarSparklineWidget({ pillarId }: { pillarId: number }) {
+export function AreaSparklineWidget({ areaId }: { areaId: number }) {
   const sparklineWeeks = useMemo(() => {
     const current = getCurrentWeekStart();
     const weeks: string[] = [];
@@ -90,18 +90,18 @@ export function PillarSparklineWidget({ pillarId }: { pillarId: number }) {
     sparklineWeeks.forEach((week, i) => {
       const data = weeklyOutcomeResults[i]?.data;
       if (!data) return;
-      const pm = data.pillarMetrics.find(p => p.pillarId === pillarId);
+      const pm = data.areaMetrics.find(p => p.areaId === areaId);
       if (pm) {
         rates[i] = pm.completionRate;
         hasAnyData = true;
       }
     });
     return hasAnyData ? { rates, weeks: sparklineWeeks } : null;
-  }, [weeklyOutcomeResults, sparklineWeeks, pillarId]);
+  }, [weeklyOutcomeResults, sparklineWeeks, areaId]);
 
   if (isLoading) {
     return <Skeleton className="h-7 w-16 rounded" />;
   }
   if (!sparklineData) return null;
-  return <PillarSparkline rates={sparklineData.rates} weeks={sparklineData.weeks} label={`${SPARKLINE_WEEK_COUNT}w trend`} />;
+  return <AreaSparkline rates={sparklineData.rates} weeks={sparklineData.weeks} label={`${SPARKLINE_WEEK_COUNT}w trend`} />;
 }

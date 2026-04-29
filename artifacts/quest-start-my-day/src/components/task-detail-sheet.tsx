@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import {
   useUpdateTask,
-  useListPillars,
+  useListAreas,
   useListMilestones,
   getListTasksQueryKey,
   getGetDashboardSummaryQueryKey,
@@ -34,7 +34,7 @@ interface Task {
   blockerReason?: string | null;
   status: string;
   date: string;
-  pillarId?: number | null;
+  areaId?: number | null;
   milestoneId?: number | null;
 }
 
@@ -47,7 +47,7 @@ interface TaskDetailSheetProps {
 interface TaskEditFormData {
   title: string;
   category: string;
-  pillarId: string;
+  areaId: string;
   milestoneId: string;
   whyItMatters: string;
   doneLooksLike: string;
@@ -59,14 +59,14 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const updateTask = useUpdateTask();
-  const { data: pillars } = useListPillars();
+  const { data: areas } = useListAreas();
   const cancelledRef = useRef(false);
 
   const { register, handleSubmit, reset, setValue, watch, getValues } = useForm<TaskEditFormData>({
     defaultValues: {
       title: task.title,
       category: task.category,
-      pillarId: task.pillarId ? String(task.pillarId) : "none",
+      areaId: task.areaId ? String(task.areaId) : "none",
       milestoneId: task.milestoneId ? String(task.milestoneId) : "none",
       whyItMatters: task.whyItMatters ?? "",
       doneLooksLike: task.doneLooksLike ?? "",
@@ -75,19 +75,19 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
     },
   });
 
-  const pillarId = watch("pillarId");
+  const areaId = watch("areaId");
   const category = watch("category");
   const milestoneId = watch("milestoneId");
 
-  const selectedPillarNumericId = pillarId && pillarId !== "none" ? parseInt(pillarId) : undefined;
+  const selectedAreaNumericId = areaId && areaId !== "none" ? parseInt(areaId) : undefined;
 
-  const milestoneParams = selectedPillarNumericId ? { pillarId: selectedPillarNumericId } : undefined;
+  const milestoneParams = selectedAreaNumericId ? { areaId: selectedAreaNumericId } : undefined;
   const { data: milestones } = useListMilestones(
     milestoneParams,
     {
       query: {
         queryKey: getListMilestonesQueryKey(milestoneParams),
-        enabled: !!selectedPillarNumericId,
+        enabled: !!selectedAreaNumericId,
       },
     }
   );
@@ -98,7 +98,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
       reset({
         title: task.title,
         category: task.category,
-        pillarId: task.pillarId ? String(task.pillarId) : "none",
+        areaId: task.areaId ? String(task.areaId) : "none",
         milestoneId: task.milestoneId ? String(task.milestoneId) : "none",
         whyItMatters: task.whyItMatters ?? "",
         doneLooksLike: task.doneLooksLike ?? "",
@@ -121,7 +121,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
         data: {
           title: data.title.trim() || task.title,
           category: data.category as "business" | "creative" | "wellness",
-          pillarId: data.pillarId && data.pillarId !== "none" ? parseInt(data.pillarId) : null,
+          areaId: data.areaId && data.areaId !== "none" ? parseInt(data.areaId) : null,
           milestoneId: data.milestoneId && data.milestoneId !== "none" ? parseInt(data.milestoneId) : null,
           whyItMatters: data.whyItMatters.trim() || null,
           doneLooksLike: data.doneLooksLike.trim() || null,
@@ -165,7 +165,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
         <SheetHeader className="mb-4">
           <SheetTitle className="font-serif text-xl text-left">Edit task</SheetTitle>
           <SheetDescription className="sr-only">
-            Edit the details of this task, including its title, category, pillar, milestone, and other fields.
+            Edit the details of this task, including its title, category, area, milestone, and other fields.
           </SheetDescription>
         </SheetHeader>
 
@@ -194,13 +194,13 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
               </Select>
             </div>
 
-            {pillars && pillars.length > 0 && (
+            {areas && areas.length > 0 && (
               <div className="space-y-1.5">
-                <Label>Pillar</Label>
+                <Label>Area</Label>
                 <Select
-                  value={pillarId}
+                  value={areaId}
                   onValueChange={(v) => {
-                    setValue("pillarId", v);
+                    setValue("areaId", v);
                     setValue("milestoneId", "none");
                   }}
                 >
@@ -209,7 +209,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
-                    {pillars.map(p => (
+                    {areas.map(p => (
                       <SelectItem key={p.id} value={String(p.id)}>
                         {p.name}
                       </SelectItem>
@@ -220,7 +220,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
             )}
           </div>
 
-          {selectedPillarNumericId && (
+          {selectedAreaNumericId && (
             <div className="space-y-1.5">
               <Label>Milestone</Label>
               <Select

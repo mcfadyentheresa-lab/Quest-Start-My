@@ -1,4 +1,4 @@
-import type { Task, Pillar } from "@workspace/db";
+import type { Task, Area } from "@workspace/db";
 import type { BriefingInput, BriefingItem, BriefingResponse, BriefingPriority } from "./types";
 
 const PRIORITY_RANK: Record<BriefingPriority, number> = { P1: 0, P2: 1, P3: 2, P4: 3 };
@@ -29,14 +29,14 @@ function rotate<T>(arr: T[], offset: number): T[] {
 
 function pickItems(input: BriefingInput): BriefingItem[] {
   const { openTasks, pillars, activePillars, focusBlockMinutes } = input;
-  const pillarMap = new Map<number, Pillar>();
+  const pillarMap = new Map<number, Area>();
   for (const p of pillars) pillarMap.set(p.id, p);
 
   const activeIds = new Set(activePillars.map((p) => p.id));
 
   function priorityForTask(t: Task): BriefingPriority {
-    if (t.pillarId !== null) {
-      const pillar = pillarMap.get(t.pillarId);
+    if (t.areaId !== null) {
+      const pillar = pillarMap.get(t.areaId);
       if (pillar) return pillarPriorityFromValue(pillar.priority);
     }
     return "P3";
@@ -55,8 +55,8 @@ function pickItems(input: BriefingInput): BriefingItem[] {
     const pa = priorityForTask(a);
     const pb = priorityForTask(b);
     if (PRIORITY_RANK[pa] !== PRIORITY_RANK[pb]) return PRIORITY_RANK[pa] - PRIORITY_RANK[pb];
-    const aActive = a.pillarId !== null && activeIds.has(a.pillarId) ? 0 : 1;
-    const bActive = b.pillarId !== null && activeIds.has(b.pillarId) ? 0 : 1;
+    const aActive = a.areaId !== null && activeIds.has(a.areaId) ? 0 : 1;
+    const bActive = b.areaId !== null && activeIds.has(b.areaId) ? 0 : 1;
     if (aActive !== bActive) return aActive - bActive;
     if (a.status === "blocked" && b.status !== "blocked") return 1;
     if (b.status === "blocked" && a.status !== "blocked") return -1;
@@ -68,9 +68,9 @@ function pickItems(input: BriefingInput): BriefingItem[] {
   const picks = rotated.slice(0, 3);
 
   return picks.map((t) => {
-    const pillar = t.pillarId !== null ? pillarMap.get(t.pillarId) : undefined;
+    const pillar = t.areaId !== null ? pillarMap.get(t.areaId) : undefined;
     const priority = priorityForTask(t);
-    const reasoning = buildReasoning(t, pillar ?? null, priority, activeIds.has(t.pillarId ?? -1));
+    const reasoning = buildReasoning(t, pillar ?? null, priority, activeIds.has(t.areaId ?? -1));
     return {
       taskId: t.id,
       title: t.title,
@@ -87,7 +87,7 @@ function pickItems(input: BriefingInput): BriefingItem[] {
 
 function buildReasoning(
   task: Task,
-  pillar: Pillar | null,
+  pillar: Area | null,
   priority: BriefingPriority,
   isActiveThisWeek: boolean,
 ): string {

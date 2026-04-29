@@ -1,4 +1,4 @@
-import type { Pillar, Task, WeeklyPlan, ProgressLog } from "@workspace/db";
+import type { Area, Task, WeeklyPlan, ProgressLog } from "@workspace/db";
 
 export type BriefingPriority = "P1" | "P2" | "P3" | "P4";
 
@@ -31,8 +31,8 @@ export type BriefingInput = {
   now: Date;
   hourLocal: number;
   userFirstName: string;
-  pillars: Pillar[];
-  activePillars: Pillar[];
+  pillars: Area[];
+  activePillars: Area[];
   weeklyPlan: WeeklyPlan | null;
   openTasks: Task[];
   recentlyCompleted: Task[];

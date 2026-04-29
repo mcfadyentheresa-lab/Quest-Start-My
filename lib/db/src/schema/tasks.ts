@@ -11,7 +11,7 @@ export const tasksTable = pgTable("tasks", {
   doneLooksLike: text("done_looks_like"),
   suggestedNextStep: text("suggested_next_step"),
   status: text("status").notNull().default("pending"),
-  pillarId: integer("pillar_id"),
+  areaId: integer("area_id"),
   milestoneId: integer("milestone_id").references(() => milestonesTable.id, { onDelete: "set null" }),
   blockerReason: text("blocker_reason"),
   date: text("date").notNull(),

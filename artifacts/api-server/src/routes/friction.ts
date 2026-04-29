@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, lte, ne, eq, desc } from "drizzle-orm";
-import { db, tasksTable, pillarsTable, milestonesTable, progressLogsTable } from "@workspace/db";
+import { db, tasksTable, areasTable, milestonesTable, progressLogsTable } from "@workspace/db";
 import { GetFrictionSignalsResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -51,8 +51,8 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
     ? lte(progressLogsTable.date, weekEndStr)
     : undefined;
 
-  const [pillars, openMilestones, allPassedLogs, allLogs] = await Promise.all([
-    db.select().from(pillarsTable),
+  const [areas, openMilestones, allPassedLogs, allLogs] = await Promise.all([
+    db.select().from(areasTable),
     db.select().from(milestonesTable).where(ne(milestonesTable.status, "complete")),
     db.select().from(progressLogsTable).where(passedLogsCondition),
     allLogsCondition
@@ -60,20 +60,20 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
       : db.select().from(progressLogsTable).orderBy(desc(progressLogsTable.loggedAt)),
   ]);
 
-  const pillarMap = new Map(pillars.map(p => [p.id, p]));
+  const areaMap = new Map(areas.map(p => [p.id, p]));
   const openMilestoneIds = new Set(openMilestones.map(m => m.id));
 
-  // Build taskId -> pillarId map from ALL tasks (no date restriction) for log enrichment
+  // Build taskId -> areaId map from ALL tasks (no date restriction) for log enrichment
   const allTaskRows = await db.select({
     id: tasksTable.id,
-    pillarId: tasksTable.pillarId,
+    areaId: tasksTable.areaId,
     milestoneId: tasksTable.milestoneId,
     status: tasksTable.status,
     title: tasksTable.title,
     createdAt: tasksTable.createdAt,
   }).from(tasksTable);
 
-  const taskPillarMap = new Map(allTaskRows.map(t => [t.id, t.pillarId]));
+  const taskAreaMap = new Map(allTaskRows.map(t => [t.id, t.areaId]));
 
   // Tasks created this calendar month — use createdAt (creation timestamp), not date (scheduled date)
   // When a past week is selected, also bound by the week end so we only count tasks created by then.
@@ -83,8 +83,8 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
 
   const signals: {
     type: string;
-    pillarId: number | null;
-    pillarName: string | null;
+    areaId: number | null;
+    areaName: string | null;
     taskId: number | null;
     taskTitle: string | null;
     milestoneId: number | null;
@@ -121,13 +121,13 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
   }
   for (const [taskId, { dates, taskTitle, maxDate }] of passedByTaskId.entries()) {
     if (dates.size >= 2) {
-      const pillarId = taskPillarMap.get(taskId) ?? null;
-      const pillar = pillarId ? pillarMap.get(pillarId) : null;
+      const areaId = taskAreaMap.get(taskId) ?? null;
+      const area = areaId ? areaMap.get(areaId) : null;
       const sortedDates = Array.from(dates).sort();
       signals.push({
         type: "repeated_pass",
-        pillarId: pillarId ?? null,
-        pillarName: pillar?.name ?? null,
+        areaId: areaId ?? null,
+        areaName: area?.name ?? null,
         taskId,
         taskTitle,
         milestoneId: null,
@@ -143,8 +143,8 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
       const sortedDates = Array.from(dates).sort();
       signals.push({
         type: "repeated_pass",
-        pillarId: null,
-        pillarName: null,
+        areaId: null,
+        areaName: null,
         taskId: null,
         taskTitle,
         milestoneId: null,
@@ -157,36 +157,36 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // repeated_block: a pillar's last 2+ progress_logs entries are all
+  // repeated_block: a area's last 2+ progress_logs entries are all
   // blocked. Checks most-recent entries across all time (no window).
   // ─────────────────────────────────────────────────────────────────
-  const logsByPillar = new Map<number, { statuses: string[]; entries: { date: string; taskTitle: string }[]; mostRecentDate: string | null }>(); // pillarId -> statuses/entries/date, newest first
+  const logsByArea = new Map<number, { statuses: string[]; entries: { date: string; taskTitle: string }[]; mostRecentDate: string | null }>(); // areaId -> statuses/entries/date, newest first
   for (const log of allLogs) {
-    const pillarId = log.taskId ? (taskPillarMap.get(log.taskId) ?? null) : null;
-    if (pillarId !== null) {
-      if (!logsByPillar.has(pillarId)) logsByPillar.set(pillarId, { statuses: [], entries: [], mostRecentDate: null });
-      const entry = logsByPillar.get(pillarId)!;
+    const areaId = log.taskId ? (taskAreaMap.get(log.taskId) ?? null) : null;
+    if (areaId !== null) {
+      if (!logsByArea.has(areaId)) logsByArea.set(areaId, { statuses: [], entries: [], mostRecentDate: null });
+      const entry = logsByArea.get(areaId)!;
       entry.statuses.push(log.status);
       entry.entries.push({ date: log.date, taskTitle: log.taskTitle });
       if (entry.mostRecentDate === null) entry.mostRecentDate = log.date;
     }
   }
-  for (const [pillarId, { statuses, entries, mostRecentDate }] of logsByPillar.entries()) {
+  for (const [areaId, { statuses, entries, mostRecentDate }] of logsByArea.entries()) {
     if (statuses.length >= 2 && statuses.slice(0, 2).every(s => s === "blocked")) {
-      const pillar = pillarMap.get(pillarId);
+      const area = areaMap.get(areaId);
       const blockedEntries = entries.filter(e => {
         const idx = entries.indexOf(e);
         return statuses[idx] === "blocked";
       }).slice(0, 10);
       signals.push({
         type: "repeated_block",
-        pillarId,
-        pillarName: pillar?.name ?? null,
+        areaId,
+        areaName: area?.name ?? null,
         taskId: null,
         taskTitle: null,
         milestoneId: null,
         milestoneTitle: null,
-        detail: `The last 2 logged activities in "${pillar?.name ?? "this pillar"}" are all blocked — something may need resolving before continuing.`,
+        detail: `The last 2 logged activities in "${area?.name ?? "this area"}" are all blocked — something may need resolving before continuing.`,
         lastSeenDate: mostRecentDate,
         blockEntries: blockedEntries,
       });
@@ -216,7 +216,7 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
     const lastActivity = lastActivityByMilestone.get(milestone.id);
     const isStalled = !lastActivity || lastActivity < fourteenDaysAgo;
     if (isStalled) {
-      const pillar = milestone.pillarId ? pillarMap.get(milestone.pillarId) : null;
+      const area = milestone.areaId ? areaMap.get(milestone.areaId) : null;
       const anchorMs = weekEndTimestamp.getTime();
       const daysSince = lastActivity
         ? Math.floor((anchorMs - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24))
@@ -226,8 +226,8 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
         : `Milestone "${milestone.title}" has no task activity on record — add a linked task to make progress.`;
       signals.push({
         type: "stalled_milestone",
-        pillarId: milestone.pillarId ?? null,
-        pillarName: pillar?.name ?? null,
+        areaId: milestone.areaId ?? null,
+        areaName: area?.name ?? null,
         taskId: null,
         taskTitle: null,
         milestoneId: milestone.id,
@@ -239,32 +239,32 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // low_completion_ratio: pillar with 3+ tasks created this calendar
+  // low_completion_ratio: area with 3+ tasks created this calendar
   // month (by createdAt) and a pass/push-to-done ratio > 3:1.
   // Uses createdAt (creation timestamp) per spec, not date (schedule).
   // ─────────────────────────────────────────────────────────────────
-  for (const pillar of pillars) {
-    const pillarMonthTasks = tasksCreatedThisMonth.filter(t => t.pillarId === pillar.id);
-    if (pillarMonthTasks.length < 3) continue;
-    const doneCount = pillarMonthTasks.filter(t => t.status === "done").length;
-    const deferCount = pillarMonthTasks.filter(t => t.status === "passed" || t.status === "pushed").length;
+  for (const area of areas) {
+    const areaMonthTasks = tasksCreatedThisMonth.filter(t => t.areaId === area.id);
+    if (areaMonthTasks.length < 3) continue;
+    const doneCount = areaMonthTasks.filter(t => t.status === "done").length;
+    const deferCount = areaMonthTasks.filter(t => t.status === "passed" || t.status === "pushed").length;
     // Ratio > 3:1: deferCount > 3 * doneCount (guard for doneCount = 0)
     const isHighDefer = doneCount === 0 ? deferCount >= 3 : deferCount > 3 * doneCount;
     if (isHighDefer) {
       const ratio = doneCount > 0 ? `${(deferCount / doneCount).toFixed(1)}:1` : `${deferCount}:0`;
-      const mostRecentTaskDate = pillarMonthTasks.reduce<string | null>((max, t) => {
+      const mostRecentTaskDate = areaMonthTasks.reduce<string | null>((max, t) => {
         const d = t.createdAt.toISOString().slice(0, 10);
         return max === null || d > max ? d : max;
       }, null);
       signals.push({
         type: "low_completion_ratio",
-        pillarId: pillar.id,
-        pillarName: pillar.name,
+        areaId: area.id,
+        areaName: area.name,
         taskId: null,
         taskTitle: null,
         milestoneId: null,
         milestoneTitle: null,
-        detail: `"${pillar.name}" has a pass/push-to-done ratio of ${ratio} this month (${deferCount} deferred vs ${doneCount} done) — tasks may need to be smaller or reprioritised.`,
+        detail: `"${area.name}" has a pass/push-to-done ratio of ${ratio} this month (${deferCount} deferred vs ${doneCount} done) — tasks may need to be smaller or reprioritised.`,
         lastSeenDate: mostRecentTaskDate,
       });
     }

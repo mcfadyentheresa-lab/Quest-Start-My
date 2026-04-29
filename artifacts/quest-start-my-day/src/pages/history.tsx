@@ -5,7 +5,7 @@ import {
   useListProgressLogs,
   getListProgressLogsQueryKey,
   useGetWeekSummary,
-  useGetPillarHealth,
+  useGetAreaHealth,
   useGetDashboardSummary,
   useGetOutcomeMetrics,
   useGetFrictionSignals,
@@ -16,9 +16,9 @@ import { CategoryBadge } from "@/components/category-badge";
 import {
   getCurrentWeekStart,
   shiftWeek,
-  PillarSparkline,
+  AreaSparkline,
   SPARKLINE_WEEK_COUNT,
-} from "@/components/pillar-sparkline";
+} from "@/components/area-sparkline";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Drawer,
@@ -135,7 +135,7 @@ function CollapsibleSection({
   );
 }
 
-function PillarTrendIndicator({
+function AreaTrendIndicator({
   rates,
   weeks,
   selectedWeek,
@@ -274,7 +274,7 @@ export default function HistoryPage() {
     { query: { queryKey: getListProgressLogsQueryKey({ limit: 60 }) } }
   );
   const { data: weekSummary, isLoading: weekLoading } = useGetWeekSummary();
-  const { data: pillarHealth, isLoading: healthLoading } = useGetPillarHealth();
+  const { data: areaHealth, isLoading: healthLoading } = useGetAreaHealth();
   const { data: dashSummary } = useGetDashboardSummary();
   const { data: outcomes, isLoading: outcomesLoading } = useGetOutcomeMetrics({ weekOf: selectedWeek });
   // Note: useGetFrictionSignals does not currently accept weekOf at the API layer.
@@ -311,16 +311,16 @@ export default function HistoryPage() {
 
   const sparklineLoading = weeklyOutcomeResults.some(r => r.isLoading);
 
-  const pillarSparklineData = useMemo(() => {
+  const areaSparklineData = useMemo(() => {
     const map = new Map<number, { rates: number[]; weeks: string[] }>();
     sparklineWeeks.forEach((week, i) => {
       const data = weeklyOutcomeResults[i]?.data;
       if (!data) return;
-      data.pillarMetrics.forEach(pm => {
-        if (!map.has(pm.pillarId)) {
-          map.set(pm.pillarId, { rates: new Array(SPARKLINE_WEEK_COUNT).fill(0), weeks: sparklineWeeks });
+      data.areaMetrics.forEach(pm => {
+        if (!map.has(pm.areaId)) {
+          map.set(pm.areaId, { rates: new Array(SPARKLINE_WEEK_COUNT).fill(0), weeks: sparklineWeeks });
         }
-        map.get(pm.pillarId)!.rates[i] = pm.completionRate;
+        map.get(pm.areaId)!.rates[i] = pm.completionRate;
       });
     });
     return map;
@@ -338,12 +338,12 @@ export default function HistoryPage() {
   const tabs = [
     { id: "log" as Tab, icon: History, label: "Activity" },
     { id: "week" as Tab, icon: TrendingUp, label: "This week" },
-    { id: "health" as Tab, icon: Activity, label: "Pillar health" },
+    { id: "health" as Tab, icon: Activity, label: "Area health" },
     { id: "outcomes" as Tab, icon: BarChart2, label: "Outcomes" },
     { id: "friction" as Tab, icon: Zap, label: "Friction" },
   ];
 
-  const portfolioBalance = pillarHealth?.portfolioBalance;
+  const portfolioBalance = areaHealth?.portfolioBalance;
 
   return (
     <>
@@ -457,16 +457,16 @@ export default function HistoryPage() {
               <p className="text-xs text-muted-foreground mt-1.5">{weekSummary.totalTasks} tasks total this week</p>
             </div>
 
-            {/* Pillar activity with tasks */}
-            {weekSummary.pillarActivity && weekSummary.pillarActivity.length > 0 && (
+            {/* Area activity with tasks */}
+            {weekSummary.areaActivity && weekSummary.areaActivity.length > 0 && (
               <div className="space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground px-1">By pillar</p>
-                {weekSummary.pillarActivity.map(pa => (
-                  <div key={pa.pillarId} className="rounded-2xl bg-card border border-card-border overflow-hidden">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground px-1">By area</p>
+                {weekSummary.areaActivity.map(pa => (
+                  <div key={pa.areaId} className="rounded-2xl bg-card border border-card-border overflow-hidden">
                     <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                       <div className="flex items-center gap-2">
                         <Layers className="h-3.5 w-3.5 text-primary/70" />
-                        <span className="text-sm font-medium text-foreground">{pa.pillarName}</span>
+                        <span className="text-sm font-medium text-foreground">{pa.areaName}</span>
                       </div>
                       <span className="text-xs font-medium text-muted-foreground">{pa.taskCount} task{pa.taskCount !== 1 ? "s" : ""}</span>
                     </div>
@@ -535,16 +535,16 @@ export default function HistoryPage() {
             <Skeleton className="h-28 rounded-2xl" />
             <Skeleton className="h-28 rounded-2xl" />
           </div>
-        ) : !pillarHealth || (pillarHealth.pillars ?? []).length === 0 ? (
+        ) : !areaHealth || (areaHealth.areas ?? []).length === 0 ? (
           <div className="text-center py-16 rounded-2xl bg-card border border-dashed border-border">
             <Activity className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-            <p className="text-sm font-medium text-foreground">No pillar data yet</p>
-            <p className="text-xs text-muted-foreground mt-1">Add pillars in Projects to see their health here</p>
+            <p className="text-sm font-medium text-foreground">No area data yet</p>
+            <p className="text-xs text-muted-foreground mt-1">Add areas in Projects to see their health here</p>
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-xs text-muted-foreground px-1">Pillar momentum this week</p>
-            {(pillarHealth.pillars ?? []).map((entry, i) => {
+            <p className="text-xs text-muted-foreground px-1">Area momentum this week</p>
+            {(areaHealth.areas ?? []).map((entry, i) => {
               const healthStatus: "green" | "amber" | "red" =
                 entry.warning ? "red"
                 : entry.nudge || (entry.tasksPushedOrPassedThisWeek > entry.tasksDoneThisWeek && entry.tasksDoneThisWeek === 0) ? "amber"
@@ -563,7 +563,7 @@ export default function HistoryPage() {
 
               return (
               <motion.div
-                key={entry.pillarId}
+                key={entry.areaId}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
@@ -573,7 +573,7 @@ export default function HistoryPage() {
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className={`inline-block h-2 w-2 rounded-full flex-shrink-0 ${healthDot[healthStatus]}`} title={healthLabel[healthStatus]} />
-                      <span className="font-serif font-medium text-foreground">{entry.pillarName}</span>
+                      <span className="font-serif font-medium text-foreground">{entry.areaName}</span>
                       {entry.portfolioStatus && (
                         <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${portfolioStatusColors[entry.portfolioStatus] ?? "text-muted-foreground bg-muted/50"}`}>
                           {entry.portfolioStatus}
@@ -699,26 +699,26 @@ export default function HistoryPage() {
               )}
             </div>
 
-            {/* Pillar completion rates */}
-            {outcomes.pillarMetrics.length > 0 && (
+            {/* Area completion rates */}
+            {outcomes.areaMetrics.length > 0 && (
               <CollapsibleSection
-                title="Completion by pillar"
+                title="Completion by area"
                 summary={
                   <p className="text-sm text-foreground/80">
-                    {outcomes.pillarMetrics.length} pillar{outcomes.pillarMetrics.length !== 1 ? "s" : ""} tracked —
-                    avg {Math.round(outcomes.pillarMetrics.reduce((s, p) => s + p.completionRate, 0) / outcomes.pillarMetrics.length * 100)}% completion
+                    {outcomes.areaMetrics.length} area{outcomes.areaMetrics.length !== 1 ? "s" : ""} tracked —
+                    avg {Math.round(outcomes.areaMetrics.reduce((s, p) => s + p.completionRate, 0) / outcomes.areaMetrics.length * 100)}% completion
                   </p>
                 }
               >
-                {outcomes.pillarMetrics.map(pm => {
+                {outcomes.areaMetrics.map(pm => {
                   const passedCount = pm.passedCount ?? 0;
                   const otherCount = Math.max(0, pm.totalCount - pm.doneCount - pm.blockedCount - passedCount);
                   const hasActivity = pm.totalCount > 0;
-                  const sparklineEntry = pillarSparklineData.get(pm.pillarId);
+                  const sparklineEntry = areaSparklineData.get(pm.areaId);
                   return (
-                    <div key={pm.pillarId} className="space-y-1">
+                    <div key={pm.areaId} className="space-y-1">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium text-foreground truncate min-w-0">{pm.pillarName}</span>
+                        <span className="text-sm font-medium text-foreground truncate min-w-0">{pm.areaName}</span>
                         <div className="flex items-center gap-3 shrink-0">
                           <span className="text-xs text-muted-foreground">
                             {pm.doneCount}/{pm.totalCount} done
@@ -728,12 +728,12 @@ export default function HistoryPage() {
                             <Skeleton className="h-7 w-16 rounded" />
                           ) : sparklineEntry ? (
                             <>
-                              <PillarTrendIndicator
+                              <AreaTrendIndicator
                                 rates={sparklineEntry.rates}
                                 weeks={sparklineEntry.weeks}
                                 selectedWeek={selectedWeek}
                               />
-                              <PillarSparkline
+                              <AreaSparkline
                                 rates={sparklineEntry.rates}
                                 weeks={sparklineEntry.weeks}
                               />
@@ -779,13 +779,13 @@ export default function HistoryPage() {
                     </p>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">Not enough data — complete tasks from P1 and Warm/Parked pillars to see the ratio.</p>
+                  <p className="text-sm text-muted-foreground italic">Not enough data — complete tasks from P1 and Warm/Parked areas to see the ratio.</p>
                 )
               }
             >
               <div className="space-y-1.5 text-xs text-foreground/80">
-                <p><span className="font-medium text-rose-600 dark:text-rose-400">{outcomes.p1CompletedThisWeek}</span> tasks done from P1 pillars this week</p>
-                <p><span className="font-medium text-amber-600 dark:text-amber-400">{outcomes.warmParkedCompletedThisWeek}</span> tasks done from Warm or Parked pillars this week</p>
+                <p><span className="font-medium text-rose-600 dark:text-rose-400">{outcomes.p1CompletedThisWeek}</span> tasks done from P1 areas this week</p>
+                <p><span className="font-medium text-amber-600 dark:text-amber-400">{outcomes.warmParkedCompletedThisWeek}</span> tasks done from Warm or Parked areas this week</p>
                 <p className="text-muted-foreground pt-1">A ratio above 2:1 means P1 work is getting proportional focus.</p>
               </div>
             </CollapsibleSection>
@@ -823,25 +823,25 @@ export default function HistoryPage() {
               >
                 <p className="text-xs text-muted-foreground">
                   Portfolio balance measures what share of completed tasks came from each status tier this week.
-                  A healthy portfolio has most effort going into Active pillars.
+                  A healthy portfolio has most effort going into Active areas.
                 </p>
                 {(portfolioBalance.warmShare > 30 || portfolioBalance.parkedShare > 30) && (
                   <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 px-3 py-2 mt-1">
                     <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                     <p className="text-xs text-amber-700 dark:text-amber-400">
-                      Consider whether the effort going into Warm or Parked pillars is intentional — it may be pulling focus from your top priorities.
+                      Consider whether the effort going into Warm or Parked areas is intentional — it may be pulling focus from your top priorities.
                     </p>
                   </div>
                 )}
                 {(() => {
-                  const overPillars = (pillarHealth?.pillars ?? []).filter(p => (p.portfolioSharePercent ?? 0) > 30);
-                  if (overPillars.length === 0) return null;
+                  const overAreas = (areaHealth?.areas ?? []).filter(p => (p.portfolioSharePercent ?? 0) > 30);
+                  if (overAreas.length === 0) return null;
                   return (
                     <div className="space-y-1.5 mt-1">
-                      <p className="text-xs font-medium text-muted-foreground">Individual pillars over 30%:</p>
-                      {overPillars.map(p => (
-                        <div key={p.pillarId} className="flex items-center justify-between text-xs">
-                          <span className="text-foreground/80 truncate max-w-[65%]">{p.pillarName}</span>
+                      <p className="text-xs font-medium text-muted-foreground">Individual areas over 30%:</p>
+                      {overAreas.map(p => (
+                        <div key={p.areaId} className="flex items-center justify-between text-xs">
+                          <span className="text-foreground/80 truncate max-w-[65%]">{p.areaName}</span>
                           <span className="font-medium text-amber-600 dark:text-amber-400 flex-shrink-0">
                             {p.portfolioSharePercent}% of done work
                           </span>
@@ -970,9 +970,9 @@ export default function HistoryPage() {
                   <div className="flex items-center gap-2">
                     <IconComponent className={`h-4 w-4 flex-shrink-0 ${config.iconClass}`} />
                     <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{config.label}</span>
-                    {signal.pillarName && (
+                    {signal.areaName && (
                       <span className="ml-auto text-xs text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full truncate max-w-[40%]">
-                        {signal.pillarName}
+                        {signal.areaName}
                       </span>
                     )}
                   </div>
@@ -1033,9 +1033,9 @@ export default function HistoryPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2 mt-1.5">
                   <span className={`text-xs font-semibold uppercase tracking-widest ${config.iconClass}`}>{config.label}</span>
-                  {signal.pillarName && (
+                  {signal.areaName && (
                     <span className="text-xs text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full">
-                      {signal.pillarName}
+                      {signal.areaName}
                     </span>
                   )}
                 </div>
@@ -1085,7 +1085,7 @@ export default function HistoryPage() {
                       ))}
                     </div>
                     <p className="text-xs text-muted-foreground px-1">
-                      Showing {signal.blockEntries.length} most recent blocked log{signal.blockEntries.length !== 1 ? "s" : ""} in this pillar.
+                      Showing {signal.blockEntries.length} most recent blocked log{signal.blockEntries.length !== 1 ? "s" : ""} in this area.
                     </p>
                   </div>
                 )}
@@ -1121,7 +1121,7 @@ export default function HistoryPage() {
                     <div className="rounded-xl border border-card-border bg-muted/30 px-4 py-3 space-y-2">
                       <p className="text-xs text-foreground/80 leading-relaxed">Break tasks into smaller, completable pieces so more land in "done" each day.</p>
                       <p className="text-xs text-foreground/80 leading-relaxed">Prioritise ruthlessly — if a task keeps getting passed or pushed, consider dropping it.</p>
-                      <p className="text-xs text-foreground/80 leading-relaxed">Look at whether this pillar is overloaded vs. others this month.</p>
+                      <p className="text-xs text-foreground/80 leading-relaxed">Look at whether this area is overloaded vs. others this month.</p>
                     </div>
                   </div>
                 )}

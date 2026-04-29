@@ -1,14 +1,14 @@
 import { Router, type IRouter } from "express";
 import { eq, and, gte, lte, lt, desc, asc } from "drizzle-orm";
-import { db, tasksTable, pillarsTable, weeklyPlansTable, progressLogsTable, milestonesTable } from "@workspace/db";
+import { db, tasksTable, areasTable, weeklyPlansTable, progressLogsTable, milestonesTable } from "@workspace/db";
 import {
   GetDashboardSummaryResponse,
   GetWeekSummaryResponse,
   GetReentryTaskResponse,
-  GetPillarHealthResponse,
+  GetAreaHealthResponse,
   GetOutcomeMetricsResponse,
-  GetPillarCompletionHistoryResponse,
-  GetPillarCompletionHistoryQueryParams as GetPillarCompletionHistoryParams,
+  GetAreaCompletionHistoryResponse,
+  GetAreaCompletionHistoryQueryParams as GetAreaCompletionHistoryParams,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -51,9 +51,9 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
   const today = new Date().toISOString().slice(0, 10);
   const weekOf = getWeekStart();
 
-  const [todayTasks, allPillars, weeklyPlans, allWeeklyPlans] = await Promise.all([
+  const [todayTasks, allAreas, weeklyPlans, allWeeklyPlans] = await Promise.all([
     db.select().from(tasksTable).where(eq(tasksTable.date, today)),
-    db.select().from(pillarsTable).orderBy(pillarsTable.id),
+    db.select().from(areasTable).orderBy(areasTable.id),
     db.select().from(weeklyPlansTable).where(eq(weeklyPlansTable.weekOf, weekOf)),
     db.select({ weekOf: weeklyPlansTable.weekOf }).from(weeklyPlansTable).orderBy(asc(weeklyPlansTable.weekOf)),
   ]);
@@ -64,18 +64,18 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
   const blockedCount = todayTasks.filter(t => t.status === "blocked").length;
   const pendingCount = todayTasks.filter(t => t.status === "pending").length;
 
-  const activePillars = allPillars.filter(p => p.isActiveThisWeek);
+  const activeAreas = allAreas.filter(p => p.isActiveThisWeek);
   const weeklyPlan = weeklyPlans[0] ?? null;
   const planningStreak = computePlanningStreak(allWeeklyPlans, weekOf);
 
-  const serializePillar = (p: typeof allPillars[0]) => ({
+  const serializeArea = (p: typeof allAreas[0]) => ({
     ...p,
     createdAt: p.createdAt.toISOString(),
   });
 
   const serializePlan = (p: typeof weeklyPlan) => p ? {
     ...p,
-    activePillarIds: (p.activePillarIds ?? []).map(Number),
+    areaPriorities: (p.areaPriorities ?? []).map(Number),
     createdAt: p.createdAt.toISOString(),
   } : null;
 
@@ -87,7 +87,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     passedCount,
     blockedCount,
     pendingCount,
-    activePillars: activePillars.map(serializePillar),
+    activeAreas: activeAreas.map(serializeArea),
     weeklyPlan: serializePlan(weeklyPlan),
     planningStreak,
   }));
@@ -97,12 +97,12 @@ router.get("/dashboard/week-summary", async (req, res): Promise<void> => {
   const weekOf = getWeekStart();
   const weekEnd = getWeekEnd(weekOf);
 
-  const [tasks, pillars] = await Promise.all([
+  const [tasks, areas] = await Promise.all([
     db.select().from(tasksTable).where(and(
       gte(tasksTable.date, weekOf),
       lte(tasksTable.date, weekEnd)
     )),
-    db.select().from(pillarsTable),
+    db.select().from(areasTable),
   ]);
 
   const totalTasks = tasks.length;
@@ -112,14 +112,14 @@ router.get("/dashboard/week-summary", async (req, res): Promise<void> => {
   const blockedCount = tasks.filter(t => t.status === "blocked").length;
   const completionRate = totalTasks > 0 ? doneCount / totalTasks : 0;
 
-  const pillarMap = new Map(pillars.map(p => [p.id, p.name]));
-  const pillarTasksMap = new Map<number, { id: number; title: string; status: string; category: string }[]>();
+  const areaMap = new Map(areas.map(p => [p.id, p.name]));
+  const areaTasksMap = new Map<number, { id: number; title: string; status: string; category: string }[]>();
   for (const task of tasks) {
-    if (task.pillarId !== null && task.pillarId !== undefined) {
-      if (!pillarTasksMap.has(task.pillarId)) {
-        pillarTasksMap.set(task.pillarId, []);
+    if (task.areaId !== null && task.areaId !== undefined) {
+      if (!areaTasksMap.has(task.areaId)) {
+        areaTasksMap.set(task.areaId, []);
       }
-      pillarTasksMap.get(task.pillarId)!.push({
+      areaTasksMap.get(task.areaId)!.push({
         id: task.id,
         title: task.title,
         status: task.status,
@@ -127,12 +127,12 @@ router.get("/dashboard/week-summary", async (req, res): Promise<void> => {
       });
     }
   }
-  const pillarActivity = Array.from(pillarTasksMap.entries())
-    .map(([pillarId, pillarTasks]) => ({
-      pillarId,
-      pillarName: pillarMap.get(pillarId) ?? "Unknown",
-      taskCount: pillarTasks.length,
-      tasks: pillarTasks,
+  const areaActivity = Array.from(areaTasksMap.entries())
+    .map(([areaId, areaTasks]) => ({
+      areaId,
+      areaName: areaMap.get(areaId) ?? "Unknown",
+      taskCount: areaTasks.length,
+      tasks: areaTasks,
     }))
     .sort((a, b) => b.taskCount - a.taskCount);
 
@@ -144,7 +144,7 @@ router.get("/dashboard/week-summary", async (req, res): Promise<void> => {
     passedCount,
     blockedCount,
     completionRate,
-    pillarActivity,
+    areaActivity,
   }));
 });
 
@@ -178,7 +178,7 @@ router.get("/dashboard/reentry", async (req, res): Promise<void> => {
       status: t.status,
       date: t.date,
       category: t.category,
-      pillarId: t.pillarId,
+      areaId: t.areaId,
     };
   };
 
@@ -256,12 +256,12 @@ router.get("/dashboard/reentry", async (req, res): Promise<void> => {
   res.json(GetReentryTaskResponse.parse({ type: "none", task: null, guidance: null }));
 });
 
-router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
+router.get("/dashboard/area-health", async (req, res): Promise<void> => {
   const weekOf = getWeekStart();
   const weekEnd = getWeekEnd(weekOf);
 
-  const [pillars, weekTasks, recentLogs] = await Promise.all([
-    db.select().from(pillarsTable).orderBy(pillarsTable.id),
+  const [areas, weekTasks, recentLogs] = await Promise.all([
+    db.select().from(areasTable).orderBy(areasTable.id),
     db.select().from(tasksTable).where(and(
       gte(tasksTable.date, weekOf),
       lte(tasksTable.date, weekEnd)
@@ -271,22 +271,22 @@ router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
 
   const totalDoneThisWeek = weekTasks.filter(t => t.status === "done").length;
 
-  const allTasks = await db.select({ id: tasksTable.id, pillarId: tasksTable.pillarId }).from(tasksTable);
-  const taskPillarMap = new Map(allTasks.map(t => [t.id, t.pillarId]));
+  const allTasks = await db.select({ id: tasksTable.id, areaId: tasksTable.areaId }).from(tasksTable);
+  const taskAreaMap = new Map(allTasks.map(t => [t.id, t.areaId]));
 
-  const pillarEntries = pillars.map(pillar => {
-    const pillarWeekTasks = weekTasks.filter(t => t.pillarId === pillar.id);
-    const tasksDoneThisWeek = pillarWeekTasks.filter(t => t.status === "done").length;
-    const tasksPushedOrPassedThisWeek = pillarWeekTasks.filter(t => t.status === "pushed" || t.status === "passed").length;
+  const areaEntries = areas.map(area => {
+    const areaWeekTasks = weekTasks.filter(t => t.areaId === area.id);
+    const tasksDoneThisWeek = areaWeekTasks.filter(t => t.status === "done").length;
+    const tasksPushedOrPassedThisWeek = areaWeekTasks.filter(t => t.status === "pushed" || t.status === "passed").length;
 
-    const pillarLogs = recentLogs.filter(log => {
-      const taskPillarId = log.taskId ? taskPillarMap.get(log.taskId) : null;
-      return taskPillarId === pillar.id;
+    const areaLogs = recentLogs.filter(log => {
+      const taskAreaId = log.taskId ? taskAreaMap.get(log.taskId) : null;
+      return taskAreaId === area.id;
     });
 
     let daysSinceLastMovement: number | null = null;
-    if (pillarLogs.length > 0 && pillarLogs[0]) {
-      const lastDate = new Date(pillarLogs[0].loggedAt);
+    if (areaLogs.length > 0 && areaLogs[0]) {
+      const lastDate = new Date(areaLogs[0].loggedAt);
       const now = new Date();
       daysSinceLastMovement = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
     }
@@ -294,17 +294,17 @@ router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
     let nudge: string | null = null;
     if (daysSinceLastMovement !== null && daysSinceLastMovement >= 7) {
       nudge = "No movement in 7 days — one tiny action?";
-    } else if (daysSinceLastMovement === null && pillarWeekTasks.length === 0) {
-      nudge = "No tasks this week — is this pillar still active?";
+    } else if (daysSinceLastMovement === null && areaWeekTasks.length === 0) {
+      nudge = "No tasks this week — is this area still active?";
     }
 
     let warning: string | null = null;
     if (
-      (pillar.portfolioStatus === "Warm" || pillar.portfolioStatus === "Parked") &&
+      (area.portfolioStatus === "Warm" || area.portfolioStatus === "Parked") &&
       totalDoneThisWeek > 0 &&
       tasksDoneThisWeek / totalDoneThisWeek > 0.3
     ) {
-      warning = `${pillar.portfolioStatus} project absorbing ${Math.round(tasksDoneThisWeek / totalDoneThisWeek * 100)}% of completed work this week.`;
+      warning = `${area.portfolioStatus} project absorbing ${Math.round(tasksDoneThisWeek / totalDoneThisWeek * 100)}% of completed work this week.`;
     }
 
     const portfolioSharePercent = totalDoneThisWeek > 0
@@ -312,9 +312,9 @@ router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
       : null;
 
     return {
-      pillarId: pillar.id,
-      pillarName: pillar.name,
-      portfolioStatus: pillar.portfolioStatus ?? null,
+      areaId: area.id,
+      areaName: area.name,
+      portfolioStatus: area.portfolioStatus ?? null,
       tasksDoneThisWeek,
       tasksPushedOrPassedThisWeek,
       daysSinceLastMovement,
@@ -327,7 +327,7 @@ router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
   // Compute portfolio balance: Active / Warm / Parked shares of done tasks
   const statusBuckets = { active: 0, warm: 0, parked: 0 };
   if (totalDoneThisWeek > 0) {
-    for (const entry of pillarEntries) {
+    for (const entry of areaEntries) {
       const done = entry.tasksDoneThisWeek;
       const status = (entry.portfolioStatus ?? "").toLowerCase();
       if (status === "active") statusBuckets.active += done;
@@ -342,7 +342,7 @@ router.get("/dashboard/pillar-health", async (req, res): Promise<void> => {
     parkedShare: toPercent(statusBuckets.parked),
   };
 
-  res.json(GetPillarHealthResponse.parse({ pillars: pillarEntries, portfolioBalance }));
+  res.json(GetAreaHealthResponse.parse({ areas: areaEntries, portfolioBalance }));
 });
 
 router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
@@ -358,12 +358,12 @@ router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
   // Derive month start from the selected week's start date
   const monthStart = weekOf.slice(0, 7) + "-01";
 
-  const [weekTasks, pillars, allMilestones] = await Promise.all([
+  const [weekTasks, areas, allMilestones] = await Promise.all([
     db.select().from(tasksTable).where(and(
       gte(tasksTable.date, weekOf),
       lte(tasksTable.date, weekEnd)
     )),
-    db.select().from(pillarsTable).orderBy(pillarsTable.id),
+    db.select().from(areasTable).orderBy(areasTable.id),
     db.select().from(milestonesTable),
   ]);
 
@@ -393,22 +393,22 @@ router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
     averageActiveMilestoneDays = Math.round(totalDays / openMilestones.length);
   }
 
-  // Per-pillar task metrics for this week (exclude still-pending from denominator)
-  const pillarMetrics = pillars.map(pillar => {
-    const pillarTasks = weekTasks.filter(t => t.pillarId === pillar.id);
-    const doneCount = pillarTasks.filter(t => t.status === "done").length;
-    const blockedCount = pillarTasks.filter(t => t.status === "blocked").length;
-    const passedCount = pillarTasks.filter(t => t.status === "passed").length;
-    const totalCount = pillarTasks.filter(t => t.status !== "pending").length;
+  // Per-area task metrics for this week (exclude still-pending from denominator)
+  const areaMetrics = areas.map(area => {
+    const areaTasks = weekTasks.filter(t => t.areaId === area.id);
+    const doneCount = areaTasks.filter(t => t.status === "done").length;
+    const blockedCount = areaTasks.filter(t => t.status === "blocked").length;
+    const passedCount = areaTasks.filter(t => t.status === "passed").length;
+    const totalCount = areaTasks.filter(t => t.status !== "pending").length;
     const completionRate = totalCount > 0 ? doneCount / totalCount : 0;
-    return { pillarId: pillar.id, pillarName: pillar.name, completionRate, doneCount, totalCount, blockedCount, passedCount };
+    return { areaId: area.id, areaName: area.name, completionRate, doneCount, totalCount, blockedCount, passedCount };
   });
 
   // P1 vs Warm/Parked effort ratio this week
-  const p1PillarIds = new Set(pillars.filter(p => p.priority === "P1").map(p => p.id));
-  const warmParkedPillarIds = new Set(pillars.filter(p => p.portfolioStatus === "Warm" || p.portfolioStatus === "Parked").map(p => p.id));
-  const p1CompletedThisWeek = weekTasks.filter(t => t.status === "done" && t.pillarId !== null && p1PillarIds.has(t.pillarId!)).length;
-  const warmParkedCompletedThisWeek = weekTasks.filter(t => t.status === "done" && t.pillarId !== null && warmParkedPillarIds.has(t.pillarId!)).length;
+  const p1AreaIds = new Set(areas.filter(p => p.priority === "P1").map(p => p.id));
+  const warmParkedAreaIds = new Set(areas.filter(p => p.portfolioStatus === "Warm" || p.portfolioStatus === "Parked").map(p => p.id));
+  const p1CompletedThisWeek = weekTasks.filter(t => t.status === "done" && t.areaId !== null && p1AreaIds.has(t.areaId!)).length;
+  const warmParkedCompletedThisWeek = weekTasks.filter(t => t.status === "done" && t.areaId !== null && warmParkedAreaIds.has(t.areaId!)).length;
   const p1VsWarmParkedRatio = warmParkedCompletedThisWeek > 0
     ? Math.round((p1CompletedThisWeek / warmParkedCompletedThisWeek) * 100) / 100
     : null;
@@ -417,7 +417,7 @@ router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
     milestonesCompletedThisWeek,
     milestonesCompletedThisMonth,
     averageActiveMilestoneDays,
-    pillarMetrics,
+    areaMetrics,
     p1CompletedThisWeek,
     warmParkedCompletedThisWeek,
     p1VsWarmParkedRatio,
@@ -436,8 +436,8 @@ function getPastWeekStarts(n: number, fromWeekStart: string): string[] {
   return weeks;
 }
 
-router.get("/dashboard/pillar-completion-history", async (req, res): Promise<void> => {
-  const parsed = GetPillarCompletionHistoryParams.safeParse(req.query);
+router.get("/dashboard/area-completion-history", async (req, res): Promise<void> => {
+  const parsed = GetAreaCompletionHistoryParams.safeParse(req.query);
   const weekCount = parsed.success && parsed.data.weeks !== undefined
     ? Math.min(Math.max(parsed.data.weeks, 1), 52)
     : 4;
@@ -448,31 +448,31 @@ router.get("/dashboard/pillar-completion-history", async (req, res): Promise<voi
   const oldestWeekStart = weeks[0];
   const newestWeekEnd = getWeekEnd(weeks[weeks.length - 1]);
 
-  const [allTasks, pillars] = await Promise.all([
+  const [allTasks, areas] = await Promise.all([
     db.select().from(tasksTable).where(and(
       gte(tasksTable.date, oldestWeekStart),
       lte(tasksTable.date, newestWeekEnd),
     )),
-    db.select().from(pillarsTable).orderBy(pillarsTable.id),
+    db.select().from(areasTable).orderBy(areasTable.id),
   ]);
 
-  const pillarData = pillars.map(pillar => {
+  const areaData = areas.map(area => {
     const weeklyRates = weeks.map(weekStart => {
       const weekEnd = getWeekEnd(weekStart);
-      const pillarTasks = allTasks.filter(t =>
-        t.pillarId === pillar.id &&
+      const areaTasks = allTasks.filter(t =>
+        t.areaId === area.id &&
         t.date >= weekStart &&
         t.date <= weekEnd &&
         t.status !== "pending"
       );
-      if (pillarTasks.length === 0) return 0;
-      const doneCount = pillarTasks.filter(t => t.status === "done").length;
-      return doneCount / pillarTasks.length;
+      if (areaTasks.length === 0) return 0;
+      const doneCount = areaTasks.filter(t => t.status === "done").length;
+      return doneCount / areaTasks.length;
     });
-    return { pillarId: pillar.id, pillarName: pillar.name, weeklyRates };
+    return { areaId: area.id, areaName: area.name, weeklyRates };
   });
 
-  res.json(GetPillarCompletionHistoryResponse.parse({ weeks, pillars: pillarData }));
+  res.json(GetAreaCompletionHistoryResponse.parse({ weeks, areas: areaData }));
 });
 
 export default router;
