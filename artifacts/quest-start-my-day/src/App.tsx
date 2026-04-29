@@ -35,6 +35,9 @@ function Router() {
           <Route path="/home" component={HomeModulePage} />
           <Route path="/review" component={ReviewPage} />
           <Route path="/areas" component={AreasPage} />
+          {/* Legacy alias: /pillars was the previous name. Keep it routable so
+              old bookmarks, links, and shared URLs don't 404. */}
+          <Route path="/pillars" component={AreasPage} />
           <Route component={NotFound} />
         </Switch>
       </Suspense>
