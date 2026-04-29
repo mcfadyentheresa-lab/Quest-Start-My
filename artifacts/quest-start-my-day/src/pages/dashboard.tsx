@@ -44,6 +44,8 @@ import {
   EveningRecapCardSkeleton,
   EveningRecapCardError,
 } from "@/components/evening-recap-card";
+import { OnboardingWizard, isOnboardingComplete, markOnboardingComplete } from "@/components/onboarding-wizard";
+import { OnboardingChecklist, markBriefingViewed } from "@/components/onboarding-checklist";
 
 const FOCUS_DURATIONS = [5, 10, 15, 25] as const;
 
@@ -80,6 +82,7 @@ export default function Dashboard() {
   const timer = useFocusTimer();
   const [selectedFocusDuration, setSelectedFocusDuration] = useState<number>(() => timer.defaultDuration);
   const [customDurationInput, setCustomDurationInput] = useState<string>("");
+  const [showWizard, setShowWizard] = useState<boolean>(() => !isOnboardingComplete());
 
   const isPresetDuration = (FOCUS_DURATIONS as readonly number[]).includes(selectedFocusDuration);
 
@@ -376,7 +379,7 @@ export default function Dashboard() {
 
       {/* Briefing zone (morning) */}
       {showBriefing && (
-        <>
+        <div onMouseEnter={markBriefingViewed}>
           {briefingQuery.isLoading && <BriefingCardSkeleton />}
           {briefingQuery.isError && (
             <BriefingCardError onRetry={() => briefingQuery.refetch()} />
@@ -402,8 +405,22 @@ export default function Dashboard() {
               )}
             </>
           )}
-        </>
+        </div>
       )}
+
+      {/* Onboarding checklist — auto-hides once complete */}
+      {!isViewingHistory && (
+        <OnboardingChecklist
+          hasAreas={(areas?.length ?? 0) > 0}
+          hasTasks={(tasks?.length ?? 0) > 0}
+        />
+      )}
+
+      {/* Onboarding wizard — first-run only */}
+      <OnboardingWizard
+        open={showWizard}
+        onComplete={() => { markOnboardingComplete(); setShowWizard(false); }}
+      />
 
       {/* Evening recap zone */}
       {recapEnabled && (

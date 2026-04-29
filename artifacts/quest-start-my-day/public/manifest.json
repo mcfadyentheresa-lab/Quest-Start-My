@@ -1,0 +1,17 @@
+{
+  "name": "Quest — your quiet chief of staff",
+  "short_name": "Quest",
+  "description": "A short morning briefing and a small, finishable list of tasks. Group work into lightweight areas, then let momentum carry the day.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#c2a49e",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

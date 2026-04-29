@@ -232,7 +232,7 @@ export function BriefingCardError({ onRetry }: { onRetry: () => void }) {
         Couldn't reach your assistant.
       </p>
       <p className="text-sm text-muted-foreground mb-4">
-        Showing a basic plan based on your active pillars.
+        Showing a basic plan based on your active areas.
       </p>
       <Button size="sm" variant="outline" className="rounded-xl" onClick={onRetry}>
         Try again
