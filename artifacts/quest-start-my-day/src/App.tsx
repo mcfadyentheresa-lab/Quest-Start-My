@@ -50,7 +50,7 @@ const rawBase = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
 function App() {
   const routerTree = <Router />;
   return (
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <TooltipProvider>
         <FocusTimerProvider>
           {rawBase ? (

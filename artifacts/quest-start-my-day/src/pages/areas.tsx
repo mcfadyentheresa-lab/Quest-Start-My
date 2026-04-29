@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DataLoadError } from "@/components/data-load-error";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check, Trash2, GripVertical, AlertCircle, Volume2, VolumeX, Bell, BellOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -980,7 +981,7 @@ const FOCUS_DURATION_OPTIONS = [5, 10, 15, 25] as const;
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: areas, isLoading } = useListAreas();
+  const { data: areas, isLoading, isError, refetch } = useListAreas();
   const createArea = useCreateArea();
   const updateArea = useUpdateArea();
   const [addOpen, setAddOpen] = useState(false);
@@ -1127,6 +1128,18 @@ export default function SettingsPage() {
       }
     );
   };
+
+  if (isError) {
+    return (
+      <div className="space-y-4 pt-2">
+        <DataLoadError
+          title="Couldn't load your areas"
+          message="We can't reach your data right now. Try again in a moment."
+          onRetry={() => refetch()}
+        />
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

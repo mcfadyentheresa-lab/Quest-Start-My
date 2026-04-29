@@ -199,3 +199,73 @@
     font-family: var(--app-font-serif);
   }
 }
+
+/* ---------------------------------------------------------------
+   Pre-hydration dark-mode fallback
+   next-themes attaches `.dark` once JS hydrates. To prevent a
+   light-mode flash for users whose OS is in dark mode, mirror
+   the .dark token block under `prefers-color-scheme: dark` for
+   the brief moment before hydration. Once `.dark` is applied,
+   it overrides via specificity (the .dark selector beats :root
+   in cascade order because it is declared later in this file).
+   --------------------------------------------------------------- */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --button-outline: rgba(255,255,255, .10);
+    --badge-outline: rgba(255,255,255, .05);
+    --opaque-button-border-intensity: 9;
+    --elevate-1: rgba(255,255,255, .04);
+    --elevate-2: rgba(255,255,255, .09);
+
+    --background: 222 38% 8%;
+    --foreground: 220 28% 92%;
+    --border: 222 22% 20%;
+    --input: 222 22% 23%;
+    --ring: 238 65% 65%;
+
+    --card: 222 35% 11%;
+    --card-foreground: 220 28% 92%;
+    --card-border: 222 22% 18%;
+
+    --popover: 222 35% 11%;
+    --popover-foreground: 220 28% 92%;
+    --popover-border: 222 22% 18%;
+
+    --primary: 238 65% 65%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 222 22% 18%;
+    --secondary-foreground: 220 22% 78%;
+
+    --muted: 222 22% 16%;
+    --muted-foreground: 220 14% 56%;
+
+    --accent: 174 50% 46%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Reduced-motion support
+   Respect users who set `prefers-reduced-motion: reduce` in their
+   OS. Disables Tailwind/`tw-animate-css` animations, the skeleton
+   pulse, and slows transitions to a near-instant fade.
+   Framer Motion respects this flag automatically when components
+   read `useReducedMotion()`, but the global rule below covers any
+   CSS-driven motion not under its control.
+   --------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-pulse,
+  [data-slot="skeleton"] {
+    animation: none !important;
+  }
+}

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DataLoadError } from "@/components/data-load-error";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarDays, Save, ChevronDown, ChevronUp, History } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -37,7 +38,7 @@ export default function TodayPage() {
   const queryClient = useQueryClient();
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const { data: todayPlans, isLoading } = useListDailyPlans(
+  const { data: todayPlans, isLoading, isError, refetch } = useListDailyPlans(
     { date: today },
     { query: { queryKey: getListDailyPlansQueryKey({ date: today }) } }
   );
@@ -96,7 +97,13 @@ export default function TodayPage() {
         <p className="text-sm text-muted-foreground">{formatDate(today)}</p>
       </motion.div>
 
-      {isLoading ? (
+      {isError ? (
+        <DataLoadError
+          title="Couldn't load today's plan"
+          message="We can't reach your data right now. Try again in a moment."
+          onRetry={() => refetch()}
+        />
+      ) : isLoading ? (
         <div className="space-y-3">
           <Skeleton className="h-10 w-full rounded-xl" />
           <Skeleton className="h-10 w-full rounded-xl" />
