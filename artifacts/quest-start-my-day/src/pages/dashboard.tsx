@@ -30,6 +30,7 @@ import { FocusNudgeDialog } from "@/components/focus-nudge-dialog";
 import { useFocusTimer, clampDuration, MIN_DURATION_MINUTES, MAX_DURATION_MINUTES } from "@/hooks/use-focus-timer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { DataLoadError } from "@/components/data-load-error";
 import { Plus, Sprout, ArrowRight, CalendarDays, Timer } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -108,11 +109,13 @@ export default function Dashboard() {
     setCustomDurationInput(String(safe));
   };
 
-  const { data: summary, isLoading: summaryLoading } = useGetDashboardSummary();
-  const { data: tasks, isLoading: tasksLoading } = useListTasks(
+  const summaryQuery = useGetDashboardSummary();
+  const { data: summary, isLoading: summaryLoading, isError: summaryError, refetch: refetchSummary } = summaryQuery;
+  const tasksQuery = useListTasks(
     { date: viewDate },
     { query: { queryKey: getListTasksQueryKey({ date: viewDate }) } },
   );
+  const { data: tasks, isLoading: tasksLoading, isError: tasksError, refetch: refetchTasks } = tasksQuery;
   const { data: areas } = useListAreas();
   const updateTask = useUpdateTask();
   const createTask = useCreateTask();
@@ -333,6 +336,22 @@ export default function Dashboard() {
   const handleAddOwn = () => {
     document.getElementById("tasks-section")?.scrollIntoView({ behavior: "smooth" });
   };
+
+  // Show full-page error if BOTH critical queries fail (API likely down).
+  if (summaryError && tasksError) {
+    return (
+      <div className="space-y-6 pt-4">
+        <DataLoadError
+          title="Couldn't load your day"
+          message="Your assistant can't reach the server right now. Your data is safe — we just need to retry."
+          onRetry={() => {
+            refetchSummary();
+            refetchTasks();
+          }}
+        />
+      </div>
+    );
+  }
 
   if (summaryLoading && tasksLoading) {
     return (

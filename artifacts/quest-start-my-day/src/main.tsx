@@ -4,7 +4,22 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import "./index.css";
 
-const queryClient = new QueryClient();
+// Tuned defaults: fail faster so the UI can show an error state
+// instead of an indefinite skeleton when the API is down.
+// Default React Query is 3 retries with exponential backoff (~30s).
+// 2 retries with capped 4s backoff = ~5s before isError flips true.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 4000),
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: 0,
+    },
+  },
+});
 
 // Visible error boundary so production crashes are never silent.
 interface ErrorBoundaryState {

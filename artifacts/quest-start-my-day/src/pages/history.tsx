@@ -20,6 +20,7 @@ import {
   SPARKLINE_WEEK_COUNT,
 } from "@/components/area-sparkline";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DataLoadError } from "@/components/data-load-error";
 import {
   Drawer,
   DrawerContent,
@@ -269,12 +270,17 @@ export default function HistoryPage() {
   const currentWeek = getCurrentWeekStart();
   const isCurrentWeek = selectedWeek === currentWeek;
 
-  const { data: logs, isLoading: logsLoading } = useListProgressLogs(
+  const logsQuery = useListProgressLogs(
     { limit: 60 },
     { query: { queryKey: getListProgressLogsQueryKey({ limit: 60 }) } }
   );
-  const { data: weekSummary, isLoading: weekLoading } = useGetWeekSummary();
-  const { data: areaHealth, isLoading: healthLoading } = useGetAreaHealth();
+  const { data: logs, isLoading: logsLoading } = logsQuery;
+  const weekSummaryQuery = useGetWeekSummary();
+  const { data: weekSummary, isLoading: weekLoading } = weekSummaryQuery;
+  const areaHealthQuery = useGetAreaHealth();
+  const { data: areaHealth, isLoading: healthLoading } = areaHealthQuery;
+  const allCriticalErrored =
+    logsQuery.isError && weekSummaryQuery.isError && areaHealthQuery.isError;
   const { data: dashSummary } = useGetDashboardSummary();
   const { data: outcomes, isLoading: outcomesLoading } = useGetOutcomeMetrics({ weekOf: selectedWeek });
   // Note: useGetFrictionSignals does not currently accept weekOf at the API layer.
@@ -344,6 +350,23 @@ export default function HistoryPage() {
   ];
 
   const portfolioBalance = areaHealth?.portfolioBalance;
+
+  if (allCriticalErrored) {
+    return (
+      <div className="space-y-6 pt-2">
+        <h1 className="font-serif text-2xl font-medium text-foreground">History</h1>
+        <DataLoadError
+          title="Couldn't load your history"
+          message="We can't reach your data right now. Try again in a moment."
+          onRetry={() => {
+            logsQuery.refetch();
+            weekSummaryQuery.refetch();
+            areaHealthQuery.refetch();
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <>
