@@ -7,6 +7,7 @@ import {
   UpdateMonthlyReviewBody,
   UpdateMonthlyReviewResponse,
 } from "@workspace/api-zod";
+import { asyncHandler } from "../lib/async-handler";
 
 const router: IRouter = Router();
 
@@ -16,15 +17,15 @@ const serializeReview = (r: typeof monthlyReviewsTable.$inferSelect) => ({
   topPrioritiesNextMonth: r.topPrioritiesNextMonth ?? null,
 });
 
-router.get("/monthly", async (req, res): Promise<void> => {
+router.get("/monthly", asyncHandler(async (req, res): Promise<void> => {
   const reviews = await db.select()
     .from(monthlyReviewsTable)
     .orderBy(desc(monthlyReviewsTable.monthOf));
 
   res.json(ListMonthlyReviewsResponse.parse(reviews.map(serializeReview)));
-});
+}));
 
-router.post("/monthly", async (req, res): Promise<void> => {
+router.post("/monthly", asyncHandler(async (req, res): Promise<void> => {
   const parsed = CreateMonthlyReviewBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -66,9 +67,9 @@ router.post("/monthly", async (req, res): Promise<void> => {
   }
 
   res.status(201).json(serializeReview(created!));
-});
+}));
 
-router.patch("/monthly/:id", async (req, res): Promise<void> => {
+router.patch("/monthly/:id", asyncHandler(async (req, res): Promise<void> => {
   const id = parseInt(req.params.id!, 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
@@ -119,6 +120,6 @@ router.patch("/monthly/:id", async (req, res): Promise<void> => {
   }
 
   res.json(UpdateMonthlyReviewResponse.parse(serializeReview(updated)));
-});
+}));
 
 export default router;

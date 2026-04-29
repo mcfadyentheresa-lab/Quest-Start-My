@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { generateRecap, saveRecapReflection } from "../lib/recap";
+import { asyncHandler } from "../lib/async-handler";
 
 const router: IRouter = Router();
 
@@ -8,7 +9,7 @@ function getUserId(req: { userId?: string | null } & object): string | null {
   return typeof candidate === "string" && candidate.length > 0 ? candidate : null;
 }
 
-router.get("/dashboard/recap", async (req, res, next) => {
+router.get("/dashboard/recap", asyncHandler(async (req, res, next) => {
   try {
     const userId = getUserId(req);
     const recap = await generateRecap({ userId });
@@ -16,9 +17,9 @@ router.get("/dashboard/recap", async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
+}));
 
-router.post("/dashboard/recap/regenerate", async (req, res, next) => {
+router.post("/dashboard/recap/regenerate", asyncHandler(async (req, res, next) => {
   try {
     const userId = getUserId(req);
     const recap = await generateRecap({ userId, bypassCache: true });
@@ -26,9 +27,9 @@ router.post("/dashboard/recap/regenerate", async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
+}));
 
-router.post("/dashboard/recap/reflection", async (req, res, next) => {
+router.post("/dashboard/recap/reflection", asyncHandler(async (req, res, next) => {
   try {
     const userId = getUserId(req);
     const body = (req.body ?? {}) as Record<string, unknown>;
@@ -47,6 +48,6 @@ router.post("/dashboard/recap/reflection", async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
+}));
 
 export default router;

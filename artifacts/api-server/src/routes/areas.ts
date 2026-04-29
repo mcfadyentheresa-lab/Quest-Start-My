@@ -8,6 +8,7 @@ import {
   ListAreasResponse,
   UpdateAreaResponse,
 } from "@workspace/api-zod";
+import { asyncHandler } from "../lib/async-handler";
 
 const router: IRouter = Router();
 
@@ -18,12 +19,12 @@ function serializeArea(p: typeof areasTable.$inferSelect) {
   };
 }
 
-router.get("/areas", async (req, res): Promise<void> => {
+router.get("/areas", asyncHandler(async (req, res): Promise<void> => {
   const areas = await db.select().from(areasTable).orderBy(areasTable.id);
   res.json(ListAreasResponse.parse(areas.map(serializeArea)));
-});
+}));
 
-router.post("/areas", async (req, res): Promise<void> => {
+router.post("/areas", asyncHandler(async (req, res): Promise<void> => {
   const parsed = CreateAreaBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -42,9 +43,9 @@ router.post("/areas", async (req, res): Promise<void> => {
   }).returning();
 
   res.status(201).json(serializeArea(area!));
-});
+}));
 
-router.patch("/areas/:id", async (req, res): Promise<void> => {
+router.patch("/areas/:id", asyncHandler(async (req, res): Promise<void> => {
   const params = UpdateAreaParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -86,6 +87,6 @@ router.patch("/areas/:id", async (req, res): Promise<void> => {
   }
 
   res.json(UpdateAreaResponse.parse(serializeArea(area)));
-});
+}));
 
 export default router;

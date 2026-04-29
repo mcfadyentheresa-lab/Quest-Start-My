@@ -7,6 +7,7 @@ import {
   UpdateDailyPlanBody,
   UpdateDailyPlanParams,
 } from "@workspace/api-zod";
+import { asyncHandler } from "../lib/async-handler";
 
 const router: IRouter = Router();
 
@@ -19,7 +20,7 @@ function serializePlan(plan: typeof dailyPlansTable.$inferSelect) {
 
 const MAX_DAILY_PLAN_LIMIT = 200;
 
-router.get("/daily", async (req, res): Promise<void> => {
+router.get("/daily", asyncHandler(async (req, res): Promise<void> => {
   const parsed = ListDailyPlansQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -44,9 +45,9 @@ router.get("/daily", async (req, res): Promise<void> => {
     .limit(limit);
 
   res.json(plans.map(serializePlan));
-});
+}));
 
-router.post("/daily", async (req, res): Promise<void> => {
+router.post("/daily", asyncHandler(async (req, res): Promise<void> => {
   const parsed = CreateDailyPlanBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -80,9 +81,9 @@ router.post("/daily", async (req, res): Promise<void> => {
   }
 
   res.status(201).json(serializePlan(created!));
-});
+}));
 
-router.patch("/daily/:id", async (req, res): Promise<void> => {
+router.patch("/daily/:id", asyncHandler(async (req, res): Promise<void> => {
   const params = UpdateDailyPlanParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: "Invalid id" });
@@ -114,6 +115,6 @@ router.patch("/daily/:id", async (req, res): Promise<void> => {
   }
 
   res.json(serializePlan(updated));
-});
+}));
 
 export default router;

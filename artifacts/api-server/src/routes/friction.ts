@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { and, lte, ne, eq, desc } from "drizzle-orm";
 import { db, tasksTable, areasTable, milestonesTable, progressLogsTable } from "@workspace/db";
 import { GetFrictionSignalsResponse } from "@workspace/api-zod";
+import { asyncHandler } from "../lib/async-handler";
 
 const router: IRouter = Router();
 
@@ -10,7 +11,7 @@ function monthStartFromDate(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 }
 
-router.get("/dashboard/friction", async (req, res): Promise<void> => {
+router.get("/dashboard/friction", asyncHandler(async (req, res): Promise<void> => {
   const weekOfParam = typeof req.query.weekOf === "string" ? req.query.weekOf : null;
   if (weekOfParam !== null) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(weekOfParam) || isNaN(Date.parse(weekOfParam + "T00:00:00"))) {
@@ -280,6 +281,6 @@ router.get("/dashboard/friction", async (req, res): Promise<void> => {
           : (s.lastSeenDate ?? null),
     })),
   );
-});
+}));
 
 export default router;
