@@ -96,6 +96,20 @@ function isPgError(err: unknown): err is PgLikeError {
   );
 }
 
+// Drizzle wraps driver errors: it throws `new DrizzleError({ message: 'Failed
+// query: ...', cause: pgError })`. So the real pg error (with .code, .table,
+// .column) lives on `err.cause`, not on `err` itself. Walk the chain (which
+// can theoretically be nested) up to a small depth and return the first
+// pg-shaped error we find.
+function findPgErrorInChain(err: unknown, depth = 0): PgLikeError | null {
+  if (depth > 5) return null;
+  if (isPgError(err)) return err;
+  if (typeof err === "object" && err !== null && "cause" in err) {
+    return findPgErrorInChain((err as { cause: unknown }).cause, depth + 1);
+  }
+  return null;
+}
+
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   if (err instanceof ApiError) {
     res.status(err.status).json(err.toEnvelope());
@@ -105,15 +119,17 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   // Surface schema/migration mismatches with an actionable message instead
   // of a bare 500. These almost always mean a migration has not been applied
   // on the deployed database (e.g. the pillars→areas rename).
-  if (isPgError(err) && (err.code === PG_UNDEFINED_TABLE || err.code === PG_UNDEFINED_COLUMN)) {
+  const pgErr = findPgErrorInChain(err);
+  if (pgErr && (pgErr.code === PG_UNDEFINED_TABLE || pgErr.code === PG_UNDEFINED_COLUMN)) {
     logger.error(
       {
         err,
         url: req.url,
         method: req.method,
-        pgCode: err.code,
-        pgTable: err.table,
-        pgColumn: err.column,
+        pgCode: pgErr.code,
+        pgTable: pgErr.table,
+        pgColumn: pgErr.column,
+        pgMessage: pgErr.message,
       },
       "Database schema mismatch — migration likely not applied",
     );
@@ -121,7 +137,12 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
       503,
       "DATABASE_SCHEMA_MISMATCH",
       "The database is missing a required table or column. Run pending migrations and try again.",
-      { pgCode: err.code, hint: err.message },
+      {
+        pgCode: pgErr.code,
+        pgTable: pgErr.table,
+        pgColumn: pgErr.column,
+        hint: pgErr.message,
+      },
     );
     res.status(apiError.status).json(apiError.toEnvelope());
     return;
@@ -154,13 +175,14 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
 
   // Generic Postgres errors that aren't schema mismatches (connection,
   // permission, etc.) — surface the pg code so we can diagnose.
-  if (isPgError(err)) {
+  if (pgErr) {
     logger.error(
       {
         err,
         url: req.url,
         method: req.method,
-        pgCode: err.code,
+        pgCode: pgErr.code,
+        pgMessage: pgErr.message,
       },
       "Database error",
     );
@@ -168,7 +190,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
       500,
       "DATABASE_ERROR",
       "A database error occurred.",
-      { pgCode: err.code },
+      { pgCode: pgErr.code, hint: pgErr.message },
     );
     res.status(apiError.status).json(apiError.toEnvelope());
     return;
