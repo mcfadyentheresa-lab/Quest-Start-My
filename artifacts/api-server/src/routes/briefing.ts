@@ -3,6 +3,7 @@ import {
   generateBriefing,
   approveBriefingForToday,
 } from "../lib/briefing";
+import { asyncHandler } from "../lib/async-handler";
 
 const router: IRouter = Router();
 
@@ -11,7 +12,7 @@ function getUserId(req: { userId?: string | null } & object): string | null {
   return typeof candidate === "string" && candidate.length > 0 ? candidate : null;
 }
 
-router.post("/briefing/today", async (req, res, next) => {
+router.post("/briefing/today", asyncHandler(async (req, res, next) => {
   try {
     const userId = getUserId(req);
     const briefing = await generateBriefing({ userId });
@@ -19,9 +20,9 @@ router.post("/briefing/today", async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
+}));
 
-router.post("/briefing/reshuffle", async (req, res, next) => {
+router.post("/briefing/reshuffle", asyncHandler(async (req, res, next) => {
   try {
     const userId = getUserId(req);
     const hintRaw = (req.body && typeof req.body === "object" && "hint" in req.body)
@@ -35,9 +36,9 @@ router.post("/briefing/reshuffle", async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
+}));
 
-router.post("/briefing/approve", async (req, res, next) => {
+router.post("/briefing/approve", asyncHandler(async (req, res, next) => {
   try {
     const userId = getUserId(req);
     const briefing = await approveBriefingForToday(userId);
@@ -45,6 +46,6 @@ router.post("/briefing/approve", async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
+}));
 
 export default router;

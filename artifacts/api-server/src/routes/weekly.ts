@@ -9,6 +9,7 @@ import {
   ListWeeklyPlansResponse,
   UpdateWeeklyPlanResponse,
 } from "@workspace/api-zod";
+import { asyncHandler } from "../lib/async-handler";
 
 const router: IRouter = Router();
 
@@ -28,7 +29,7 @@ function serializePlan(plan: typeof weeklyPlansTable.$inferSelect) {
   };
 }
 
-router.get("/weekly", async (req, res): Promise<void> => {
+router.get("/weekly", asyncHandler(async (req, res): Promise<void> => {
   const query = ListWeeklyPlansQueryParams.safeParse(req.query);
   const weekOf = query.success && query.data.weekOf ? query.data.weekOf : getWeekStart();
 
@@ -36,9 +37,9 @@ router.get("/weekly", async (req, res): Promise<void> => {
     .where(eq(weeklyPlansTable.weekOf, weekOf));
 
   res.json(ListWeeklyPlansResponse.parse(plans.map(serializePlan)));
-});
+}));
 
-router.post("/weekly", async (req, res): Promise<void> => {
+router.post("/weekly", asyncHandler(async (req, res): Promise<void> => {
   const parsed = CreateWeeklyPlanBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -61,9 +62,9 @@ router.post("/weekly", async (req, res): Promise<void> => {
   }).returning();
 
   res.status(201).json(serializePlan(plan!));
-});
+}));
 
-router.patch("/weekly/:id", async (req, res): Promise<void> => {
+router.patch("/weekly/:id", asyncHandler(async (req, res): Promise<void> => {
   const params = UpdateWeeklyPlanParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -101,6 +102,6 @@ router.patch("/weekly/:id", async (req, res): Promise<void> => {
   }
 
   res.json(UpdateWeeklyPlanResponse.parse(serializePlan(plan)));
-});
+}));
 
 export default router;

@@ -58,12 +58,18 @@ If you haven't already:
 → This monorepo is large. In Railway → service → **Settings** → **Resources**, increase the build memory if possible. Or contact Railway support to enable a higher tier build.
 
 **"relation does not exist" in logs at runtime**
-→ The database tables weren't created. Check the build logs — the step `pnpm --filter @workspace/db run push` should run automatically. If it failed, there's a migration issue we'd need to look at.
+→ The database tables weren't created or a rename migration didn't apply. Check the build logs — the step `pnpm --filter @workspace/db run deploy` should run automatically. It runs the pillars→areas rename (idempotent) and then `drizzle-kit push --force`. If it failed, the build logs will show which statement broke.
+
+**"503 DATABASE_SCHEMA_MISMATCH" from any /api/ endpoint**
+→ A required table or column is missing from the database. This usually means a migration was added to the codebase but the deployed database hasn't received it yet. Trigger a redeploy in Railway — the build phase will run pending migrations. If the issue persists, you can manually run:
+```
+DATABASE_URL=<railway-pg-url> node lib/db/migrate-rename.mjs up
+```
 
 ## How it works, in plain terms
 
 1. Railway runs `pnpm install` to download all the code pieces.
 2. Runs `pnpm run build` — this compiles the backend and builds the frontend into plain HTML/CSS/JS files at `artifacts/dist/`.
-3. Runs `pnpm --filter @workspace/db run push` — this creates the database tables.
+3. Runs `pnpm --filter @workspace/db run deploy` — this applies pending rename migrations (e.g. pillars→areas) and then runs `drizzle-kit push --force` to sync the rest of the schema.
 4. Starts the backend with `pnpm --filter @workspace/api-server run start`.
 5. The backend sees `STATIC_DIR=/app/artifacts/dist` and serves the frontend from the same URL. When you visit `/`, you get the React app. When the React app asks for data at `/api/...`, the backend handles it.

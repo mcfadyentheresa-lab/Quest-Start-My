@@ -12,6 +12,7 @@ import {
   StepBackTaskParams,
   GetTaskSuggestionsQueryParams,
 } from "@workspace/api-zod";
+import { asyncHandler } from "../lib/async-handler";
 
 const router: IRouter = Router();
 
@@ -74,7 +75,7 @@ function serializeTask(task: typeof tasksTable.$inferSelect) {
   return { ...task, createdAt: task.createdAt.toISOString() };
 }
 
-router.get("/tasks", async (req, res): Promise<void> => {
+router.get("/tasks", asyncHandler(async (req, res): Promise<void> => {
   const query = ListTasksQueryParams.safeParse(req.query);
   const today = new Date().toISOString().slice(0, 10);
   const date = query.success && query.data.date ? query.data.date : today;
@@ -89,9 +90,9 @@ router.get("/tasks", async (req, res): Promise<void> => {
     .orderBy(tasksTable.createdAt);
 
   res.json(ListTasksResponse.parse(tasks.map(serializeTask)));
-});
+}));
 
-router.post("/tasks", async (req, res): Promise<void> => {
+router.post("/tasks", asyncHandler(async (req, res): Promise<void> => {
   const parsed = CreateTaskBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -113,9 +114,9 @@ router.post("/tasks", async (req, res): Promise<void> => {
   }).returning();
 
   res.status(201).json(serializeTask(task));
-});
+}));
 
-router.get("/tasks/suggestions", async (req, res): Promise<void> => {
+router.get("/tasks/suggestions", asyncHandler(async (req, res): Promise<void> => {
   const queryResult = GetTaskSuggestionsQueryParams.safeParse(req.query);
   if (!queryResult.success) {
     res.status(400).json({ error: queryResult.error.message });
@@ -197,9 +198,9 @@ router.get("/tasks/suggestions", async (req, res): Promise<void> => {
   }
 
   res.json(suggestions);
-});
+}));
 
-router.patch("/tasks/:id", async (req, res): Promise<void> => {
+router.patch("/tasks/:id", asyncHandler(async (req, res): Promise<void> => {
   const params = UpdateTaskParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -248,9 +249,9 @@ router.patch("/tasks/:id", async (req, res): Promise<void> => {
   }
 
   res.json(UpdateTaskResponse.parse(serializeTask(task)));
-});
+}));
 
-router.post("/tasks/:id/step-back", async (req, res): Promise<void> => {
+router.post("/tasks/:id/step-back", asyncHandler(async (req, res): Promise<void> => {
   const params = StepBackTaskParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -314,9 +315,9 @@ router.post("/tasks/:id/step-back", async (req, res): Promise<void> => {
     originalTask: serializeTask(updated),
     prerequisiteTask: serializeTask(prereq),
   });
-});
+}));
 
-router.delete("/tasks/:id", async (req, res): Promise<void> => {
+router.delete("/tasks/:id", asyncHandler(async (req, res): Promise<void> => {
   const params = DeleteTaskParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -334,6 +335,6 @@ router.delete("/tasks/:id", async (req, res): Promise<void> => {
   }
 
   res.sendStatus(204);
-});
+}));
 
 export default router;

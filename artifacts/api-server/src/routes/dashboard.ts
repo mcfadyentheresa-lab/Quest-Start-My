@@ -10,6 +10,7 @@ import {
   GetAreaCompletionHistoryResponse,
   GetAreaCompletionHistoryQueryParams as GetAreaCompletionHistoryParams,
 } from "@workspace/api-zod";
+import { asyncHandler } from "../lib/async-handler";
 
 const router: IRouter = Router();
 
@@ -47,7 +48,7 @@ function computeGuidance(status: string, suggestedNextStep: string | null | unde
   return null;
 }
 
-router.get("/dashboard/summary", async (req, res): Promise<void> => {
+router.get("/dashboard/summary", asyncHandler(async (req, res): Promise<void> => {
   const today = new Date().toISOString().slice(0, 10);
   const weekOf = getWeekStart();
 
@@ -91,9 +92,9 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     weeklyPlan: serializePlan(weeklyPlan),
     planningStreak,
   }));
-});
+}));
 
-router.get("/dashboard/week-summary", async (req, res): Promise<void> => {
+router.get("/dashboard/week-summary", asyncHandler(async (req, res): Promise<void> => {
   const weekOf = getWeekStart();
   const weekEnd = getWeekEnd(weekOf);
 
@@ -146,9 +147,9 @@ router.get("/dashboard/week-summary", async (req, res): Promise<void> => {
     completionRate,
     areaActivity,
   }));
-});
+}));
 
-router.get("/dashboard/reentry", async (req, res): Promise<void> => {
+router.get("/dashboard/reentry", asyncHandler(async (req, res): Promise<void> => {
   const today = new Date().toISOString().slice(0, 10);
 
   // First: look for most recent unfinished (pending) or blocked task from a prior date
@@ -254,9 +255,9 @@ router.get("/dashboard/reentry", async (req, res): Promise<void> => {
   }
 
   res.json(GetReentryTaskResponse.parse({ type: "none", task: null, guidance: null }));
-});
+}));
 
-router.get("/dashboard/area-health", async (req, res): Promise<void> => {
+router.get("/dashboard/area-health", asyncHandler(async (req, res): Promise<void> => {
   const weekOf = getWeekStart();
   const weekEnd = getWeekEnd(weekOf);
 
@@ -343,9 +344,9 @@ router.get("/dashboard/area-health", async (req, res): Promise<void> => {
   };
 
   res.json(GetAreaHealthResponse.parse({ areas: areaEntries, portfolioBalance }));
-});
+}));
 
-router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
+router.get("/dashboard/outcome-metrics", asyncHandler(async (req, res): Promise<void> => {
   const weekOfParam = typeof req.query.weekOf === "string" ? req.query.weekOf : null;
   if (weekOfParam !== null) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(weekOfParam) || isNaN(Date.parse(weekOfParam + "T00:00:00"))) {
@@ -422,7 +423,7 @@ router.get("/dashboard/outcome-metrics", async (req, res): Promise<void> => {
     warmParkedCompletedThisWeek,
     p1VsWarmParkedRatio,
   }));
-});
+}));
 
 function getPastWeekStarts(n: number, fromWeekStart: string): string[] {
   const weeks: string[] = [];
@@ -436,7 +437,7 @@ function getPastWeekStarts(n: number, fromWeekStart: string): string[] {
   return weeks;
 }
 
-router.get("/dashboard/area-completion-history", async (req, res): Promise<void> => {
+router.get("/dashboard/area-completion-history", asyncHandler(async (req, res): Promise<void> => {
   const parsed = GetAreaCompletionHistoryParams.safeParse(req.query);
   const weekCount = parsed.success && parsed.data.weeks !== undefined
     ? Math.min(Math.max(parsed.data.weeks, 1), 52)
@@ -473,6 +474,6 @@ router.get("/dashboard/area-completion-history", async (req, res): Promise<void>
   });
 
   res.json(GetAreaCompletionHistoryResponse.parse({ weeks, areas: areaData }));
-});
+}));
 
 export default router;

@@ -5,10 +5,11 @@ import {
   ListProgressLogsQueryParams,
   ListProgressLogsResponse,
 } from "@workspace/api-zod";
+import { asyncHandler } from "../lib/async-handler";
 
 const router: IRouter = Router();
 
-router.get("/progress", async (req, res): Promise<void> => {
+router.get("/progress", asyncHandler(async (req, res): Promise<void> => {
   const query = ListProgressLogsQueryParams.safeParse(req.query);
   const limit = query.success && query.data.limit ? query.data.limit : 30;
 
@@ -20,6 +21,6 @@ router.get("/progress", async (req, res): Promise<void> => {
     ...l,
     loggedAt: l.loggedAt.toISOString(),
   }))));
-});
+}));
 
 export default router;

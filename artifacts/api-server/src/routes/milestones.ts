@@ -11,6 +11,7 @@ import {
   UpdateMilestoneResponse,
   DeleteMilestoneParams,
 } from "@workspace/api-zod";
+import { asyncHandler } from "../lib/async-handler";
 
 const router: IRouter = Router();
 
@@ -22,7 +23,7 @@ function serializeMilestone(m: typeof milestonesTable.$inferSelect) {
   };
 }
 
-router.get("/milestones", async (req, res): Promise<void> => {
+router.get("/milestones", asyncHandler(async (req, res): Promise<void> => {
   const query = ListMilestonesQueryParams.safeParse(req.query);
   const areaId = query.success && query.data.areaId ? query.data.areaId : undefined;
 
@@ -33,9 +34,9 @@ router.get("/milestones", async (req, res): Promise<void> => {
     .orderBy(milestonesTable.sortOrder, milestonesTable.createdAt);
 
   res.json(ListMilestonesResponse.parse(milestones.map(serializeMilestone)));
-});
+}));
 
-router.post("/milestones", async (req, res): Promise<void> => {
+router.post("/milestones", asyncHandler(async (req, res): Promise<void> => {
   const parsed = CreateMilestoneBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -54,9 +55,9 @@ router.post("/milestones", async (req, res): Promise<void> => {
   }).returning();
 
   res.status(201).json(serializeMilestone(milestone!));
-});
+}));
 
-router.post("/milestones/bulk", async (req, res): Promise<void> => {
+router.post("/milestones/bulk", asyncHandler(async (req, res): Promise<void> => {
   const parsed = BulkCreateMilestonesBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -83,9 +84,9 @@ router.post("/milestones/bulk", async (req, res): Promise<void> => {
   const created = await db.insert(milestonesTable).values(rows).returning();
 
   res.status(201).json(created.map(serializeMilestone));
-});
+}));
 
-router.patch("/milestones/:id", async (req, res): Promise<void> => {
+router.patch("/milestones/:id", asyncHandler(async (req, res): Promise<void> => {
   const params = UpdateMilestoneParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -120,9 +121,9 @@ router.patch("/milestones/:id", async (req, res): Promise<void> => {
   }
 
   res.json(UpdateMilestoneResponse.parse(serializeMilestone(milestone)));
-});
+}));
 
-router.delete("/milestones/:id", async (req, res): Promise<void> => {
+router.delete("/milestones/:id", asyncHandler(async (req, res): Promise<void> => {
   const params = DeleteMilestoneParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -149,6 +150,6 @@ router.delete("/milestones/:id", async (req, res): Promise<void> => {
       res.status(500).json({ error: "Failed to delete milestone" });
     }
   }
-});
+}));
 
 export default router;
