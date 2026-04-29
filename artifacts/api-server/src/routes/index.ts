@@ -10,6 +10,7 @@ import monthlyRouter from "./monthly";
 import frictionRouter from "./friction";
 import dailyRouter from "./daily";
 import briefingRouter from "./briefing";
+import recapRouter from "./recap";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(monthlyRouter);
 router.use(frictionRouter);
 router.use(dailyRouter);
 router.use(briefingRouter);
+router.use(recapRouter);
 
 export default router;
