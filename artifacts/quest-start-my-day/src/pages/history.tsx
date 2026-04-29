@@ -897,7 +897,7 @@ export default function HistoryPage() {
             </button>
           </div>
           <p className="text-xs text-muted-foreground px-1 -mt-1">
-            The selected week shifts the month and 14-day windows used by some signals. Repeated pass and repeated block always look at all-time history.
+            Showing patterns from the selected week. Repeated passes and blocks always factor in your full history.
           </p>
 
           {frictionLoading ? (

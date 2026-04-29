@@ -25,10 +25,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Top navigation bar */}
       <header className="sticky top-0 z-50 bg-background/90 backdrop-blur border-b border-border">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-serif text-lg font-medium text-foreground tracking-tight">Quest</span>
-            <span className="text-muted-foreground text-sm hidden sm:inline">Start My Day</span>
-          </div>
+          <Link href="/" aria-label="Quest — your quiet chief of staff">
+            <div className="flex items-baseline gap-2 cursor-pointer">
+              <span className="font-serif text-lg font-medium text-foreground tracking-tight">Quest</span>
+              <span className="text-muted-foreground text-xs italic hidden sm:inline">your quiet chief of staff</span>
+            </div>
+          </Link>
 
           <div className="flex items-center gap-2">
             <FocusTimerHeaderPill />
@@ -50,22 +52,27 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      {/* Bottom navigation (mobile-first) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur border-t border-border">
-        <div className="max-w-2xl mx-auto flex items-center justify-around py-2">
+      {/* Bottom navigation (mobile-first)
+          Touch targets meet WCAG 2.5.5 / Apple HIG minimum 44x44px even
+          on a 360px viewport with 7 items. */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur border-t border-border" aria-label="Primary">
+        <div className="max-w-2xl mx-auto flex items-stretch justify-around">
           {navItems.map(({ href, label, icon: Icon }) => {
             const isActive = href === "/" ? location === "/" : location.startsWith(href);
             return (
-              <Link key={href} href={href}>
+              <Link key={href} href={href} className="flex-1 min-w-0">
                 <button
-                  className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-colors ${
+                  type="button"
+                  aria-label={label}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`w-full min-h-[56px] flex flex-col items-center justify-center gap-1 px-1 py-2 rounded-xl transition-colors ${
                     isActive
                       ? "text-primary"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   <Icon className={`h-5 w-5 ${isActive ? "stroke-[2.2px]" : "stroke-[1.7px]"}`} />
-                  <span className="text-[10px] font-medium leading-none">{label}</span>
+                  <span className="text-[10px] font-medium leading-none truncate max-w-full">{label}</span>
                 </button>
               </Link>
             );
