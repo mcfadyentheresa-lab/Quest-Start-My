@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Layout from "@/components/layout";
+import { FocusTimerProvider } from "@/hooks/use-focus-timer";
 
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const TodayPage = lazy(() => import("@/pages/today"));
@@ -51,12 +52,14 @@ function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <TooltipProvider>
-        {rawBase ? (
-          <WouterRouter base={rawBase}>{routerTree}</WouterRouter>
-        ) : (
-          routerTree
-        )}
-        <Toaster />
+        <FocusTimerProvider>
+          {rawBase ? (
+            <WouterRouter base={rawBase}>{routerTree}</WouterRouter>
+          ) : (
+            routerTree
+          )}
+          <Toaster />
+        </FocusTimerProvider>
       </TooltipProvider>
     </ThemeProvider>
   );

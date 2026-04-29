@@ -24,8 +24,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check, Trash2, GripVertical, AlertCircle, Volume2, VolumeX } from "lucide-react";
+import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check, Trash2, GripVertical, AlertCircle, Volume2, VolumeX, Bell, BellOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useFocusTimer, MIN_DURATION_MINUTES, MAX_DURATION_MINUTES, clampDuration } from "@/hooks/use-focus-timer";
 import { ToastAction } from "@/components/ui/toast";
 import { useForm } from "react-hook-form";
 import {
@@ -976,13 +977,6 @@ const P_LEGEND = [
 
 const FOCUS_DURATION_OPTIONS = [5, 10, 15, 25] as const;
 
-function readLocalBool(key: string, fallback: boolean): boolean {
-  try { const v = localStorage.getItem(key); return v === null ? fallback : v === "true"; } catch { return fallback; }
-}
-function readLocalInt(key: string, fallback: number): number {
-  try { const v = localStorage.getItem(key); if (!v) return fallback; const n = parseInt(v, 10); return isNaN(n) ? fallback : n; } catch { return fallback; }
-}
-
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -991,21 +985,59 @@ export default function SettingsPage() {
   const updatePillar = useUpdatePillar();
   const [addOpen, setAddOpen] = useState(false);
 
-  const [soundEnabled, setSoundEnabledState] = useState(() => readLocalBool("quest_sound_enabled", true));
-  const [defaultDuration, setDefaultDurationState] = useState(() => readLocalInt("quest_timer_duration_minutes", 25));
+  const focus = useFocusTimer();
+  const soundEnabled = focus.soundEnabled;
+  const defaultDuration = focus.defaultDuration;
+  const isPresetDuration = (FOCUS_DURATION_OPTIONS as readonly number[]).includes(defaultDuration);
+  const [customDurationInput, setCustomDurationInput] = useState<string>(isPresetDuration ? "" : String(defaultDuration));
 
   const toggleSound = useCallback(() => {
-    setSoundEnabledState(prev => {
-      const next = !prev;
-      try { localStorage.setItem("quest_sound_enabled", String(next)); } catch { }
-      return next;
-    });
-  }, []);
+    focus.setSoundEnabled(!focus.soundEnabled);
+  }, [focus]);
 
   const setDuration = useCallback((d: number) => {
-    setDefaultDurationState(d);
-    try { localStorage.setItem("quest_timer_duration_minutes", String(d)); } catch { }
-  }, []);
+    focus.setDefaultDuration(d);
+    setCustomDurationInput("");
+  }, [focus]);
+
+  const handleCustomDurationChange = (raw: string) => {
+    const cleaned = raw.replace(/[^0-9]/g, "").slice(0, 3);
+    setCustomDurationInput(cleaned);
+    if (cleaned === "") return;
+    const parsed = parseInt(cleaned, 10);
+    if (!isNaN(parsed) && parsed >= MIN_DURATION_MINUTES && parsed <= MAX_DURATION_MINUTES) {
+      focus.setDefaultDuration(parsed);
+    }
+  };
+
+  const handleCustomDurationCommit = () => {
+    if (customDurationInput === "") return;
+    const parsed = parseInt(customDurationInput, 10);
+    if (isNaN(parsed)) { setCustomDurationInput(""); return; }
+    const safe = clampDuration(parsed);
+    focus.setDefaultDuration(safe);
+    setCustomDurationInput(String(safe));
+  };
+
+  const handleToggleNotifications = useCallback(async () => {
+    if (focus.notificationsEnabled) {
+      await focus.setNotificationsEnabled(false);
+      return;
+    }
+    const result = await focus.setNotificationsEnabled(true);
+    if (result === "denied") {
+      toast({
+        title: "Notifications blocked",
+        description: "Your browser is blocking notifications for this site. Update site permissions to enable them.",
+        variant: "destructive",
+      });
+    } else if (result === "unsupported") {
+      toast({
+        title: "Not supported",
+        description: "This browser does not support desktop notifications.",
+      });
+    }
+  }, [focus, toast]);
 
   const handleCreate = (data: PillarFormData) => {
     createPillar.mutate(
@@ -1221,35 +1253,95 @@ export default function SettingsPage() {
 
         <div>
           <p className="text-sm font-medium text-foreground mb-2">Default focus duration</p>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
             {FOCUS_DURATION_OPTIONS.map(d => (
               <button
                 key={d}
                 onClick={() => setDuration(d)}
                 className={`text-sm px-4 py-1.5 rounded-full border transition-colors font-medium ${
-                  defaultDuration === d
+                  defaultDuration === d && customDurationInput === ""
                     ? "bg-violet-100 border-violet-400 text-violet-700 dark:bg-violet-900/40 dark:border-violet-500 dark:text-violet-300"
                     : "border-border text-muted-foreground hover:border-violet-300 hover:text-violet-600"
                 }`}
-                aria-pressed={defaultDuration === d}
+                aria-pressed={defaultDuration === d && customDurationInput === ""}
               >
                 {d} min
               </button>
             ))}
+            <input
+              type="number"
+              inputMode="numeric"
+              min={MIN_DURATION_MINUTES}
+              max={MAX_DURATION_MINUTES}
+              step={1}
+              value={customDurationInput}
+              onChange={e => handleCustomDurationChange(e.target.value)}
+              onBlur={handleCustomDurationCommit}
+              onKeyDown={e => { if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur(); }}
+              placeholder={isPresetDuration ? "custom" : `${defaultDuration}m`}
+              aria-label="Custom default duration in minutes (1 to 180)"
+              className={`w-24 text-sm px-3 py-1.5 rounded-full border bg-transparent text-center font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+                !isPresetDuration && customDurationInput !== ""
+                  ? "bg-violet-100 border-violet-400 text-violet-700 dark:bg-violet-900/40 dark:border-violet-500 dark:text-violet-300"
+                  : "border-border text-muted-foreground"
+              }`}
+            />
           </div>
+          <p className="text-xs text-muted-foreground mt-1.5">Type any value from {MIN_DURATION_MINUTES} to {MAX_DURATION_MINUTES} minutes.</p>
         </div>
 
-        <div className="flex items-center gap-1.5 pt-1">
-          {soundEnabled ? (
-            <Volume2 className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
-          ) : (
-            <VolumeX className="h-3.5 w-3.5 text-muted-foreground" />
-          )}
-          <p className="text-xs text-muted-foreground">
-            {soundEnabled
-              ? `Sound on · ${defaultDuration}-min default · Browser must allow audio after first interaction`
-              : `Sound off · ${defaultDuration}-min default · Visual reminder only`}
-          </p>
+        <div className="flex items-center justify-between border-t border-border pt-4">
+          <div>
+            <p className="text-sm font-medium text-foreground">Desktop notifications</p>
+            <p className="text-xs text-muted-foreground">
+              {focus.notificationPermission === "denied"
+                ? "Blocked by your browser — update site permissions to enable"
+                : focus.notificationPermission === "unsupported"
+                  ? "This browser does not support notifications"
+                  : "Get notified when your focus block ends, even if the tab isn't focused"}
+            </p>
+          </div>
+          <button
+            onClick={handleToggleNotifications}
+            disabled={focus.notificationPermission === "denied" || focus.notificationPermission === "unsupported"}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed ${
+              focus.notificationsEnabled ? "bg-violet-600" : "bg-muted"
+            }`}
+            role="switch"
+            aria-checked={focus.notificationsEnabled}
+            aria-label="Toggle desktop notifications"
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                focus.notificationsEnabled ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1">
+          <span className="flex items-center gap-1.5">
+            {soundEnabled ? (
+              <Volume2 className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+            ) : (
+              <VolumeX className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
+            <span className="text-xs text-muted-foreground">
+              {soundEnabled
+                ? `Sound on · ${defaultDuration}-min default · Browser must allow audio after first interaction`
+                : `Sound off · ${defaultDuration}-min default · Visual reminder only`}
+            </span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            {focus.notificationsEnabled ? (
+              <Bell className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+            ) : (
+              <BellOff className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
+            <span className="text-xs text-muted-foreground">
+              {focus.notificationsEnabled ? "Desktop notifications on" : "Desktop notifications off"}
+            </span>
+          </span>
         </div>
       </motion.section>
     </div>

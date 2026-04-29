@@ -21,7 +21,7 @@ import { PriorityBadge, PriorityLegend } from "@/components/priority-badge";
 import { AddTaskDialog } from "@/components/add-task-dialog";
 import { FocusTimerWidget } from "@/components/focus-timer-widget";
 import { FocusNudgeDialog } from "@/components/focus-nudge-dialog";
-import { useFocusTimer } from "@/hooks/use-focus-timer";
+import { useFocusTimer, clampDuration, MIN_DURATION_MINUTES, MAX_DURATION_MINUTES } from "@/hooks/use-focus-timer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Plus, Sprout, ArrowRight, CheckCircle2, ExternalLink, CalendarDays, Timer, Lightbulb, X } from "lucide-react";
@@ -67,6 +67,31 @@ export default function Dashboard() {
 
   const timer = useFocusTimer();
   const [selectedFocusDuration, setSelectedFocusDuration] = useState<number>(() => timer.defaultDuration);
+  const [customDurationInput, setCustomDurationInput] = useState<string>("");
+
+  const isPresetDuration = (FOCUS_DURATIONS as readonly number[]).includes(selectedFocusDuration);
+
+  const handleCustomDurationChange = (raw: string) => {
+    const cleaned = raw.replace(/[^0-9]/g, "").slice(0, 3);
+    setCustomDurationInput(cleaned);
+    if (cleaned === "") return;
+    const parsed = parseInt(cleaned, 10);
+    if (!isNaN(parsed) && parsed >= MIN_DURATION_MINUTES && parsed <= MAX_DURATION_MINUTES) {
+      setSelectedFocusDuration(parsed);
+    }
+  };
+
+  const handleCustomDurationCommit = () => {
+    if (customDurationInput === "") return;
+    const parsed = parseInt(customDurationInput, 10);
+    if (isNaN(parsed)) {
+      setCustomDurationInput("");
+      return;
+    }
+    const safe = clampDuration(parsed);
+    setSelectedFocusDuration(safe);
+    setCustomDurationInput(String(safe));
+  };
 
   const [dismissedMilestoneIds, setDismissedMilestoneIds] = useState<Set<number>>(new Set());
   const [addingSuggestionId, setAddingSuggestionId] = useState<number | null>(null);
@@ -686,7 +711,7 @@ export default function Dashboard() {
                 {FOCUS_DURATIONS.map(d => (
                   <button
                     key={d}
-                    onClick={() => setSelectedFocusDuration(d)}
+                    onClick={() => { setSelectedFocusDuration(d); setCustomDurationInput(""); }}
                     className={`text-xs px-2.5 py-1 rounded-full border transition-colors font-medium ${
                       selectedFocusDuration === d
                         ? "bg-violet-100 border-violet-400 text-violet-700 dark:bg-violet-900/40 dark:border-violet-500 dark:text-violet-300"
@@ -698,6 +723,24 @@ export default function Dashboard() {
                     {d}m
                   </button>
                 ))}
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={MIN_DURATION_MINUTES}
+                  max={MAX_DURATION_MINUTES}
+                  step={1}
+                  value={customDurationInput}
+                  onChange={e => handleCustomDurationChange(e.target.value)}
+                  onBlur={handleCustomDurationCommit}
+                  onKeyDown={e => { if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur(); }}
+                  placeholder={isPresetDuration ? "custom" : `${selectedFocusDuration}m`}
+                  aria-label="Custom focus duration in minutes"
+                  className={`w-16 text-xs px-2 py-1 rounded-full border bg-transparent text-center font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+                    !isPresetDuration && customDurationInput !== ""
+                      ? "bg-violet-100 border-violet-400 text-violet-700 dark:bg-violet-900/40 dark:border-violet-500 dark:text-violet-300"
+                      : "border-border text-muted-foreground"
+                  }`}
+                />
                 <Button
                   size="sm"
                   className="rounded-xl bg-violet-600 text-white hover:bg-violet-700 ml-1 text-xs font-medium px-3"
