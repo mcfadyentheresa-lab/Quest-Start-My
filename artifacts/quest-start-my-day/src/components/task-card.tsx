@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { TaskDetailSheet } from "@/components/task-detail-sheet";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Area {
   id: number;
@@ -325,16 +326,24 @@ export function TaskCard({ task, date, areaMap, areaPriorities }: TaskCardProps)
                   <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
                   Done
                 </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="rounded-xl font-medium"
-                  onClick={() => handleAction("pushed")}
-                  disabled={updateTask.isPending}
-                >
-                  <SkipForward className="h-3.5 w-3.5 mr-1.5" />
-                  Push one step
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="rounded-xl font-medium"
+                      onClick={() => handleAction("pushed")}
+                      disabled={updateTask.isPending}
+                      aria-label="Push one step — break this into a smaller next action"
+                    >
+                      <SkipForward className="h-3.5 w-3.5 mr-1.5" />
+                      Push one step
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[220px] text-center">
+                    Break it into a smaller next action you can do today.
+                  </TooltipContent>
+                </Tooltip>
                 {canStepBack && (
                   <Button
                     size="sm"
@@ -347,16 +356,24 @@ export function TaskCard({ task, date, areaMap, areaPriorities }: TaskCardProps)
                     Step back
                   </Button>
                 )}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="rounded-xl font-medium"
-                  onClick={() => handleAction("passed")}
-                  disabled={updateTask.isPending}
-                >
-                  <Pause className="h-3.5 w-3.5 mr-1.5" />
-                  Pass for now
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-xl font-medium"
+                      onClick={() => handleAction("passed")}
+                      disabled={updateTask.isPending}
+                      aria-label="Pass for now — skip without penalty, ask again tomorrow"
+                    >
+                      <Pause className="h-3.5 w-3.5 mr-1.5" />
+                      Pass for now
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[220px] text-center">
+                    Skip without penalty. Your assistant will check back tomorrow.
+                  </TooltipContent>
+                </Tooltip>
                 <Button
                   size="sm"
                   variant="outline"

@@ -1186,10 +1186,21 @@ export default function SettingsPage() {
       </section>
 
       {areas?.length === 0 ? (
-        <div className="text-center py-16 rounded-2xl bg-card border border-dashed border-border">
+        <div className="text-center py-12 px-6 rounded-2xl bg-card border border-dashed border-border">
           <Settings className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm font-medium text-foreground">No area projects yet</p>
-          <p className="text-xs text-muted-foreground mt-1 mb-4">Add your major projects to start organizing your days</p>
+          <p className="font-serif text-lg font-medium text-foreground">Start with one area</p>
+          <p className="text-sm text-muted-foreground mt-2 mb-4 max-w-sm mx-auto">
+            Group tasks into lightweight categories like <span className="font-medium text-foreground">Operations</span>, <span className="font-medium text-foreground">Family</span>, or <span className="font-medium text-foreground">Wellness</span>. Your assistant uses areas to balance your day so nothing gets lost.
+          </p>
+          <Button
+            size="sm"
+            className="rounded-xl gap-1.5"
+            onClick={() => setAddOpen(true)}
+            data-testid="areas-empty-cta"
+          >
+            <Plus className="h-4 w-4" />
+            Add your first area
+          </Button>
         </div>
       ) : (
         <div className="space-y-6">

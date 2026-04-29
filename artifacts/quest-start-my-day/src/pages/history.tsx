@@ -59,7 +59,7 @@ const statusConfig: Record<string, { icon: React.ElementType; className: string;
   pending: { icon: Clock, className: "text-muted-foreground", label: "Pending" },
 };
 
-const unknownStatus = { icon: Clock, className: "text-muted-foreground", label: "Unknown" };
+const unknownStatus = { icon: Clock, className: "text-muted-foreground", label: "Not recorded" };
 
 const portfolioStatusColors: Record<string, string> = {
   Active: "text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-900/20",
