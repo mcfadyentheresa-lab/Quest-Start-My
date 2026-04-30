@@ -234,6 +234,8 @@ export interface Area {
   featureTag?: AreaFeatureTag;
   /** Task category for this area, used to auto-categorize suggested tasks */
   category?: AreaCategory;
+  /** Soft acknowledgment of friction (anxiety, stuck, avoiding). Optional, user-facing only. */
+  honestNote?: string | null;
 }
 
 export type CreateAreaBodyPriority = typeof CreateAreaBodyPriority[keyof typeof CreateAreaBodyPriority];
@@ -281,6 +283,7 @@ export interface CreateAreaBody {
   featureTag?: CreateAreaBodyFeatureTag;
   /** Task category for this area */
   category?: CreateAreaBodyCategory;
+  honestNote?: string | null;
 }
 
 export type UpdateAreaBodyPriority = typeof UpdateAreaBodyPriority[keyof typeof UpdateAreaBodyPriority];
@@ -331,6 +334,7 @@ export interface UpdateAreaBody {
   featureTag?: UpdateAreaBodyFeatureTag;
   /** Task category for this area */
   category?: UpdateAreaBodyCategory;
+  honestNote?: string | null;
 }
 
 export type TaskCategory = typeof TaskCategory[keyof typeof TaskCategory];

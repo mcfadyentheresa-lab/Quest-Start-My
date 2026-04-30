@@ -49,15 +49,6 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-const COLORS = [
-  { hex: "#c2a49e", name: "Dusty rose" },
-  { hex: "#d4a77a", name: "Warm sand" },
-  { hex: "#a8b89c", name: "Sage green" },
-  { hex: "#8eafc0", name: "Steel blue" },
-  { hex: "#b49ac4", name: "Lavender" },
-  { hex: "#c4947a", name: "Terra cotta" },
-];
-
 const PORTFOLIO_STATUSES = ["Active", "Warm", "Parked"] as const;
 type PortfolioStatus = typeof PORTFOLIO_STATUSES[number];
 
@@ -78,16 +69,7 @@ interface AreaFormData {
   name: string;
   priority: string;
   description: string;
-  color: string;
   portfolioStatus: string;
-  featureTag: string;
-  category: string;
-  currentStage: string;
-  whyItMatters: string;
-  nowFocus: string;
-  nextFocus: string;
-  laterFocus: string;
-  blockers: string;
 }
 
 interface MilestoneFormData {
@@ -116,27 +98,15 @@ function AreaForm({
       name: "",
       priority: "P1",
       description: "",
-      color: COLORS[0]!.hex,
       portfolioStatus: "Active",
-      featureTag: "",
-      category: "",
-      currentStage: "",
-      whyItMatters: "",
-      nowFocus: "",
-      nextFocus: "",
-      laterFocus: "",
-      blockers: "",
       ...defaultValues,
     },
   });
   const priority = watch("priority");
-  const color = watch("color");
   const portfolioStatus = watch("portfolioStatus");
-  const featureTag = watch("featureTag");
-  const category = watch("category");
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2 max-h-[70vh] overflow-y-auto pr-1">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
       <div className="space-y-1.5">
         <Label htmlFor={`${uid}-name`}>Area name</Label>
         <Input id={`${uid}-name`} {...register("name", { required: true })} placeholder="e.g. Aster & Spruce Connect" className="rounded-xl" />
@@ -173,93 +143,11 @@ function AreaForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label>Feature focus</Label>
-        <Select value={featureTag || "none"} onValueChange={v => setValue("featureTag", v === "none" ? "" : v)}>
-          <SelectTrigger className="rounded-xl">
-            <SelectValue placeholder="None" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">None</SelectItem>
-            <SelectItem value="personal">Personal</SelectItem>
-            <SelectItem value="shared">Shared</SelectItem>
-            <SelectItem value="sellable">Sellable</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label>Task category</Label>
-        <Select value={category || "none"} onValueChange={v => setValue("category", v === "none" ? "" : v)}>
-          <SelectTrigger className="rounded-xl">
-            <SelectValue placeholder="None" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">None</SelectItem>
-            <SelectItem value="business">Business</SelectItem>
-            <SelectItem value="creative">Creative</SelectItem>
-            <SelectItem value="wellness">Wellness</SelectItem>
-          </SelectContent>
-        </Select>
-        <p className="text-xs text-muted-foreground">Suggested tasks from this area will use this category</p>
-      </div>
-
-      <div className="space-y-1.5">
         <Label htmlFor={`${uid}-description`}>Description</Label>
-        <Textarea id={`${uid}-description`} {...register("description")} placeholder="Brief description" className="rounded-xl resize-none" rows={2} />
+        <Textarea id={`${uid}-description`} {...register("description")} placeholder="A short description (optional)" className="rounded-xl resize-none" rows={2} />
       </div>
 
-      <div className="space-y-2">
-        <Label>Color</Label>
-        <div className="flex gap-2 flex-wrap">
-          {COLORS.map(c => (
-            <button
-              key={c.hex}
-              type="button"
-              onClick={() => setValue("color", c.hex)}
-              className={`h-7 w-7 rounded-full transition-all ${color === c.hex ? "ring-2 ring-offset-2 ring-primary scale-110" : ""}`}
-              style={{ backgroundColor: c.hex }}
-              aria-label={`Select color: ${c.name}`}
-              aria-pressed={color === c.hex}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="border-t border-border pt-4 space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Project detail</p>
-
-        <div className="space-y-1.5">
-          <Label htmlFor={`${uid}-current-stage`}>Current stage</Label>
-          <Input id={`${uid}-current-stage`} {...register("currentStage")} placeholder="e.g. Early development, Beta, Launched..." className="rounded-xl" />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor={`${uid}-why-it-matters`}>Why it matters</Label>
-          <Textarea id={`${uid}-why-it-matters`} {...register("whyItMatters")} placeholder="Why does this project matter to you?" className="rounded-xl resize-none" rows={2} />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor={`${uid}-now-focus`}>Now — what you're focused on</Label>
-          <Textarea id={`${uid}-now-focus`} {...register("nowFocus")} placeholder="What's the current focus or milestone?" className="rounded-xl resize-none" rows={2} />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor={`${uid}-next-focus`}>Next — what comes after</Label>
-          <Textarea id={`${uid}-next-focus`} {...register("nextFocus")} placeholder="What's the next phase or step?" className="rounded-xl resize-none" rows={2} />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor={`${uid}-later-focus`}>Later — future ideas</Label>
-          <Textarea id={`${uid}-later-focus`} {...register("laterFocus")} placeholder="What's in the longer-term vision?" className="rounded-xl resize-none" rows={2} />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor={`${uid}-blockers`}>Blockers</Label>
-          <Textarea id={`${uid}-blockers`} {...register("blockers")} placeholder="Anything blocking this project?" className="rounded-xl resize-none" rows={2} />
-        </div>
-      </div>
-
-      <Button type="submit" className="w-full rounded-xl sticky bottom-0" disabled={loading}>
+      <Button type="submit" className="w-full rounded-xl" disabled={loading}>
         {submitLabel}
       </Button>
     </form>
@@ -824,15 +712,12 @@ interface AreaCardProps {
     laterFocus?: string | null;
     blockers?: string | null;
   };
-  onEdit: (id: number, data: AreaFormData) => void;
   onStatusChange: (id: number, status: PortfolioStatus) => void;
-  editLoading: boolean;
   statusLoading: boolean;
 }
 
-function AreaCard({ area, onEdit, onStatusChange, editLoading, statusLoading }: AreaCardProps) {
+function AreaCard({ area, onStatusChange, statusLoading }: AreaCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const hasDetail = area.whyItMatters || area.nowFocus || area.nextFocus || area.laterFocus || area.blockers || area.currentStage;
 
   return (
@@ -896,39 +781,6 @@ function AreaCard({ area, onEdit, onStatusChange, editLoading, statusLoading }: 
             >
               {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             </Button>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl" aria-label={`Edit ${area.name}`}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="rounded-2xl max-w-md mx-4">
-                <DialogHeader>
-                  <DialogTitle className="font-serif text-xl">Edit area</DialogTitle>
-                  <DialogDescription className="sr-only">Update the details for this area project.</DialogDescription>
-                </DialogHeader>
-                <AreaForm
-                  defaultValues={{
-                    name: area.name,
-                    priority: area.priority,
-                    description: area.description ?? "",
-                    color: area.color ?? COLORS[0]!.hex,
-                    portfolioStatus: area.portfolioStatus ?? "Active",
-                    featureTag: area.featureTag ?? "",
-                    category: area.category ?? "",
-                    currentStage: area.currentStage ?? "",
-                    whyItMatters: area.whyItMatters ?? "",
-                    nowFocus: area.nowFocus ?? "",
-                    nextFocus: area.nextFocus ?? "",
-                    laterFocus: area.laterFocus ?? "",
-                    blockers: area.blockers ?? "",
-                  }}
-                  onSubmit={(data) => { onEdit(area.id, data); setDialogOpen(false); }}
-                  loading={editLoading}
-                  submitLabel="Save changes"
-                />
-              </DialogContent>
-            </Dialog>
           </div>
         </div>
       </div>
@@ -1067,10 +919,7 @@ export default function SettingsPage() {
           priority: data.priority as "P1" | "P2" | "P3" | "P4",
           description: data.description || undefined,
           isActiveThisWeek: data.portfolioStatus === "Active",
-          color: data.color,
           portfolioStatus: data.portfolioStatus,
-          featureTag: (data.featureTag as "personal" | "shared" | "sellable") || undefined,
-          category: (data.category as "business" | "creative" | "wellness") || undefined,
         },
       },
       {
@@ -1111,39 +960,6 @@ export default function SettingsPage() {
           });
         },
         onError: () => toast({ title: "Failed to update status", variant: "destructive" }),
-      }
-    );
-  };
-
-  const handleEdit = (id: number, data: AreaFormData) => {
-    const today = new Date().toISOString().slice(0, 10);
-    updateArea.mutate(
-      {
-        id,
-        data: {
-          name: data.name,
-          priority: data.priority as "P1" | "P2" | "P3" | "P4",
-          description: data.description || undefined,
-          color: data.color,
-          portfolioStatus: data.portfolioStatus,
-          currentStage: data.currentStage || undefined,
-          whyItMatters: data.whyItMatters || undefined,
-          nowFocus: data.nowFocus || undefined,
-          nextFocus: data.nextFocus || undefined,
-          laterFocus: data.laterFocus || undefined,
-          blockers: data.blockers || undefined,
-          featureTag: (data.featureTag as "personal" | "shared" | "sellable") || null,
-          category: (data.category as "business" | "creative" | "wellness") || null,
-          lastUpdated: today,
-        },
-      },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListAreasQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-          toast({ title: "Area updated" });
-        },
-        onError: () => toast({ title: "Failed to update", variant: "destructive" }),
       }
     );
   };
@@ -1249,9 +1065,7 @@ export default function SettingsPage() {
                   <AreaCard
                     key={area.id}
                     area={area}
-                    onEdit={handleEdit}
                     onStatusChange={handleStatusChange}
-                    editLoading={updateArea.isPending}
                     statusLoading={updateArea.isPending}
                   />
                 ))}

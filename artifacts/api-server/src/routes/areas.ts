@@ -40,6 +40,7 @@ router.post("/areas", asyncHandler(async (req, res): Promise<void> => {
     portfolioStatus: parsed.data.portfolioStatus ?? null,
     featureTag: parsed.data.featureTag ?? null,
     category: parsed.data.category ?? null,
+    honestNote: parsed.data.honestNote ?? null,
   }).returning();
 
   res.status(201).json(serializeArea(area!));
@@ -74,6 +75,7 @@ router.patch("/areas/:id", asyncHandler(async (req, res): Promise<void> => {
   if (parsed.data.lastUpdated !== undefined) updates.lastUpdated = parsed.data.lastUpdated;
   if (parsed.data.featureTag !== undefined) updates.featureTag = parsed.data.featureTag;
   if (parsed.data.category !== undefined) updates.category = parsed.data.category;
+  if (parsed.data.honestNote !== undefined) updates.honestNote = parsed.data.honestNote;
 
   const [area] = await db
     .update(areasTable)

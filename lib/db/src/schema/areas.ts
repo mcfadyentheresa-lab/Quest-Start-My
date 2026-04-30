@@ -20,6 +20,7 @@ export const areasTable = pgTable("areas", {
   lastUpdated: text("last_updated"),
   featureTag: text("feature_tag"),
   category: text("category"),
+  honestNote: text("honest_note"),
 });
 
 export const insertAreaSchema = createInsertSchema(areasTable).omit({ id: true, createdAt: true });
