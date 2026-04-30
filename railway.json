@@ -1,9 +1,12 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "NIXPACKS",
+    "buildCommand": "pnpm --filter @workspace/quest-start-my-day run build && pnpm --filter @workspace/api-server run build"
   },
   "deploy": {
+    "preDeployCommand": "pnpm --filter @workspace/db run deploy",
+    "startCommand": "pnpm --filter @workspace/api-server run start",
     "healthcheckPath": "/api/healthz",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
