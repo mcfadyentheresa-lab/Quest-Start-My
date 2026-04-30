@@ -28,7 +28,7 @@ cmds = [
   # NODE_ENV=development forces pnpm to install devDependencies even when
   # Railway sets NODE_ENV=production in the build environment. vite and
   # the other build-time tools live in devDependencies.
-  "NODE_ENV=development pnpm install --no-frozen-lockfile",
+  "NODE_ENV=development pnpm install --frozen-lockfile",
 ]
 
 [phases.build]
