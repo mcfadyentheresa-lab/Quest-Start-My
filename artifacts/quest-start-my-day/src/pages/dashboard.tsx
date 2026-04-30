@@ -31,7 +31,7 @@ import { useFocusTimer, clampDuration, MIN_DURATION_MINUTES, MAX_DURATION_MINUTE
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { DataLoadError } from "@/components/data-load-error";
-import { Plus, Sprout, ArrowRight, CalendarDays, Timer } from "lucide-react";
+import { Plus, Sprout, ArrowRight, CalendarDays, Timer, ChevronDown, ChevronRight } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch, useLocation, Link } from "wouter";
@@ -84,6 +84,25 @@ export default function Dashboard() {
   const [selectedFocusDuration, setSelectedFocusDuration] = useState<number>(() => timer.defaultDuration);
   const [customDurationInput, setCustomDurationInput] = useState<string>("");
   const [showWizard, setShowWizard] = useState<boolean>(() => !isOnboardingComplete());
+  // Phase 3: "This week" focus panel collapses by default. The dashboard
+  // is mostly today — weekly context is one tap away when the user wants
+  // to zoom out. Persisted to localStorage so the user's last choice
+  // sticks across refreshes.
+  const [thisWeekOpen, setThisWeekOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("dashboard.thisWeekOpen") === "1";
+  });
+  const toggleThisWeek = () => {
+    setThisWeekOpen((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem("dashboard.thisWeekOpen", next ? "1" : "0");
+      } catch {
+        /* ignore quota / private mode */
+      }
+      return next;
+    });
+  };
 
   const isPresetDuration = (FOCUS_DURATIONS as readonly number[]).includes(selectedFocusDuration);
 
@@ -521,39 +540,75 @@ export default function Dashboard() {
         </motion.section>
       )}
 
-      {/* This week's focus (kept, simplified) */}
-      {summary?.weeklyPlan && (
-        <motion.section
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="rounded-2xl bg-card border border-card-border p-4"
-        >
-          {summary.weeklyPlan.priorities.length > 0 && (
-            <ul className="space-y-1.5 mb-2">
-              {summary.weeklyPlan.priorities.map((p, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
-                  <span className="text-primary font-bold mt-0.5">·</span>
-                  {p}
-                </li>
-              ))}
-            </ul>
-          )}
-          {(summary.weeklyPlan.healthFocus || summary.weeklyPlan.businessFocus || summary.weeklyPlan.creativeFocus) && (
-            <div className="space-y-1.5">
-              {summary.weeklyPlan.healthFocus && (
-                <FocusLine label="Health" value={summary.weeklyPlan.healthFocus} />
+      {/* This week's focus — collapsible. Default closed; expand on tap.
+          The dashboard is today-first; weekly context is one click away. */}
+      {summary?.weeklyPlan && (() => {
+        const wp = summary.weeklyPlan;
+        const priorityCount = wp.priorities.length;
+        const focusCount =
+          (wp.healthFocus ? 1 : 0) +
+          (wp.businessFocus ? 1 : 0) +
+          (wp.creativeFocus ? 1 : 0);
+        const previewBits: string[] = [];
+        if (priorityCount > 0) {
+          previewBits.push(`${priorityCount} ${priorityCount === 1 ? "priority" : "priorities"}`);
+        }
+        if (focusCount > 0) {
+          previewBits.push(`${focusCount} focus ${focusCount === 1 ? "area" : "areas"}`);
+        }
+        const preview = previewBits.join(" · ") || "Tap to view.";
+        return (
+          <motion.section
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="rounded-2xl bg-card border border-card-border"
+          >
+            <button
+              type="button"
+              onClick={toggleThisWeek}
+              aria-expanded={thisWeekOpen}
+              aria-controls="this-week-panel"
+              className="w-full flex items-center justify-between gap-3 p-4 text-left"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                {thisWeekOpen ? (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                )}
+                <span className="font-serif text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                  This week
+                </span>
+              </div>
+              {!thisWeekOpen && (
+                <span className="text-xs text-muted-foreground truncate">{preview}</span>
               )}
-              {summary.weeklyPlan.businessFocus && (
-                <FocusLine label="Business" value={summary.weeklyPlan.businessFocus} />
-              )}
-              {summary.weeklyPlan.creativeFocus && (
-                <FocusLine label="Creative" value={summary.weeklyPlan.creativeFocus} />
-              )}
-            </div>
-          )}
-        </motion.section>
-      )}
+            </button>
+            {thisWeekOpen && (
+              <div id="this-week-panel" className="px-4 pb-4 pt-1 border-t border-card-border/60">
+                {priorityCount > 0 && (
+                  <ul className="space-y-1.5 mb-2 mt-2">
+                    {wp.priorities.map((p, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
+                        <span className="text-primary font-bold mt-0.5">·</span>
+                        {p}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {focusCount > 0 && (
+                  <div className="space-y-1.5">
+                    {wp.healthFocus && <FocusLine label="Health" value={wp.healthFocus} />}
+                    {wp.businessFocus && <FocusLine label="Business" value={wp.businessFocus} />}
+                    {wp.creativeFocus && <FocusLine label="Creative" value={wp.creativeFocus} />}
+                  </div>
+                )}
+              </div>
+            )}
+          </motion.section>
+        );
+      })()}
 
       {/* Today's progress (kept) */}
       {tasks && tasks.length > 0 && (
