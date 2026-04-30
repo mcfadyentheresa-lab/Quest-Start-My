@@ -136,7 +136,8 @@ export const ListAreaTasksResponseItem = zod.object({
   "blockerType": zod.enum(['waiting_on_person', 'waiting_on_approval', 'missing_asset', 'access_issue', 'dependency']).nullish(),
   "adjustmentType": zod.enum(['step_back', 'push']).nullish(),
   "adjustmentReason": zod.string().nullish(),
-  "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.')
+  "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.'),
+  "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.')
 })
 export const ListAreaTasksResponse = zod.array(ListAreaTasksResponseItem)
 
@@ -158,6 +159,7 @@ export const ListMilestonesResponseItem = zod.object({
   "description": zod.string().nullish(),
   "nextAction": zod.string().nullish(),
   "sortOrder": zod.number(),
+  "mode": zod.enum(['ordered', 'any']).describe('Phase 3 \"goal\" mode. \"ordered\" means only the lowest-sortOrder\npending sub-task is eligible for the daily briefing. \"any\"\nmeans any open sub-task can be picked.\n'),
   "createdAt": zod.string()
 })
 export const ListMilestonesResponse = zod.array(ListMilestonesResponseItem)
@@ -174,7 +176,8 @@ export const CreateMilestoneBody = zod.object({
   "targetDate": zod.string().nullish(),
   "description": zod.string().nullish(),
   "nextAction": zod.string().nullish(),
-  "sortOrder": zod.number().optional()
+  "sortOrder": zod.number().optional(),
+  "mode": zod.enum(['ordered', 'any']).optional()
 })
 
 
@@ -206,7 +209,8 @@ export const UpdateMilestoneBody = zod.object({
   "targetDate": zod.string().nullish(),
   "description": zod.string().nullish(),
   "nextAction": zod.string().nullish(),
-  "sortOrder": zod.number().optional()
+  "sortOrder": zod.number().optional(),
+  "mode": zod.enum(['ordered', 'any']).optional()
 })
 
 export const UpdateMilestoneResponse = zod.object({
@@ -219,6 +223,7 @@ export const UpdateMilestoneResponse = zod.object({
   "description": zod.string().nullish(),
   "nextAction": zod.string().nullish(),
   "sortOrder": zod.number(),
+  "mode": zod.enum(['ordered', 'any']).describe('Phase 3 \"goal\" mode. \"ordered\" means only the lowest-sortOrder\npending sub-task is eligible for the daily briefing. \"any\"\nmeans any open sub-task can be picked.\n'),
   "createdAt": zod.string()
 })
 
@@ -229,6 +234,60 @@ export const UpdateMilestoneResponse = zod.object({
 export const DeleteMilestoneParams = zod.object({
   "id": zod.coerce.number()
 })
+
+
+/**
+ * Phase 3 chief-of-staff move. Takes the milestone ("goal") title plus
+the user's area context, asks the LLM for an ordered plan, and
+creates 5–8 task rows linked to this milestone with sortOrder 1..N
+and date = today. Returns the created tasks. If OPENAI_API_KEY is
+unset, a deterministic fallback plan is returned so the UI never
+sees a hard error.
+
+ * @summary Ask AI to break a goal into 5–8 ordered steps
+ */
+export const BreakdownMilestoneParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * Body is an ordered array of task ids. Each task is updated so its
+sortOrder matches its index in the array. Tasks that don't belong
+to this milestone are silently ignored.
+
+ * @summary Reorder the steps inside a goal
+ */
+export const ReorderMilestoneStepsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ReorderMilestoneStepsBody = zod.object({
+  "taskIds": zod.array(zod.number())
+})
+
+export const ReorderMilestoneStepsResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "category": zod.enum(['business', 'creative', 'wellness']),
+  "whyItMatters": zod.string().nullish(),
+  "doneLooksLike": zod.string().nullish(),
+  "suggestedNextStep": zod.string().nullish(),
+  "status": zod.enum(['pending', 'done', 'pushed', 'passed', 'blocked', 'stepped_back']),
+  "areaId": zod.number().nullish(),
+  "milestoneId": zod.number().nullish(),
+  "blockerReason": zod.string().nullish(),
+  "date": zod.string(),
+  "createdAt": zod.string(),
+  "parentTaskId": zod.number().nullish(),
+  "stepBackDepth": zod.number(),
+  "blockerType": zod.enum(['waiting_on_person', 'waiting_on_approval', 'missing_asset', 'access_issue', 'dependency']).nullish(),
+  "adjustmentType": zod.enum(['step_back', 'push']).nullish(),
+  "adjustmentReason": zod.string().nullish(),
+  "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.'),
+  "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.')
+})
+export const ReorderMilestoneStepsResponse = zod.array(ReorderMilestoneStepsResponseItem)
 
 
 /**
@@ -257,7 +316,8 @@ export const ListTasksResponseItem = zod.object({
   "blockerType": zod.enum(['waiting_on_person', 'waiting_on_approval', 'missing_asset', 'access_issue', 'dependency']).nullish(),
   "adjustmentType": zod.enum(['step_back', 'push']).nullish(),
   "adjustmentReason": zod.string().nullish(),
-  "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.')
+  "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.'),
+  "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.')
 })
 export const ListTasksResponse = zod.array(ListTasksResponseItem)
 
@@ -319,7 +379,8 @@ export const UpdateTaskResponse = zod.object({
   "blockerType": zod.enum(['waiting_on_person', 'waiting_on_approval', 'missing_asset', 'access_issue', 'dependency']).nullish(),
   "adjustmentType": zod.enum(['step_back', 'push']).nullish(),
   "adjustmentReason": zod.string().nullish(),
-  "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.')
+  "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.'),
+  "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.')
 })
 
 

@@ -63,6 +63,7 @@ function makeInput(overrides: Partial<BriefingInput> = {}): BriefingInput {
     openTasks: [task(101, "Pay out Terry's income tax", 1)],
     recentlyCompleted: [],
     recentLogs: [],
+    milestones: [],
     focusBlockMinutes: 25,
     ...overrides,
   };

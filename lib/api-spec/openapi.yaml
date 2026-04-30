@@ -222,6 +222,78 @@ paths:
         "204":
           description: Deleted
 
+  /milestones/{id}/breakdown:
+    post:
+      operationId: breakdownMilestone
+      tags: [milestones]
+      summary: Ask AI to break a goal into 5–8 ordered steps
+      description: |
+        Phase 3 chief-of-staff move. Takes the milestone ("goal") title plus
+        the user's area context, asks the LLM for an ordered plan, and
+        creates 5–8 task rows linked to this milestone with sortOrder 1..N
+        and date = today. Returns the created tasks. If OPENAI_API_KEY is
+        unset, a deterministic fallback plan is returned so the UI never
+        sees a hard error.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "201":
+          description: Created step tasks (in order)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+        "404":
+          description: Milestone not found
+        "409":
+          description: Goal already has steps — ask the user to clear them first
+
+  /milestones/{id}/step-order:
+    patch:
+      operationId: reorderMilestoneSteps
+      tags: [milestones]
+      summary: Reorder the steps inside a goal
+      description: |
+        Body is an ordered array of task ids. Each task is updated so its
+        sortOrder matches its index in the array. Tasks that don't belong
+        to this milestone are silently ignored.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                taskIds:
+                  type: array
+                  items:
+                    type: integer
+              required:
+                - taskIds
+      responses:
+        "200":
+          description: Reordered tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+        "404":
+          description: Milestone not found
+
   /tasks:
     get:
       operationId: listTasks
@@ -749,6 +821,13 @@ components:
           nullable: true
         sortOrder:
           type: integer
+        mode:
+          type: string
+          enum: [ordered, any]
+          description: |
+            Phase 3 "goal" mode. "ordered" means only the lowest-sortOrder
+            pending sub-task is eligible for the daily briefing. "any"
+            means any open sub-task can be picked.
         createdAt:
           type: string
       required:
@@ -757,6 +836,7 @@ components:
         - title
         - status
         - sortOrder
+        - mode
         - createdAt
 
     CreateMilestoneBody:
@@ -784,6 +864,9 @@ components:
           nullable: true
         sortOrder:
           type: integer
+        mode:
+          type: string
+          enum: [ordered, any]
       required:
         - areaId
         - title
@@ -827,6 +910,9 @@ components:
           nullable: true
         sortOrder:
           type: integer
+        mode:
+          type: string
+          enum: [ordered, any]
 
     Briefing:
       type: object
@@ -1123,6 +1209,9 @@ components:
           type: string
           nullable: true
           description: Source module (e.g. 'home' for ADHD home tasks). Null = regular work task.
+        sortOrder:
+          type: integer
+          description: Position within the parent milestone ("goal"). Lowest pending sortOrder is the next step in step-by-step goals.
       required:
         - id
         - title
@@ -1131,6 +1220,7 @@ components:
         - date
         - createdAt
         - stepBackDepth
+        - sortOrder
 
     CreateTaskBody:
       type: object

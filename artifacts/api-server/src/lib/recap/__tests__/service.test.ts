@@ -49,6 +49,7 @@ function task(
     createdAt: baseDate,
     parentTaskId: null,
     stepBackDepth: 0,
+    sortOrder: 0,
     blockerType: null,
     adjustmentType: null,
     adjustmentReason: null,
