@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useId } from "react";
+import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   useListAreas,
@@ -25,7 +26,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataLoadError } from "@/components/data-load-error";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check, Trash2, GripVertical, AlertCircle, Volume2, VolumeX, Bell, BellOff } from "lucide-react";
+import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check, Trash2, GripVertical, AlertCircle, Volume2, VolumeX, Bell, BellOff, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFocusTimer, MIN_DURATION_MINUTES, MAX_DURATION_MINUTES, clampDuration } from "@/hooks/use-focus-timer";
 import { ToastAction } from "@/components/ui/toast";
@@ -867,6 +868,24 @@ function AreaCard({ area, onEdit, onStatusChange, editLoading, statusLoading }: 
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
             <AreaSparklineWidget areaId={area.id} />
+            {/* Phase 2: link into the per-area brain-dump page. The card
+                still expands inline below for the focus/stage notes; the
+                "Open" button is the way into adding/managing tasks. */}
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="h-8 px-3 rounded-full text-xs gap-1"
+            >
+              <Link
+                href={`/areas/${area.id}`}
+                aria-label={`Open ${area.name}`}
+                data-testid={`open-area-${area.id}`}
+              >
+                Open
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            </Button>
             <Button
               variant="ghost"
               size="icon"

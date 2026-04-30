@@ -97,6 +97,34 @@ paths:
               schema:
                 $ref: "#/components/schemas/Area"
 
+  /areas/{id}/tasks:
+    get:
+      operationId: listAreaTasks
+      tags: [areas]
+      summary: List all tasks for an area (any date, any status)
+      description: |
+        Brain-dump view: returns every regular task belonging to a given
+        area regardless of date, ordered newest-first. Excludes module-
+        sourced tasks (e.g. 'home' microtasks). Use this for the per-area
+        page; use /tasks for the daily/today view.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of tasks for this area
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+        "404":
+          description: Area not found
+
   /milestones:
     get:
       operationId: listMilestones

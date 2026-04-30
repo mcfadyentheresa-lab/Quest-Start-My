@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, areasTable } from "@workspace/db";
+import { eq, and, isNull, desc } from "drizzle-orm";
+import { db, areasTable, tasksTable } from "@workspace/db";
 import {
   CreateAreaBody,
   UpdateAreaBody,
@@ -87,6 +87,39 @@ router.patch("/areas/:id", asyncHandler(async (req, res): Promise<void> => {
   }
 
   res.json(UpdateAreaResponse.parse(serializeArea(area)));
+}));
+
+/**
+ * Brain-dump endpoint for the per-area page.
+ *
+ * Returns every regular task (taskSource IS NULL) belonging to the given
+ * area, regardless of date or status. The dashboard /tasks endpoint is
+ * date-bounded; this is the "everything for area X" view that the per-area
+ * page needs so the user can see and manage their full backlog for that
+ * area at once.
+ *
+ * Newest-first by createdAt so newly brain-dumped tasks appear at the top.
+ */
+router.get("/areas/:id/tasks", asyncHandler(async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: "Invalid area id" });
+    return;
+  }
+
+  const [area] = await db.select().from(areasTable).where(eq(areasTable.id, id)).limit(1);
+  if (!area) {
+    res.status(404).json({ error: "Area not found" });
+    return;
+  }
+
+  const tasks = await db
+    .select()
+    .from(tasksTable)
+    .where(and(eq(tasksTable.areaId, id), isNull(tasksTable.taskSource)))
+    .orderBy(desc(tasksTable.createdAt));
+
+  res.json(tasks.map((t) => ({ ...t, createdAt: t.createdAt.toISOString() })));
 }));
 
 export default router;
