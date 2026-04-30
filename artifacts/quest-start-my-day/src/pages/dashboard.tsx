@@ -500,16 +500,14 @@ export default function Dashboard() {
           </h2>
           <div className="flex flex-wrap gap-2">
             {summary.activeAreas.map((area) => (
+              /* Phase 1 UX: dropped the per-area colored dot. With four
+                 active areas each in their own color plus a colored
+                 priority pill, the row had eight competing color signals.
+                 Priority badge alone gives hierarchy without the rainbow. */
               <div
                 key={area.id}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-card-border text-sm"
               >
-                {area.color && (
-                  <span
-                    className="h-2.5 w-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: area.color }}
-                  />
-                )}
                 <span className="font-medium text-foreground">{area.name}</span>
                 <PriorityBadge priority={area.priority} />
               </div>

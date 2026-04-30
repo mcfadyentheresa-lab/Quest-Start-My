@@ -10,7 +10,7 @@ const navItems = [
   { href: "/today", label: "Today", icon: CalendarDays },
   { href: "/weekly", label: "This Week", icon: Calendar },
   { href: "/history", label: "History", icon: History },
-  { href: "/home", label: "Home", icon: Home },
+  { href: "/home", label: "Reset", icon: Home },
   { href: "/review", label: "Month", icon: BookOpen },
   { href: "/areas", label: "Areas", icon: Settings },
 ];

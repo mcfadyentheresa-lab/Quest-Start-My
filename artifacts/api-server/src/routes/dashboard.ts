@@ -131,7 +131,7 @@ router.get("/dashboard/week-summary", asyncHandler(async (req, res): Promise<voi
   const areaActivity = Array.from(areaTasksMap.entries())
     .map(([areaId, areaTasks]) => ({
       areaId,
-      areaName: areaMap.get(areaId) ?? "Unknown",
+      areaName: areaMap.get(areaId) ?? "Unassigned",
       taskCount: areaTasks.length,
       tasks: areaTasks,
     }))
