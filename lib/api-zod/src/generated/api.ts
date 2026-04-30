@@ -103,6 +103,41 @@ export const UpdateAreaResponse = zod.object({
 
 
 /**
+ * Brain-dump view: returns every regular task belonging to a given
+area regardless of date, ordered newest-first. Excludes module-
+sourced tasks (e.g. 'home' microtasks). Use this for the per-area
+page; use /tasks for the daily/today view.
+
+ * @summary List all tasks for an area (any date, any status)
+ */
+export const ListAreaTasksParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListAreaTasksResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "category": zod.enum(['business', 'creative', 'wellness']),
+  "whyItMatters": zod.string().nullish(),
+  "doneLooksLike": zod.string().nullish(),
+  "suggestedNextStep": zod.string().nullish(),
+  "status": zod.enum(['pending', 'done', 'pushed', 'passed', 'blocked', 'stepped_back']),
+  "areaId": zod.number().nullish(),
+  "milestoneId": zod.number().nullish(),
+  "blockerReason": zod.string().nullish(),
+  "date": zod.string(),
+  "createdAt": zod.string(),
+  "parentTaskId": zod.number().nullish(),
+  "stepBackDepth": zod.number(),
+  "blockerType": zod.enum(['waiting_on_person', 'waiting_on_approval', 'missing_asset', 'access_issue', 'dependency']).nullish(),
+  "adjustmentType": zod.enum(['step_back', 'push']).nullish(),
+  "adjustmentReason": zod.string().nullish(),
+  "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.')
+})
+export const ListAreaTasksResponse = zod.array(ListAreaTasksResponseItem)
+
+
+/**
  * @summary List milestones for a area
  */
 export const ListMilestonesQueryParams = zod.object({

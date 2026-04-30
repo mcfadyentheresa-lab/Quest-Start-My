@@ -34,7 +34,7 @@ import { DataLoadError } from "@/components/data-load-error";
 import { Plus, Sprout, ArrowRight, CalendarDays, Timer } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useSearch, useLocation } from "wouter";
+import { useSearch, useLocation, Link } from "wouter";
 import {
   BriefingCard,
   BriefingCardSkeleton,
@@ -503,14 +503,19 @@ export default function Dashboard() {
               /* Phase 1 UX: dropped the per-area colored dot. With four
                  active areas each in their own color plus a colored
                  priority pill, the row had eight competing color signals.
-                 Priority badge alone gives hierarchy without the rainbow. */
-              <div
+                 Priority badge alone gives hierarchy without the rainbow.
+                 Phase 2: chip is now a link into the per-area brain-dump
+                 page, so users can jump from "Active this week" straight
+                 into adding/managing tasks for that area. */
+              <Link
                 key={area.id}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-card-border text-sm"
+                href={`/areas/${area.id}`}
+                aria-label={`Open ${area.name}`}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-card-border text-sm hover:bg-muted/50 transition-colors"
               >
                 <span className="font-medium text-foreground">{area.name}</span>
                 <PriorityBadge priority={area.priority} />
-              </div>
+              </Link>
             ))}
           </div>
         </motion.section>

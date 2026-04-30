@@ -12,6 +12,7 @@ const WeeklyPage = lazy(() => import("@/pages/weekly"));
 const HistoryPage = lazy(() => import("@/pages/history"));
 const ReviewPage = lazy(() => import("@/pages/review"));
 const AreasPage = lazy(() => import("@/pages/areas"));
+const AreaDetailPage = lazy(() => import("@/pages/area-detail"));
 const HomeModulePage = lazy(() => import("@/pages/home-module"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
@@ -35,6 +36,9 @@ function Router() {
           <Route path="/home" component={HomeModulePage} />
           <Route path="/review" component={ReviewPage} />
           <Route path="/areas" component={AreasPage} />
+          {/* Per-area brain-dump page (Phase 2). Mounted after /areas so
+              the more specific path wins routing in wouter's Switch. */}
+          <Route path="/areas/:id" component={AreaDetailPage} />
           {/* Legacy alias: /pillars was the previous name. Keep it routable so
               old bookmarks, links, and shared URLs don't 404. */}
           <Route path="/pillars" component={AreasPage} />

@@ -371,6 +371,88 @@ export const useUpdateArea = <TError = ErrorType<unknown>,
     }
 
 /**
+ * Brain-dump view: returns every regular task belonging to a given
+area regardless of date, ordered newest-first. Excludes module-
+sourced tasks (e.g. 'home' microtasks). Use this for the per-area
+page; use /tasks for the daily/today view.
+
+ * @summary List all tasks for an area (any date, any status)
+ */
+export const getListAreaTasksUrl = (id: number,) => {
+
+
+
+
+  return `/api/areas/${id}/tasks`
+}
+
+export const listAreaTasks = async (id: number, options?: RequestInit): Promise<Task[]> => {
+
+  return customFetch<Task[]>(getListAreaTasksUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAreaTasksQueryKey = (id: number,) => {
+    return [
+    `/api/areas/${id}/tasks`
+    ] as const;
+    }
+
+
+export const getListAreaTasksQueryOptions = <TData = Awaited<ReturnType<typeof listAreaTasks>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAreaTasks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAreaTasksQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAreaTasks>>> = ({ signal }) => listAreaTasks(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAreaTasks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAreaTasksQueryResult = NonNullable<Awaited<ReturnType<typeof listAreaTasks>>>
+export type ListAreaTasksQueryError = ErrorType<void>
+
+
+/**
+ * @summary List all tasks for an area (any date, any status)
+ */
+
+export function useListAreaTasks<TData = Awaited<ReturnType<typeof listAreaTasks>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAreaTasks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAreaTasksQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
  * @summary List milestones for a area
  */
 export const getListMilestonesUrl = (params?: ListMilestonesParams,) => {
