@@ -79,7 +79,7 @@ export function BriefingCard({
           data-testid="briefing-approve"
         >
           <Check className="h-3.5 w-3.5" />
-          {briefing.approved ? "Plan locked in" : "Approve"}
+          {briefing.approved ? "Locked in for today" : "Lock in today's focus"}
         </Button>
         <Button
           size="sm"
@@ -133,7 +133,11 @@ function BriefingRow({
             {item.title}
           </h3>
           <div className="flex items-center gap-1.5 shrink-0">
-            <PillarPill name={item.pillarName} color={item.pillarColor} />
+            {/* Phase 1 UX: drop the colored area dot from the briefing card.
+                Keeping just the priority badge reduces the multi-color noise
+                the UX walkthrough flagged. The area name still appears as
+                plain text for context. */}
+            <span className="text-xs text-muted-foreground">{item.pillarName}</span>
             <PriorityBadge priority={item.priority} />
           </div>
         </div>
