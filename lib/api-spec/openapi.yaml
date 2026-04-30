@@ -967,6 +967,10 @@ components:
           nullable: true
           enum: [business, creative, wellness]
           description: Task category for this area, used to auto-categorize suggested tasks
+        honestNote:
+          type: string
+          nullable: true
+          description: Soft acknowledgment of friction (anxiety, stuck, avoiding). Optional, user-facing only.
       required:
         - id
         - name
@@ -1003,6 +1007,9 @@ components:
           nullable: true
           enum: [business, creative, wellness]
           description: Task category for this area
+        honestNote:
+          type: string
+          nullable: true
       required:
         - name
         - priority
@@ -1057,6 +1064,9 @@ components:
           nullable: true
           enum: [business, creative, wellness]
           description: Task category for this area
+        honestNote:
+          type: string
+          nullable: true
 
     Task:
       type: object

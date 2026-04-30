@@ -24,6 +24,7 @@ function pillar(id: number, name: string): RecapInput["pillars"][number] {
     lastUpdated: null,
     featureTag: null,
     category: null,
+    honestNote: null,
   };
 }
 

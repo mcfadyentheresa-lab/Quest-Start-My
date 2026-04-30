@@ -28,6 +28,7 @@ function pillar(id: number, name: string, color = "#abc"): RecapInput["pillars"]
     lastUpdated: null,
     featureTag: null,
     category: null,
+    honestNote: null,
   };
 }
 
