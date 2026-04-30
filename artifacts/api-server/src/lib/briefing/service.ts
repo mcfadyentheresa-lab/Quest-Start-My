@@ -3,6 +3,7 @@ import {
   db,
   tasksTable,
   areasTable,
+  milestonesTable,
   weeklyPlansTable,
   progressLogsTable,
   dailyBriefingsTable,
@@ -46,7 +47,7 @@ async function loadInput(deps: BriefingDeps): Promise<BriefingInput> {
     .toISOString()
     .slice(0, 10);
 
-  const [pillars, plans, openTasks, recentlyCompleted, recentLogs] = await Promise.all([
+  const [pillars, plans, openTasks, recentlyCompleted, recentLogs, milestones] = await Promise.all([
     db.select().from(areasTable).orderBy(areasTable.id),
     db
       .select()
@@ -79,10 +80,37 @@ async function loadInput(deps: BriefingDeps): Promise<BriefingInput> {
       .from(progressLogsTable)
       .orderBy(desc(progressLogsTable.loggedAt))
       .limit(20),
+    db.select().from(milestonesTable),
   ]);
 
   const open = openTasks.filter((t) => t.status === "pending" || t.status === "blocked");
   const activePillars = pillars.filter((p) => p.isActiveThisWeek);
+
+  // Phase 3: for goals ("milestones") with mode="ordered", only the
+  // lowest-sortOrder pending task is eligible for the briefing. Later
+  // steps stay hidden until earlier ones close. "Can't wash dishes if
+  // I haven't collected them." Applied here so both rules-based and
+  // AI briefings respect the rule.
+  const orderedMilestoneIds = new Set(
+    milestones.filter((m) => m.mode === "ordered").map((m) => m.id),
+  );
+  const minSortByMilestone = new Map<number, number>();
+  for (const t of open) {
+    if (t.status !== "pending") continue;
+    if (t.milestoneId == null) continue;
+    if (!orderedMilestoneIds.has(t.milestoneId)) continue;
+    const cur = minSortByMilestone.get(t.milestoneId);
+    if (cur === undefined || t.sortOrder < cur) {
+      minSortByMilestone.set(t.milestoneId, t.sortOrder);
+    }
+  }
+  const filteredOpen = open.filter((t) => {
+    if (t.status !== "pending") return true;
+    if (t.milestoneId == null) return true;
+    if (!orderedMilestoneIds.has(t.milestoneId)) return true;
+    const min = minSortByMilestone.get(t.milestoneId);
+    return min === undefined || t.sortOrder === min;
+  });
 
   return {
     date,
@@ -92,9 +120,10 @@ async function loadInput(deps: BriefingDeps): Promise<BriefingInput> {
     pillars,
     activePillars,
     weeklyPlan: plans[0] ?? null,
-    openTasks: open,
+    openTasks: filteredOpen,
     recentlyCompleted,
     recentLogs,
+    milestones,
     focusBlockMinutes: deps.focusBlockMinutes ?? 25,
     hint: deps.hint,
   };

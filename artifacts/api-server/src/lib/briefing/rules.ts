@@ -42,6 +42,9 @@ function pickItems(input: BriefingInput): BriefingItem[] {
     return "P3";
   }
 
+  // Note: openTasks has already been filtered by service.ts to enforce the
+  // step-by-step rule for ordered goals — later steps are hidden until
+  // earlier ones close.
   const candidates = openTasks.filter((t) => t.status === "pending" || t.status === "blocked");
 
   const blockedSet = new Set(candidates.filter((t) => t.status === "blocked").map((t) => t.id));

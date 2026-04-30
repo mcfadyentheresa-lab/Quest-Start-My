@@ -48,6 +48,20 @@ export const MilestonePriority = {
   P4: 'P4',
 } as const;
 
+/**
+ * Phase 3 "goal" mode. "ordered" means only the lowest-sortOrder
+pending sub-task is eligible for the daily briefing. "any"
+means any open sub-task can be picked.
+
+ */
+export type MilestoneMode = typeof MilestoneMode[keyof typeof MilestoneMode];
+
+
+export const MilestoneMode = {
+  ordered: 'ordered',
+  any: 'any',
+} as const;
+
 export interface Milestone {
   id: number;
   areaId: number;
@@ -58,6 +72,11 @@ export interface Milestone {
   description?: string | null;
   nextAction?: string | null;
   sortOrder: number;
+  /** Phase 3 "goal" mode. "ordered" means only the lowest-sortOrder
+  pending sub-task is eligible for the daily briefing. "any"
+  means any open sub-task can be picked.
+   */
+  mode: MilestoneMode;
   createdAt: string;
 }
 
@@ -81,6 +100,14 @@ export const CreateMilestoneBodyPriority = {
   P4: 'P4',
 } as const;
 
+export type CreateMilestoneBodyMode = typeof CreateMilestoneBodyMode[keyof typeof CreateMilestoneBodyMode];
+
+
+export const CreateMilestoneBodyMode = {
+  ordered: 'ordered',
+  any: 'any',
+} as const;
+
 export interface CreateMilestoneBody {
   areaId: number;
   title: string;
@@ -90,6 +117,7 @@ export interface CreateMilestoneBody {
   description?: string | null;
   nextAction?: string | null;
   sortOrder?: number;
+  mode?: CreateMilestoneBodyMode;
 }
 
 export interface BulkCreateMilestonesBody {
@@ -121,6 +149,14 @@ export const UpdateMilestoneBodyPriority = {
   P4: 'P4',
 } as const;
 
+export type UpdateMilestoneBodyMode = typeof UpdateMilestoneBodyMode[keyof typeof UpdateMilestoneBodyMode];
+
+
+export const UpdateMilestoneBodyMode = {
+  ordered: 'ordered',
+  any: 'any',
+} as const;
+
 export interface UpdateMilestoneBody {
   title?: string;
   status?: UpdateMilestoneBodyStatus;
@@ -129,6 +165,7 @@ export interface UpdateMilestoneBody {
   description?: string | null;
   nextAction?: string | null;
   sortOrder?: number;
+  mode?: UpdateMilestoneBodyMode;
 }
 
 /**
@@ -397,6 +434,8 @@ export interface Task {
   adjustmentReason?: string | null;
   /** Source module (e.g. 'home' for ADHD home tasks). Null = regular work task. */
   taskSource?: string | null;
+  /** Position within the parent milestone ("goal"). Lowest pending sortOrder is the next step in step-by-step goals. */
+  sortOrder: number;
 }
 
 export type CreateTaskBodyCategory = typeof CreateTaskBodyCategory[keyof typeof CreateTaskBodyCategory];
@@ -733,6 +772,10 @@ export interface UpdateDailyPlanBody {
 
 export type ListMilestonesParams = {
 areaId?: number;
+};
+
+export type ReorderMilestoneStepsBody = {
+  taskIds: number[];
 };
 
 export type ListTasksParams = {

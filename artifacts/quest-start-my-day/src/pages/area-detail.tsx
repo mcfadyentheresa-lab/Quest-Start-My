@@ -1,10 +1,22 @@
 /**
- * /areas/:id — the brain-dump page for a single area.
+ * /areas/:id — the per-pillar workspace.
  *
- * Phase 4: header is now the edit surface. Click name/description/priority/
- * portfolio status to change them inline (the old Edit-area modal is gone).
- * A soft "Honest note" sits at the top — optional, muted, for friction the
- * user wants to acknowledge without surfacing it across the app.
+ * Phase 3 + 4 combined. Two layers, in order of cognitive priority:
+ *
+ *   1. Inline-editable header (Phase 4): tap name/description/priority/
+ *      portfolio status to change them. The old Edit-area modal is gone.
+ *      A soft "Honest note" sits below — optional, muted, just for the user.
+ *
+ *   2. Goals (Phase 3): a goal is a big job. Each goal expands into its
+ *      ordered steps. User can drag-reorder steps, add steps, ask AI to
+ *      break the goal into 5–8 steps, or flip the goal between
+ *      step-by-step ("Step-by-step") and any-order ("Any order").
+ *
+ *   3. Brain dump below — the loose-task surface. Anything that isn't
+ *      tied to a goal yet.
+ *
+ * Voice rule: chief-of-staff. Decisive, neutral pronouns, no "I"/"me",
+ * no app name in user-facing copy.
  */
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Link, useRoute } from "wouter";
@@ -12,17 +24,54 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   useListAreas,
   useListAreaTasks,
+  useListMilestones,
   useCreateTask,
   useUpdateTask,
   useUpdateArea,
+  useCreateMilestone,
+  useUpdateMilestone,
+  useDeleteMilestone,
+  useBreakdownMilestone,
+  useReorderMilestoneSteps,
   getListAreaTasksQueryKey,
   getListAreasQueryKey,
+  getListMilestonesQueryKey,
   getGetDashboardSummaryQueryKey,
   getListTasksQueryKey,
   type Task,
+  type Milestone,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, CheckCircle2, Undo2, Sparkles, Check } from "lucide-react";
+import {
+  ArrowLeft,
+  Plus,
+  CheckCircle2,
+  Undo2,
+  Sparkles,
+  ChevronDown,
+  ChevronRight,
+  GripVertical,
+  Trash2,
+  Wand2,
+  Check,
+} from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -48,11 +97,7 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/**
- * Split a brain-dump textarea into individual task titles.
- * Each non-empty line becomes one task. Trims whitespace, drops empties,
- * caps title length so a giant accidental paste doesn't blow up the UI.
- */
+/** Split a brain-dump textarea into individual task titles. */
 function splitDumpIntoTitles(raw: string): string[] {
   return raw
     .split(/\r?\n/)
@@ -84,8 +129,22 @@ export default function AreaDetailPage() {
     },
   });
 
+  const milestonesQuery = useListMilestones(
+    { areaId: validId ? areaId : undefined },
+    {
+      query: {
+        queryKey: getListMilestonesQueryKey({ areaId: validId ? areaId : undefined }),
+        enabled: validId,
+      },
+    },
+  );
+
   const tasks = tasksQuery.data ?? [];
-  const pending = tasks.filter((t) => t.status === "pending");
+  const milestones = milestonesQuery.data ?? [];
+
+  // Loose tasks = pending tasks NOT linked to any goal. These are the
+  // brain-dump items the user hasn't grouped yet.
+  const looseTasks = tasks.filter((t) => t.status === "pending" && t.milestoneId == null);
   const recentlyClosed = tasks
     .filter((t) => t.status === "done")
     .slice(0, 5);
@@ -93,6 +152,7 @@ export default function AreaDetailPage() {
   const invalidateAreaData = () => {
     if (!validId) return;
     queryClient.invalidateQueries({ queryKey: getListAreaTasksQueryKey(areaId) });
+    queryClient.invalidateQueries({ queryKey: getListMilestonesQueryKey({ areaId }) });
     queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
     queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date: todayIso() }) });
   };
@@ -105,11 +165,39 @@ export default function AreaDetailPage() {
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const updateArea = useUpdateArea();
+  const createMilestone = useCreateMilestone();
+  const updateMilestone = useUpdateMilestone();
+  const deleteMilestone = useDeleteMilestone();
+  const breakdownMilestone = useBreakdownMilestone();
+  const reorderSteps = useReorderMilestoneSteps();
 
   // ---- Brain-dump form state ----
   const [draft, setDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const draftLines = useMemo(() => splitDumpIntoTitles(draft), [draft]);
+
+  // ---- New goal form state ----
+  const [newGoalTitle, setNewGoalTitle] = useState("");
+
+  const handleCreateGoal = async () => {
+    const title = newGoalTitle.trim();
+    if (!validId || !title) return;
+    try {
+      await createMilestone.mutateAsync({
+        data: {
+          areaId,
+          title,
+          status: "planned",
+          mode: "ordered",
+        },
+      });
+      setNewGoalTitle("");
+      invalidateAreaData();
+      toast({ title: "Goal added", description: title });
+    } catch {
+      toast({ title: "Couldn't add goal", variant: "destructive" });
+    }
+  };
 
   const handleSubmitDraft = async () => {
     if (!validId || draftLines.length === 0) return;
@@ -138,7 +226,7 @@ export default function AreaDetailPage() {
     if (failed === 0) {
       toast({
         title: ok === 1 ? "Added" : `Added ${ok}`,
-        description: ok === 1 ? titles[0] : "Quest will help you plan the rest.",
+        description: ok === 1 ? titles[0] : "Stays in the brain dump until grouped.",
       });
     } else if (ok === 0) {
       toast({
@@ -162,11 +250,10 @@ export default function AreaDetailPage() {
       {
         onSuccess: () => {
           invalidateAreaData();
-          if (nextStatus === "done") {
-            toast({ title: "Done", description: task.title });
-          } else {
-            toast({ title: "Reopened", description: task.title });
-          }
+          toast({
+            title: nextStatus === "done" ? "Done" : "Reopened",
+            description: task.title,
+          });
         },
         onError: () => {
           toast({ title: "Couldn't update", variant: "destructive" });
@@ -217,6 +304,10 @@ export default function AreaDetailPage() {
     );
   }
 
+  const sortedGoals = [...milestones].sort(
+    (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id,
+  );
+
   return (
     <div className="space-y-6">
       <BackLink />
@@ -251,7 +342,7 @@ export default function AreaDetailPage() {
         />
       </header>
 
-      {/* Honest note — soft, muted, optional. Sits above the brain dump. */}
+      {/* Honest note — soft, muted, optional. Sits above the goals. */}
       <HonestNote
         value={area.honestNote ?? ""}
         onSave={(v) => {
@@ -261,9 +352,126 @@ export default function AreaDetailPage() {
         }}
       />
 
-      {/* Brain-dump box. Single textarea, multi-line dump supported.
-          Cmd/Ctrl+Enter submits. Plain Enter inserts a newline because
-          this is meant to be a list-style dump, not a chat input. */}
+      {/* GOALS — top of the page. */}
+      <section aria-labelledby="goals-heading" className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2
+            id="goals-heading"
+            className="font-serif text-sm font-medium text-muted-foreground uppercase tracking-wide"
+          >
+            Goals ({sortedGoals.length})
+          </h2>
+        </div>
+
+        {/* New goal input */}
+        <div className="flex gap-2">
+          <Input
+            value={newGoalTitle}
+            onChange={(e) => setNewGoalTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void handleCreateGoal();
+              }
+            }}
+            placeholder="Name a big job. (e.g., Launch the new site)"
+            className="text-sm"
+          />
+          <Button
+            size="sm"
+            onClick={() => void handleCreateGoal()}
+            disabled={!newGoalTitle.trim() || createMilestone.isPending}
+            className="rounded-full"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Add goal
+          </Button>
+        </div>
+
+        {milestonesQuery.isLoading ? (
+          <Skeleton className="h-20 w-full rounded-2xl" />
+        ) : sortedGoals.length === 0 ? (
+          <div className="rounded-2xl bg-card border border-card-border p-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              No goals here yet. Big jobs go up top — small to-dos go in the brain dump below.
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {sortedGoals.map((goal) => (
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                tasks={tasks}
+                onUpdateTask={(t) => handleToggleDone(t)}
+                onAfterMutation={invalidateAreaData}
+                breakdownPending={breakdownMilestone.isPending}
+                onBreakdown={async () => {
+                  try {
+                    await breakdownMilestone.mutateAsync({ id: goal.id });
+                    invalidateAreaData();
+                    toast({
+                      title: "Drafted steps.",
+                      description: "Edit anytime.",
+                    });
+                  } catch {
+                    toast({
+                      title: "Couldn't draft steps.",
+                      description: "This goal may already have steps. Clear them first.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+                onAddStep={async (title) => {
+                  await createTask.mutateAsync({
+                    data: {
+                      title,
+                      category: "business",
+                      areaId,
+                      milestoneId: goal.id,
+                      date: todayIso(),
+                    },
+                  });
+                  invalidateAreaData();
+                }}
+                onReorderSteps={async (taskIds) => {
+                  try {
+                    await reorderSteps.mutateAsync({ id: goal.id, data: { taskIds } });
+                    invalidateAreaData();
+                  } catch {
+                    toast({ title: "Couldn't save order.", variant: "destructive" });
+                  }
+                }}
+                onToggleMode={async () => {
+                  const nextMode = goal.mode === "ordered" ? "any" : "ordered";
+                  await updateMilestone.mutateAsync({
+                    id: goal.id,
+                    data: { mode: nextMode },
+                  });
+                  invalidateAreaData();
+                  toast({
+                    title: nextMode === "ordered" ? "Step-by-step." : "Any order.",
+                  });
+                }}
+                onDeleteGoal={async () => {
+                  if (!window.confirm("Delete this goal? Steps under it become loose tasks.")) {
+                    return;
+                  }
+                  try {
+                    await deleteMilestone.mutateAsync({ id: goal.id });
+                    invalidateAreaData();
+                    toast({ title: "Goal deleted." });
+                  } catch {
+                    toast({ title: "Couldn't delete.", variant: "destructive" });
+                  }
+                }}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* BRAIN DUMP — below goals. Loose tasks live here. */}
       <section
         aria-labelledby="brain-dump-heading"
         className="rounded-2xl bg-card border border-card-border p-4 space-y-3"
@@ -271,9 +479,12 @@ export default function AreaDetailPage() {
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-muted-foreground" aria-hidden />
           <h2 id="brain-dump-heading" className="text-sm font-medium text-foreground">
-            What's on your mind for {area.name}?
+            Brain dump
           </h2>
         </div>
+        <p className="text-xs text-muted-foreground">
+          Anything you don't want to forget. Group later into goals.
+        </p>
         <Textarea
           ref={textareaRef}
           value={draft}
@@ -284,9 +495,7 @@ export default function AreaDetailPage() {
               void handleSubmitDraft();
             }
           }}
-          placeholder={
-            "Dump everything. One task per line.\nQuest will help you plan it later."
-          }
+          placeholder={"Dump everything. One task per line."}
           rows={Math.max(3, Math.min(8, draftLines.length + 1))}
           className="resize-y min-h-[88px]"
           aria-describedby="brain-dump-hint"
@@ -295,7 +504,7 @@ export default function AreaDetailPage() {
           <p id="brain-dump-hint" className="text-xs text-muted-foreground">
             {draftLines.length === 0
               ? "Tip: Cmd/Ctrl+Enter to add."
-              : `Will add ${draftLines.length} ${draftLines.length === 1 ? "task" : "tasks"}.`}
+              : `Adds ${draftLines.length} ${draftLines.length === 1 ? "task" : "tasks"}.`}
           </p>
           <Button
             size="sm"
@@ -313,28 +522,28 @@ export default function AreaDetailPage() {
         </div>
       </section>
 
-      {/* Open tasks */}
-      <section aria-labelledby="open-tasks-heading" className="space-y-2">
+      {/* Loose tasks */}
+      <section aria-labelledby="loose-tasks-heading" className="space-y-2">
         <h2
-          id="open-tasks-heading"
+          id="loose-tasks-heading"
           className="font-serif text-sm font-medium text-muted-foreground uppercase tracking-wide"
         >
-          Open ({pending.length})
+          Loose tasks ({looseTasks.length})
         </h2>
         {tasksQuery.isLoading ? (
           <Skeleton className="h-20 w-full rounded-2xl" />
-        ) : pending.length === 0 ? (
+        ) : looseTasks.length === 0 ? (
           <div className="rounded-2xl bg-card border border-card-border p-6 text-center">
             <p className="text-sm text-muted-foreground">
               {tasks.length === 0
                 ? "Nothing here yet. Start dumping."
-                : "All caught up for now."}
+                : "All grouped. Nice."}
             </p>
           </div>
         ) : (
           <ul className="space-y-2">
             <AnimatePresence initial={false}>
-              {pending.map((task) => (
+              {looseTasks.map((task) => (
                 <TaskRow
                   key={task.id}
                   task={task}
@@ -347,7 +556,7 @@ export default function AreaDetailPage() {
         )}
       </section>
 
-      {/* Recently closed — last 5, with undo. */}
+      {/* Recently closed */}
       {recentlyClosed.length > 0 && (
         <section aria-labelledby="recent-closed-heading" className="space-y-2">
           <h2
@@ -399,6 +608,10 @@ function BackLink() {
     </Link>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Inline header editors (Phase 4).
+// ─────────────────────────────────────────────────────────────────────────
 
 /** Click the heading to edit name. Save on blur or Enter, Escape cancels. */
 function InlineHeading({ value, onSave }: { value: string; onSave: (v: string) => void }) {
@@ -551,7 +764,7 @@ function PortfolioStatusInline({
 /**
  * Soft, muted textarea for noting why something feels hard to start.
  * Empty state is a small placeholder; saved text shows muted above the
- * brain-dump section. Save on blur. Empty is fine.
+ * goals section. Save on blur. Empty is fine.
  */
 function HonestNote({ value, onSave }: { value: string; onSave: (v: string) => void }) {
   const [editing, setEditing] = useState(false);
@@ -596,6 +809,262 @@ function HonestNote({ value, onSave }: { value: string; onSave: (v: string) => v
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Goal card — collapsible, with steps, breakdown, mode toggle.
+// ─────────────────────────────────────────────────────────────────────────
+
+interface GoalCardProps {
+  goal: Milestone;
+  tasks: Task[];
+  onUpdateTask: (t: Task) => void;
+  onAfterMutation: () => void;
+  breakdownPending: boolean;
+  onBreakdown: () => Promise<void>;
+  onAddStep: (title: string) => Promise<void>;
+  onReorderSteps: (taskIds: number[]) => Promise<void>;
+  onToggleMode: () => Promise<void>;
+  onDeleteGoal: () => Promise<void>;
+}
+
+function GoalCard({
+  goal,
+  tasks,
+  onUpdateTask,
+  breakdownPending,
+  onBreakdown,
+  onAddStep,
+  onReorderSteps,
+  onToggleMode,
+  onDeleteGoal,
+}: GoalCardProps) {
+  const [open, setOpen] = useState(true);
+  const [stepDraft, setStepDraft] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  // Steps belonging to this goal, ordered by sortOrder then id.
+  const steps = useMemo(() => {
+    return tasks
+      .filter((t) => t.milestoneId === goal.id)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id);
+  }, [tasks, goal.id]);
+
+  const pendingSteps = steps.filter((s) => s.status === "pending");
+  const doneCount = steps.filter((s) => s.status === "done").length;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIndex = steps.findIndex((s) => s.id === active.id);
+    const newIndex = steps.findIndex((s) => s.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const reordered = arrayMove(steps, oldIndex, newIndex);
+    void onReorderSteps(reordered.map((s) => s.id));
+  };
+
+  const handleAddStep = async () => {
+    const title = stepDraft.trim();
+    if (!title) return;
+    setAdding(true);
+    try {
+      await onAddStep(title);
+      setStepDraft("");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  // For ordered goals: only the first pending step is "live" — later
+  // pending steps are visually muted to mirror the briefing rule.
+  const liveStepId = goal.mode === "ordered" ? pendingSteps[0]?.id ?? null : null;
+
+  return (
+    <li className="rounded-2xl bg-card border border-card-border overflow-hidden">
+      {/* Goal header row */}
+      <div className="flex items-start justify-between gap-2 p-3">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex items-start gap-2 flex-1 min-w-0 text-left"
+          aria-expanded={open}
+        >
+          {open ? (
+            <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">{goal.title}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {steps.length === 0
+                ? "No steps yet."
+                : `${doneCount} of ${steps.length} done${
+                    goal.mode === "ordered" ? " · step-by-step" : " · any order"
+                  }`}
+            </p>
+          </div>
+        </button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+          onClick={() => void onDeleteGoal()}
+          aria-label="Delete goal"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+
+      {open && (
+        <div className="px-3 pb-3 space-y-3 border-t border-card-border/60 pt-3">
+          {/* Mode toggle + breakdown */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => void onToggleMode()}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Mode: <span className="font-medium text-foreground">
+                {goal.mode === "ordered" ? "Step-by-step" : "Any order"}
+              </span>
+              <span className="text-muted-foreground/60"> · tap to switch</span>
+            </button>
+            {steps.length === 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs rounded-full"
+                onClick={() => void onBreakdown()}
+                disabled={breakdownPending}
+              >
+                <Wand2 className="h-3 w-3 mr-1" />
+                {breakdownPending ? "Drafting…" : "Break this down"}
+              </Button>
+            )}
+          </div>
+
+          {/* Steps list */}
+          {steps.length > 0 && (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={steps.map((s) => s.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <ul className="space-y-1.5">
+                  {steps.map((step) => (
+                    <SortableStepRow
+                      key={step.id}
+                      step={step}
+                      isLive={liveStepId === null || liveStepId === step.id}
+                      onToggle={() => onUpdateTask(step)}
+                    />
+                  ))}
+                </ul>
+              </SortableContext>
+            </DndContext>
+          )}
+
+          {/* Add step */}
+          <div className="flex gap-2">
+            <Input
+              value={stepDraft}
+              onChange={(e) => setStepDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void handleAddStep();
+                }
+              }}
+              placeholder="+ Add step"
+              className="text-sm h-8"
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 rounded-full"
+              onClick={() => void handleAddStep()}
+              disabled={!stepDraft.trim() || adding}
+            >
+              Add
+            </Button>
+          </div>
+        </div>
+      )}
+    </li>
+  );
+}
+
+interface SortableStepRowProps {
+  step: Task;
+  isLive: boolean;
+  onToggle: () => void;
+}
+
+function SortableStepRow({ step, isLive, onToggle }: SortableStepRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: step.id,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  const isDone = step.status === "done";
+  const muted = !isLive && !isDone;
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-2 rounded-xl border border-card-border/60 px-2 py-1.5 ${
+        muted ? "bg-card/40 opacity-60" : "bg-background"
+      }`}
+    >
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors touch-none"
+        aria-label="Drag to reorder"
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={isDone ? `Reopen ${step.title}` : `Mark "${step.title}" done`}
+        className="h-4 w-4 rounded-full border border-card-border hover:border-foreground transition-colors flex items-center justify-center flex-shrink-0"
+      >
+        {isDone && <CheckCircle2 className="h-3 w-3 text-muted-foreground" />}
+      </button>
+      <span
+        className={`flex-1 min-w-0 text-sm truncate ${
+          isDone ? "line-through text-muted-foreground" : "text-foreground"
+        }`}
+      >
+        {step.title}
+      </span>
+      {isLive && !isDone && (
+        <span className="text-[10px] uppercase tracking-wide text-foreground/60 font-medium">
+          Up next
+        </span>
+      )}
+    </li>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Loose-task row.
+// ─────────────────────────────────────────────────────────────────────────
+
 interface TaskRowProps {
   task: Task;
   onToggle: () => void;
@@ -622,10 +1091,7 @@ function TaskRow({ task, onToggle, pending }: TaskRowProps) {
           disabled={pending}
           aria-label={`Mark "${task.title}" done`}
           className="mt-0.5 h-5 w-5 rounded-full border border-card-border hover:border-foreground transition-colors flex items-center justify-center flex-shrink-0 disabled:opacity-50"
-        >
-          {/* Empty circle; we don't render the checkmark here because the
-              row leaves the list as soon as it flips to done. */}
-        </button>
+        />
         <div className="flex-1 min-w-0">
           <button
             type="button"

@@ -48,6 +48,7 @@ import type {
   OutcomeMetrics,
   ProgressLog,
   ReentryInfo,
+  ReorderMilestoneStepsBody,
   StepBackTaskResponse,
   Task,
   TaskSuggestion,
@@ -818,6 +819,159 @@ export const useDeleteMilestone = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteMilestoneMutationOptions(options));
+    }
+
+/**
+ * Phase 3 chief-of-staff move. Takes the milestone ("goal") title plus
+the user's area context, asks the LLM for an ordered plan, and
+creates 5–8 task rows linked to this milestone with sortOrder 1..N
+and date = today. Returns the created tasks. If OPENAI_API_KEY is
+unset, a deterministic fallback plan is returned so the UI never
+sees a hard error.
+
+ * @summary Ask AI to break a goal into 5–8 ordered steps
+ */
+export const getBreakdownMilestoneUrl = (id: number,) => {
+
+
+
+
+  return `/api/milestones/${id}/breakdown`
+}
+
+export const breakdownMilestone = async (id: number, options?: RequestInit): Promise<Task[]> => {
+
+  return customFetch<Task[]>(getBreakdownMilestoneUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getBreakdownMilestoneMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof breakdownMilestone>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof breakdownMilestone>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['breakdownMilestone'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof breakdownMilestone>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  breakdownMilestone(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BreakdownMilestoneMutationResult = NonNullable<Awaited<ReturnType<typeof breakdownMilestone>>>
+
+    export type BreakdownMilestoneMutationError = ErrorType<void>
+
+    /**
+ * @summary Ask AI to break a goal into 5–8 ordered steps
+ */
+export const useBreakdownMilestone = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof breakdownMilestone>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof breakdownMilestone>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getBreakdownMilestoneMutationOptions(options));
+    }
+
+/**
+ * Body is an ordered array of task ids. Each task is updated so its
+sortOrder matches its index in the array. Tasks that don't belong
+to this milestone are silently ignored.
+
+ * @summary Reorder the steps inside a goal
+ */
+export const getReorderMilestoneStepsUrl = (id: number,) => {
+
+
+
+
+  return `/api/milestones/${id}/step-order`
+}
+
+export const reorderMilestoneSteps = async (id: number,
+    reorderMilestoneStepsBody: ReorderMilestoneStepsBody, options?: RequestInit): Promise<Task[]> => {
+
+  return customFetch<Task[]>(getReorderMilestoneStepsUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      reorderMilestoneStepsBody,)
+  }
+);}
+
+
+
+
+export const getReorderMilestoneStepsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderMilestoneSteps>>, TError,{id: number;data: BodyType<ReorderMilestoneStepsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reorderMilestoneSteps>>, TError,{id: number;data: BodyType<ReorderMilestoneStepsBody>}, TContext> => {
+
+const mutationKey = ['reorderMilestoneSteps'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reorderMilestoneSteps>>, {id: number;data: BodyType<ReorderMilestoneStepsBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reorderMilestoneSteps(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReorderMilestoneStepsMutationResult = NonNullable<Awaited<ReturnType<typeof reorderMilestoneSteps>>>
+    export type ReorderMilestoneStepsMutationBody = BodyType<ReorderMilestoneStepsBody>
+    export type ReorderMilestoneStepsMutationError = ErrorType<void>
+
+    /**
+ * @summary Reorder the steps inside a goal
+ */
+export const useReorderMilestoneSteps = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderMilestoneSteps>>, TError,{id: number;data: BodyType<ReorderMilestoneStepsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reorderMilestoneSteps>>,
+        TError,
+        {id: number;data: BodyType<ReorderMilestoneStepsBody>},
+        TContext
+      > => {
+      return useMutation(getReorderMilestoneStepsMutationOptions(options));
     }
 
 /**

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, milestonesTable } from "@workspace/db";
+import { and, eq, asc, inArray } from "drizzle-orm";
+import { db, milestonesTable, tasksTable, areasTable } from "@workspace/db";
 import {
   ListMilestonesQueryParams,
   ListMilestonesResponse,
@@ -10,8 +10,13 @@ import {
   UpdateMilestoneBody,
   UpdateMilestoneResponse,
   DeleteMilestoneParams,
+  BreakdownMilestoneParams,
+  ReorderMilestoneStepsParams,
+  ReorderMilestoneStepsBody,
 } from "@workspace/api-zod";
 import { asyncHandler } from "../lib/async-handler";
+import { buildBreakdownSteps, fallbackSteps } from "../lib/breakdown/ai";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -21,6 +26,10 @@ function serializeMilestone(m: typeof milestonesTable.$inferSelect) {
     createdAt: m.createdAt.toISOString(),
     updatedAt: m.updatedAt.toISOString(),
   };
+}
+
+function serializeTask(t: typeof tasksTable.$inferSelect) {
+  return { ...t, createdAt: t.createdAt.toISOString() };
 }
 
 router.get("/milestones", asyncHandler(async (req, res): Promise<void> => {
@@ -52,6 +61,7 @@ router.post("/milestones", asyncHandler(async (req, res): Promise<void> => {
     description: parsed.data.description ?? null,
     nextAction: parsed.data.nextAction ?? null,
     sortOrder: parsed.data.sortOrder ?? 0,
+    mode: parsed.data.mode ?? "ordered",
   }).returning();
 
   res.status(201).json(serializeMilestone(milestone!));
@@ -107,6 +117,7 @@ router.patch("/milestones/:id", asyncHandler(async (req, res): Promise<void> => 
   if (parsed.data.description !== undefined) updates.description = parsed.data.description;
   if (parsed.data.nextAction !== undefined) updates.nextAction = parsed.data.nextAction;
   if (parsed.data.sortOrder !== undefined) updates.sortOrder = parsed.data.sortOrder;
+  if (parsed.data.mode !== undefined) updates.mode = parsed.data.mode;
   updates.updatedAt = new Date();
 
   const [milestone] = await db
@@ -121,6 +132,141 @@ router.patch("/milestones/:id", asyncHandler(async (req, res): Promise<void> => 
   }
 
   res.json(UpdateMilestoneResponse.parse(serializeMilestone(milestone)));
+}));
+
+// Phase 3: AI breakdown of a goal into 5–8 ordered steps.
+// Refuses if the goal already has tasks (409). Falls back to a deterministic
+// generic plan if OPENAI_API_KEY is unset or the LLM call fails — UI never
+// sees a hard error.
+router.post("/milestones/:id/breakdown", asyncHandler(async (req, res): Promise<void> => {
+  const params = BreakdownMilestoneParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [milestone] = await db
+    .select()
+    .from(milestonesTable)
+    .where(eq(milestonesTable.id, params.data.id));
+
+  if (!milestone) {
+    res.status(404).json({ error: "Goal not found" });
+    return;
+  }
+
+  // 409 if the goal already has steps — the user should clear or edit them
+  // rather than have the AI duplicate work.
+  const existing = await db
+    .select({ id: tasksTable.id })
+    .from(tasksTable)
+    .where(eq(tasksTable.milestoneId, milestone.id));
+
+  if (existing.length > 0) {
+    res.status(409).json({ error: "This goal already has steps. Clear them first." });
+    return;
+  }
+
+  // Resolve area name for richer prompt context.
+  const [area] = await db
+    .select({ name: areasTable.name })
+    .from(areasTable)
+    .where(eq(areasTable.id, milestone.areaId));
+
+  let steps: string[];
+  const apiKey = process.env["OPENAI_API_KEY"];
+  if (apiKey && apiKey.trim().length > 0) {
+    try {
+      steps = await buildBreakdownSteps(
+        {
+          goalTitle: milestone.title,
+          areaName: area?.name ?? null,
+          description: milestone.description ?? null,
+        },
+        { apiKey: apiKey.trim() },
+      );
+    } catch (err) {
+      logger.warn({ err: String(err) }, "AI breakdown failed, falling back");
+      steps = fallbackSteps();
+    }
+  } else {
+    steps = fallbackSteps();
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = steps.map((title, i) => ({
+    title,
+    category: "business" as const,
+    status: "pending" as const,
+    areaId: milestone.areaId,
+    milestoneId: milestone.id,
+    date: today,
+    sortOrder: i + 1,
+  }));
+
+  const created = await db.insert(tasksTable).values(rows).returning();
+  res.status(201).json(created.map(serializeTask));
+}));
+
+// Phase 3: reorder steps inside a goal. Body is an ordered array of task ids;
+// each task's sortOrder is set to its index. Tasks not belonging to this
+// milestone are silently ignored (defensive — UI shouldn't send them).
+router.patch("/milestones/:id/step-order", asyncHandler(async (req, res): Promise<void> => {
+  const params = ReorderMilestoneStepsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const body = ReorderMilestoneStepsBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
+  const [milestone] = await db
+    .select({ id: milestonesTable.id })
+    .from(milestonesTable)
+    .where(eq(milestonesTable.id, params.data.id));
+
+  if (!milestone) {
+    res.status(404).json({ error: "Goal not found" });
+    return;
+  }
+
+  const { taskIds } = body.data;
+  if (taskIds.length === 0) {
+    res.json([]);
+    return;
+  }
+
+  // Only update tasks that actually belong to this milestone.
+  const owned = await db
+    .select({ id: tasksTable.id })
+    .from(tasksTable)
+    .where(
+      and(
+        eq(tasksTable.milestoneId, milestone.id),
+        inArray(tasksTable.id, taskIds),
+      ),
+    );
+  const ownedSet = new Set(owned.map((r) => r.id));
+
+  for (let i = 0; i < taskIds.length; i++) {
+    const taskId = taskIds[i]!;
+    if (!ownedSet.has(taskId)) continue;
+    await db
+      .update(tasksTable)
+      .set({ sortOrder: i + 1 })
+      .where(eq(tasksTable.id, taskId));
+  }
+
+  const refreshed = await db
+    .select()
+    .from(tasksTable)
+    .where(eq(tasksTable.milestoneId, milestone.id))
+    .orderBy(asc(tasksTable.sortOrder));
+
+  res.json(refreshed.map(serializeTask));
 }));
 
 router.delete("/milestones/:id", asyncHandler(async (req, res): Promise<void> => {

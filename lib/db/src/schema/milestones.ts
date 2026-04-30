@@ -13,6 +13,14 @@ export const milestonesTable = pgTable("milestones", {
   description: text("description"),
   nextAction: text("next_action"),
   sortOrder: integer("sort_order").notNull().default(0),
+  // Phase 3: how the goal hands out its sub-tasks.
+  //   "ordered" — only the lowest-sortOrder pending sub-task is eligible
+  //              for the daily briefing. Later steps stay locked until
+  //              earlier ones close. Default for new goals.
+  //   "any"     — any open sub-task can be picked. Useful when steps
+  //              don't depend on each other.
+  // Stored as text so we can add modes later without a migration.
+  mode: text("mode").notNull().default("ordered"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

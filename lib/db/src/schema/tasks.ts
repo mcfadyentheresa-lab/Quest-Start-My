@@ -22,6 +22,10 @@ export const tasksTable = pgTable("tasks", {
   adjustmentType: text("adjustment_type"),
   adjustmentReason: text("adjustment_reason"),
   taskSource: text("task_source"),
+  // Phase 3: position within the parent milestone ("goal"). Used to surface
+  // step-by-step goals one step at a time — lowest pending sortOrder
+  // wins. For loose tasks (no milestoneId) this is unused; default 0.
+  sortOrder: integer("sort_order").notNull().default(0),
 });
 
 export const insertTaskSchema = createInsertSchema(tasksTable).omit({ id: true, createdAt: true });
