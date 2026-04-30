@@ -1,6 +1,22 @@
 # Custom Nixpacks config for this pnpm workspace monorepo.
 #
-# Root cause of the previous deploy failures:
+# What this file owns: the SETUP and INSTALL phases only.
+# What railway.json owns: the BUILD command, START command, and DB migration
+# (preDeployCommand). See railway.json for those.
+#
+# Why split? Build-time DB access is impossible — postgres.railway.internal
+# is only resolvable at runtime. So `pnpm --filter @workspace/db run deploy`
+# MUST run as a preDeployCommand (after build, before start), not in the
+# build phase. Keeping build/start/migration concerns in railway.json keeps
+# the Railway-specific lifecycle in one place.
+#
+# Why no [phases.build] here? With a [phases.build] present, Nixpacks's
+# Node provider can still trigger an auto-detected build that overrides
+# our custom one — only the frontend gets built, the api-server's
+# dist/index.mjs is never created, and start crashes at HEALTHCHECK.
+# Setting buildCommand explicitly in railway.json disables auto-detection.
+#
+# Background on the install phase tweaks below:
 # Nixpacks' default Node/pnpm provider only stages `package.json` +
 # `pnpm-lock.yaml` into the install layer for caching. It does NOT copy
 # `pnpm-workspace.yaml` or the per-workspace `package.json` files. When
@@ -30,22 +46,3 @@ cmds = [
   # the other build-time tools live in devDependencies.
   "NODE_ENV=development pnpm install --frozen-lockfile",
 ]
-
-[phases.build]
-# PORT=8080 is a dummy value for the Vite build — it's required by the
-# frontend's vite.config.ts but only used at runtime (Railway sets the real
-# PORT when the server starts).
-#
-# The `deploy` script runs the pillars→areas rename (idempotent) BEFORE
-# `drizzle-kit push` so push doesn't see an unexpected `pillars` table and
-# either fail or attempt a destructive drop+create. This was the root cause
-# of every /api/areas, /api/tasks, /api/dashboard/* 500 in production: the
-# rename had never landed, so the schema and the runtime queries were
-# permanently out of sync.
-cmds = [
-  "PORT=8080 BASE_PATH=${BASE_PATH:-/} pnpm run build",
-  "pnpm --filter @workspace/db run deploy",
-]
-
-[start]
-cmd = "pnpm --filter @workspace/api-server run start"
