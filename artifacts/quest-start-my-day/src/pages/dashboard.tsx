@@ -473,7 +473,7 @@ export default function Dashboard() {
                 recap={recap}
                 isRegenerating={regenerateRecapMutation.isPending}
                 onRegenerate={() => regenerateRecapMutation.mutate()}
-                onPlanTomorrow={() => navigate("/weekly")}
+                onPlanTomorrow={() => navigate("/calendar?view=week")}
                 onSaveReflection={(text) =>
                   saveReflectionMutation.mutate({ reflection: text })
                 }
@@ -649,7 +649,7 @@ export default function Dashboard() {
               size="sm"
               variant="ghost"
               className="rounded-xl gap-1.5 text-primary text-xs font-semibold shrink-0"
-              onClick={() => navigate("/weekly")}
+              onClick={() => navigate("/calendar?view=week")}
             >
               Plan
               <ArrowRight className="h-3 w-3" />
@@ -667,7 +667,7 @@ export default function Dashboard() {
           <p className="text-sm text-foreground/80">
             Viewing tasks from <strong>{formatShortDate(viewDate)}</strong>
           </p>
-          <Button size="sm" variant="ghost" className="text-xs rounded-xl" onClick={() => navigate("/")}>
+          <Button size="sm" variant="ghost" className="text-xs rounded-xl" onClick={() => navigate("/today")}>
             Back to today
           </Button>
         </motion.div>
@@ -796,6 +796,16 @@ export default function Dashboard() {
               <>
                 <p className="text-xs text-muted-foreground mt-1 mb-4">Add up to 3 tasks to get started</p>
                 <AddTaskDialog date={viewDate} />
+                <p className="mt-4 text-xs text-muted-foreground">
+                  Need a 5-min reset?{" "}
+                  <Link
+                    href="/home"
+                    className="font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    Take one
+                  </Link>
+                  .
+                </p>
               </>
             )}
           </div>

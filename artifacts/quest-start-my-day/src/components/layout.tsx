@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useTheme } from "next-themes";
-import { Sun, Moon, LayoutDashboard, Calendar, CalendarDays, History, Settings, BookOpen, Home, User } from "lucide-react";
+import { Sun, Moon, CalendarDays, Settings, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FocusTimerHeaderPill } from "@/components/focus-timer-header-pill";
 import {
@@ -14,12 +14,8 @@ import {
 import { FocusPrefsPanel } from "@/components/focus-prefs-panel";
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/today", label: "Today", icon: CalendarDays },
-  { href: "/weekly", label: "This Week", icon: Calendar },
-  { href: "/history", label: "History", icon: History },
-  { href: "/home", label: "Reset", icon: Home },
-  { href: "/review", label: "Month", icon: BookOpen },
+  { href: "/today", label: "Today", icon: Sun },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/areas", label: "Areas", icon: Settings },
 ];
 
@@ -33,7 +29,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Top navigation bar */}
       <header className="sticky top-0 z-50 bg-background/90 backdrop-blur border-b border-border">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/" aria-label="Quest — your quiet chief of staff">
+          <Link href="/today" aria-label="Quest — your quiet chief of staff">
             <div className="flex items-baseline gap-2 cursor-pointer">
               <span className="font-serif text-lg font-medium text-foreground tracking-tight">Quest</span>
               <span className="text-muted-foreground text-xs italic hidden sm:inline">your quiet chief of staff</span>
@@ -80,13 +76,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      {/* Bottom navigation (mobile-first)
-          Touch targets meet WCAG 2.5.5 / Apple HIG minimum 44x44px even
-          on a 360px viewport with 7 items. */}
+      {/* Bottom navigation (mobile-first). Three destinations: Today, Calendar,
+          Areas. Touch targets meet WCAG 2.5.5 / Apple HIG minimum 44x44px. */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur border-t border-border" aria-label="Primary">
         <div className="max-w-2xl mx-auto flex items-stretch justify-around">
           {navItems.map(({ href, label, icon: Icon }) => {
-            const isActive = href === "/" ? location === "/" : location.startsWith(href);
+            const isActive = location === href || location.startsWith(`${href}/`) || location.startsWith(`${href}?`);
             return (
               <Link key={href} href={href} className="flex-1 min-w-0">
                 <button
