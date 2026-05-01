@@ -12,6 +12,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { FocusPrefsPanel } from "@/components/focus-prefs-panel";
+import { InboxComposer } from "@/components/inbox-composer";
 
 const navItems = [
   { href: "/today", label: "Today", icon: Sun },
@@ -75,6 +76,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6 pb-24">
         {children}
       </main>
+
+      <InboxComposer />
 
       {/* Bottom navigation (mobile-first). Three destinations: Today, Calendar,
           Areas. Touch targets meet WCAG 2.5.5 / Apple HIG minimum 44x44px. */}

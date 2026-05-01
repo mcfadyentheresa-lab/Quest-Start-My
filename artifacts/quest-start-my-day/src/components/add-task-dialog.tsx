@@ -27,7 +27,6 @@ interface AddTaskDialogProps {
 
 interface TaskFormData {
   title: string;
-  category: string;
   areaId: string;
   milestoneId: string;
   whyItMatters: string;
@@ -40,7 +39,6 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
   const { register, handleSubmit, reset, setValue, watch } = useForm<TaskFormData>({
     defaultValues: {
       title: "",
-      category: "business",
       areaId: "none",
       milestoneId: "none",
       whyItMatters: "",
@@ -53,7 +51,6 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
   const createTask = useCreateTask();
   const { data: areas } = useListAreas();
   const { data: summary } = useGetDashboardSummary();
-  const category = watch("category");
   const areaId = watch("areaId");
   const milestoneId = watch("milestoneId");
 
@@ -79,7 +76,7 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
       {
         data: {
           title: data.title,
-          category: data.category as "business" | "creative" | "wellness",
+          category: "business",
           whyItMatters: data.whyItMatters || undefined,
           doneLooksLike: data.doneLooksLike || undefined,
           suggestedNextStep: data.suggestedNextStep || undefined,
@@ -125,46 +122,30 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
             <Input id="title" {...register("title", { required: true })} placeholder="What will you do?" className="rounded-xl" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          {activeAreas.length > 0 && (
             <div className="space-y-1.5">
-              <Label>Category</Label>
-              <Select value={category} onValueChange={(v) => setValue("category", v)}>
+              <Label>Area</Label>
+              <Select
+                value={areaId}
+                onValueChange={(v) => {
+                  setValue("areaId", v);
+                  setValue("milestoneId", "none");
+                }}
+              >
                 <SelectTrigger className="rounded-xl">
-                  <SelectValue />
+                  <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="business">Business</SelectItem>
-                  <SelectItem value="creative">Creative</SelectItem>
-                  <SelectItem value="wellness">Wellness</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
+                  {activeAreas.map(p => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-
-            {activeAreas.length > 0 && (
-              <div className="space-y-1.5">
-                <Label>Area</Label>
-                <Select
-                  value={areaId}
-                  onValueChange={(v) => {
-                    setValue("areaId", v);
-                    setValue("milestoneId", "none");
-                  }}
-                >
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="None" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {activeAreas.map(p => (
-                      <SelectItem key={p.id} value={String(p.id)}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
+          )}
 
           {/* Milestone selector — only shown when a area is selected and it has milestones */}
           {selectedAreaNumericId && activeMilestones.length > 0 && (
