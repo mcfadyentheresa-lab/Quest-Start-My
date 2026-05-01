@@ -24,6 +24,7 @@ import type {
   AreaCompletionHistory,
   AreaHealthResponse,
   Briefing,
+  BulkCreateMilestoneStepsBody,
   BulkCreateMilestonesBody,
   CreateAreaBody,
   CreateDailyPlanBody,
@@ -896,6 +897,82 @@ export const useBreakdownMilestone = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getBreakdownMilestoneMutationOptions(options));
+    }
+
+/**
+ * Creates one task per title under the given milestone, appended after
+any existing steps. New tasks land in array order, with sortOrder
+continuing from the highest existing sortOrder for the milestone.
+
+ * @summary Append many steps to a goal at once
+ */
+export const getBulkCreateMilestoneStepsUrl = (id: number,) => {
+
+
+
+
+  return `/api/milestones/${id}/steps/bulk`
+}
+
+export const bulkCreateMilestoneSteps = async (id: number,
+    bulkCreateMilestoneStepsBody: BulkCreateMilestoneStepsBody, options?: RequestInit): Promise<Task[]> => {
+
+  return customFetch<Task[]>(getBulkCreateMilestoneStepsUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      bulkCreateMilestoneStepsBody,)
+  }
+);}
+
+
+
+
+export const getBulkCreateMilestoneStepsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkCreateMilestoneSteps>>, TError,{id: number;data: BodyType<BulkCreateMilestoneStepsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkCreateMilestoneSteps>>, TError,{id: number;data: BodyType<BulkCreateMilestoneStepsBody>}, TContext> => {
+
+const mutationKey = ['bulkCreateMilestoneSteps'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkCreateMilestoneSteps>>, {id: number;data: BodyType<BulkCreateMilestoneStepsBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  bulkCreateMilestoneSteps(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkCreateMilestoneStepsMutationResult = NonNullable<Awaited<ReturnType<typeof bulkCreateMilestoneSteps>>>
+    export type BulkCreateMilestoneStepsMutationBody = BodyType<BulkCreateMilestoneStepsBody>
+    export type BulkCreateMilestoneStepsMutationError = ErrorType<void>
+
+    /**
+ * @summary Append many steps to a goal at once
+ */
+export const useBulkCreateMilestoneSteps = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkCreateMilestoneSteps>>, TError,{id: number;data: BodyType<BulkCreateMilestoneStepsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof bulkCreateMilestoneSteps>>,
+        TError,
+        {id: number;data: BodyType<BulkCreateMilestoneStepsBody>},
+        TContext
+      > => {
+      return useMutation(getBulkCreateMilestoneStepsMutationOptions(options));
     }
 
 /**

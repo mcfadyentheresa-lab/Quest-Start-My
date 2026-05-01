@@ -252,6 +252,28 @@ export const BreakdownMilestoneParams = zod.object({
 
 
 /**
+ * Creates one task per title under the given milestone, appended after
+any existing steps. New tasks land in array order, with sortOrder
+continuing from the highest existing sortOrder for the milestone.
+
+ * @summary Append many steps to a goal at once
+ */
+export const BulkCreateMilestoneStepsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const bulkCreateMilestoneStepsBodyTitlesItemMax = 280;
+
+export const bulkCreateMilestoneStepsBodyTitlesMax = 100;
+
+
+
+export const BulkCreateMilestoneStepsBody = zod.object({
+  "titles": zod.array(zod.string().min(1).max(bulkCreateMilestoneStepsBodyTitlesItemMax)).min(1).max(bulkCreateMilestoneStepsBodyTitlesMax)
+})
+
+
+/**
  * Body is an ordered array of task ids. Each task is updated so its
 sortOrder matches its index in the array. Tasks that don't belong
 to this milestone are silently ignored.

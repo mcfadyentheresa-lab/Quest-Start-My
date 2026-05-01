@@ -254,6 +254,41 @@ paths:
         "409":
           description: Goal already has steps — ask the user to clear them first
 
+  /milestones/{id}/steps/bulk:
+    post:
+      operationId: bulkCreateMilestoneSteps
+      tags: [milestones]
+      summary: Append many steps to a goal at once
+      description: |
+        Creates one task per title under the given milestone, appended after
+        any existing steps. New tasks land in array order, with sortOrder
+        continuing from the highest existing sortOrder for the milestone.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkCreateMilestoneStepsBody"
+      responses:
+        "201":
+          description: Created step tasks (in order)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+        "400":
+          description: Empty titles array, or one or more titles exceed the length limit
+        "404":
+          description: Milestone not found
+
   /milestones/{id}/step-order:
     patch:
       operationId: reorderMilestoneSteps
@@ -885,6 +920,20 @@ components:
           maxItems: 50
       required:
         - areaId
+        - titles
+
+    BulkCreateMilestoneStepsBody:
+      type: object
+      properties:
+        titles:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 280
+          minItems: 1
+          maxItems: 100
+      required:
         - titles
 
     UpdateMilestoneBody:

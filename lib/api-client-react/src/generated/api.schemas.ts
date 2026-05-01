@@ -129,6 +129,14 @@ export interface BulkCreateMilestonesBody {
   titles: string[];
 }
 
+export interface BulkCreateMilestoneStepsBody {
+  /**
+     * @minItems 1
+     * @maxItems 100
+     */
+  titles: string[];
+}
+
 export type UpdateMilestoneBodyStatus = typeof UpdateMilestoneBodyStatus[keyof typeof UpdateMilestoneBodyStatus];
 
 
