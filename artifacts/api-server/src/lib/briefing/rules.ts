@@ -1,4 +1,4 @@
-import type { Task, Area } from "@workspace/db";
+import type { Task, Area, Milestone } from "@workspace/db";
 import type { BriefingInput, BriefingItem, BriefingResponse, BriefingPriority } from "./types";
 
 const PRIORITY_RANK: Record<BriefingPriority, number> = { P1: 0, P2: 1, P3: 2, P4: 3 };
@@ -28,9 +28,12 @@ function rotate<T>(arr: T[], offset: number): T[] {
 }
 
 function pickItems(input: BriefingInput): BriefingItem[] {
-  const { openTasks, pillars, activePillars, focusBlockMinutes } = input;
+  const { openTasks, pillars, activePillars, focusBlockMinutes, milestones, recentlyCompleted, now } = input;
   const pillarMap = new Map<number, Area>();
   for (const p of pillars) pillarMap.set(p.id, p);
+
+  const milestoneMap = new Map<number, Milestone>();
+  for (const m of milestones) milestoneMap.set(m.id, m);
 
   const activeIds = new Set(activePillars.map((p) => p.id));
 
@@ -73,7 +76,17 @@ function pickItems(input: BriefingInput): BriefingItem[] {
   return picks.map((t) => {
     const pillar = t.areaId !== null ? pillarMap.get(t.areaId) : undefined;
     const priority = priorityForTask(t);
-    const reasoning = buildReasoning(t, pillar ?? null, priority, activeIds.has(t.areaId ?? -1));
+    const milestone = t.milestoneId !== null ? milestoneMap.get(t.milestoneId) ?? null : null;
+    const reasoning = buildReasoning(
+      t,
+      pillar ?? null,
+      priority,
+      activeIds.has(t.areaId ?? -1),
+      milestone,
+      openTasks,
+      recentlyCompleted,
+      now,
+    );
     return {
       taskId: t.id,
       title: t.title,
@@ -93,10 +106,48 @@ function buildReasoning(
   pillar: Area | null,
   priority: BriefingPriority,
   isActiveThisWeek: boolean,
+  milestone: Milestone | null,
+  allOpenTasks: Task[],
+  recentlyCompleted: Task[],
+  now: Date,
 ): string {
   if (task.status === "blocked") {
     return `Surfaced because it's been blocked${task.blockerReason ? ` on "${task.blockerReason}"` : ""} — clearing this unsticks momentum.`;
   }
+
+  // Ordered-step progress: this task is the lowest-sortOrder open step on
+  // an ordered milestone — surface "step n of m" so the user sees the gate.
+  if (
+    milestone &&
+    milestone.mode === "ordered" &&
+    task.milestoneId !== null
+  ) {
+    const openForMilestone = allOpenTasks
+      .filter((t) => t.milestoneId === task.milestoneId)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+    const lowest = openForMilestone[0];
+    if (lowest && lowest.id === task.id) {
+      const closedForMilestone = recentlyCompleted.filter((t) => t.milestoneId === task.milestoneId).length;
+      const total = openForMilestone.length + closedForMilestone;
+      if (total > 1) {
+        const stepNumber = closedForMilestone + 1;
+        return `Step ${stepNumber} of ${total} on goal "${milestone.title}". Earlier steps are done; later ones stay hidden until this one closes.`;
+      }
+    }
+  }
+
+  // Stale active-area: pillar is active this week but hasn't been touched
+  // in ≥5 days — nudge a short push.
+  if (isActiveThisWeek && pillar && pillar.lastUpdated) {
+    const last = new Date(pillar.lastUpdated);
+    if (!isNaN(last.getTime())) {
+      const days = Math.floor((now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
+      if (days >= 5) {
+        return `Marked active this week. No progress logged in ${days} days — worth a 25-minute push.`;
+      }
+    }
+  }
+
   if (priority === "P1" && isActiveThisWeek) {
     return `Surfaced because ${pillar ? pillar.name : "this pillar"} is your P1 focus this week.`;
   }

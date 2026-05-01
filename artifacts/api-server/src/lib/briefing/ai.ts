@@ -72,6 +72,7 @@ Pick at most 3 items. The first item is the one that most matters today; "headli
 should stand on its own as a single short sentence telling the user what to do first \
 (e.g., "Lock in the ASL site copy today — everything else can wait."). \
 Each "reasoning" begins with "Surfaced because" and is one sentence. \
+Reasoning must reference at least one specific signal: the area's priority (P1/P2/P3/P4), whether the area is active this week, the user's weekly priority text, the related goal/milestone, or the most recent completed task. Do not write generic statements like "this is important" or "P1 area focus." Be specific to the user's data. \
 "context" is one sentence narrating WHY this plan, ideally referencing recent momentum or a P1 pillar. \
 "signoff" is one warm closing line. NEVER invent task IDs — set taskId to one in the input or null for new suggestions.`;
 

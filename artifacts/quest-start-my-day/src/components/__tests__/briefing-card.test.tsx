@@ -33,7 +33,7 @@ const briefing: BriefingResponse = {
 };
 
 describe("BriefingCard", () => {
-  it("renders headline context, item title, pillar, and priority", () => {
+  it("renders the Today's plan title, item, pillar, and priority", () => {
     const noop = vi.fn();
     const html = renderToStaticMarkup(
       <BriefingCard
@@ -50,15 +50,70 @@ describe("BriefingCard", () => {
       />,
     );
 
+    expect(html).toContain("Today&#x27;s plan");
     expect(html).toContain("Draft the Aster onboarding script");
     expect(html).toContain("Aster &amp; Spruce Living");
     expect(html).toContain("Surfaced because");
     expect(html).toContain("P1");
-    expect(html).toContain("Approve");
+    expect(html).toContain("Lock in today&#x27;s focus");
     expect(html).toContain("Reshuffle");
   });
 
-  it("shows 'Plan locked in' when approved", () => {
+  it("shows the AI-drafted provenance badge when source is ai", () => {
+    const html = renderToStaticMarkup(
+      <BriefingCard
+        briefing={{ ...briefing, source: "ai" }}
+        isReshuffling={false}
+        isApproving={false}
+        onApprove={() => {}}
+        onReshuffle={() => {}}
+        onAddOwn={() => {}}
+        onStartFocus={() => {}}
+        onMarkDone={() => {}}
+        onPushTask={() => {}}
+        onMarkBlocked={() => {}}
+      />,
+    );
+    expect(html).toContain("AI-drafted");
+  });
+
+  it("shows the rules provenance copy when source is rules", () => {
+    const html = renderToStaticMarkup(
+      <BriefingCard
+        briefing={{ ...briefing, source: "rules" }}
+        isReshuffling={false}
+        isApproving={false}
+        onApprove={() => {}}
+        onReshuffle={() => {}}
+        onAddOwn={() => {}}
+        onStartFocus={() => {}}
+        onMarkDone={() => {}}
+        onPushTask={() => {}}
+        onMarkBlocked={() => {}}
+      />,
+    );
+    expect(html).toContain("Drafted from your priorities");
+  });
+
+  it("shows the fallback provenance copy when source is fallback", () => {
+    const html = renderToStaticMarkup(
+      <BriefingCard
+        briefing={{ ...briefing, source: "fallback" }}
+        isReshuffling={false}
+        isApproving={false}
+        onApprove={() => {}}
+        onReshuffle={() => {}}
+        onAddOwn={() => {}}
+        onStartFocus={() => {}}
+        onMarkDone={() => {}}
+        onPushTask={() => {}}
+        onMarkBlocked={() => {}}
+      />,
+    );
+    expect(html).toMatch(/Couldn(&#x27;|')t reach AI/);
+  });
+
+  it("shows 'Locked in for today' when approved", () => {
     const html = renderToStaticMarkup(
       <BriefingCard
         briefing={{ ...briefing, approved: true }}
@@ -73,10 +128,10 @@ describe("BriefingCard", () => {
         onMarkBlocked={() => {}}
       />,
     );
-    expect(html).toContain("Plan locked in");
+    expect(html).toContain("Locked in for today");
   });
 
-  it("renders empty-state when there are no briefing items", () => {
+  it("renders the empty-state with one-tap fixes when there are no briefing items", () => {
     const html = renderToStaticMarkup(
       <BriefingCard
         briefing={{ ...briefing, briefing: [] }}
@@ -89,9 +144,15 @@ describe("BriefingCard", () => {
         onMarkDone={() => {}}
         onPushTask={() => {}}
         onMarkBlocked={() => {}}
+        onChooseActiveAreas={() => {}}
+        onAddTask={() => {}}
       />,
     );
-    expect(html).toContain("No open tasks today");
+    expect(html).toContain("Today&#x27;s plan is empty");
+    expect(html).toContain("Choose active areas");
+    expect(html).toContain("Add task");
+    // Provenance badge is hidden in the empty state.
+    expect(html).not.toContain("Drafted from your priorities");
   });
 });
 

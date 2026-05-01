@@ -44,6 +44,7 @@ interface TaskCardProps {
   date: string;
   areaMap?: Map<number, Area>;
   areaPriorities?: number[];
+  reasoningByTaskId?: Map<number, string>;
 }
 
 const MAX_STEP_BACK_DEPTH = 3;
@@ -92,12 +93,14 @@ const BLOCKER_TYPES = [
   { value: "dependency", label: "Outside dependency" },
 ] as const;
 
-export function TaskCard({ task, date, areaMap, areaPriorities }: TaskCardProps) {
+export function TaskCard({ task, date, areaMap, areaPriorities, reasoningByTaskId }: TaskCardProps) {
   const [expanded, setExpanded] = useState(task.status === "pending" || task.status === "stepped_back");
   const [blockerDraft, setBlockerDraft] = useState("");
   const [selectedBlockerType, setSelectedBlockerType] = useState<string>("");
   const [showBlockerInput, setShowBlockerInput] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [whyOpen, setWhyOpen] = useState(false);
+  const reasoning = reasoningByTaskId?.get(task.id);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const updateTask = useUpdateTask();
@@ -235,6 +238,35 @@ export function TaskCard({ task, date, areaMap, areaPriorities }: TaskCardProps)
               {task.title}
             </h3>
           </button>
+          {reasoning && (
+            <div className="mt-1.5">
+              <button
+                type="button"
+                onClick={() => setWhyOpen((v) => !v)}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
+                aria-expanded={whyOpen}
+                data-testid={`task-why-toggle-${task.id}`}
+              >
+                {whyOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                Why this?
+              </button>
+              <AnimatePresence initial={false}>
+                {whyOpen && (
+                  <motion.p
+                    key="why"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.18 }}
+                    className="text-sm text-foreground/70 leading-relaxed mt-1.5 overflow-hidden"
+                    data-testid={`task-why-text-${task.id}`}
+                  >
+                    {reasoning}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0 mt-1">
           <button

@@ -22,6 +22,14 @@ type BriefingCardProps = {
   onMarkDone: (item: BriefingItem) => void;
   onPushTask: (item: BriefingItem) => void;
   onMarkBlocked: (item: BriefingItem) => void;
+  onChooseActiveAreas?: () => void;
+  onAddTask?: () => void;
+};
+
+const PROVENANCE_LABEL: Record<BriefingResponse["source"], string> = {
+  ai: "AI-drafted",
+  rules: "Drafted from your priorities",
+  fallback: "Couldn't reach AI — basic plan",
 };
 
 export function BriefingCard({
@@ -35,7 +43,11 @@ export function BriefingCard({
   onMarkDone,
   onPushTask,
   onMarkBlocked,
+  onChooseActiveAreas,
+  onAddTask,
 }: BriefingCardProps) {
+  const isEmpty = briefing.briefing.length === 0;
+
   return (
     <motion.section
       initial={{ opacity: 0, y: 8 }}
@@ -44,15 +56,61 @@ export function BriefingCard({
       className="rounded-3xl bg-card border border-card-border p-7 shadow-sm"
       data-testid="briefing-card"
     >
-      {briefing.context && (
+      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+        <h2 className="text-base font-medium tracking-tight text-muted-foreground">
+          Today's plan
+        </h2>
+        {!isEmpty && (
+          <span
+            className="text-[10px] font-medium tracking-wide uppercase text-muted-foreground/80 px-2 py-0.5 rounded-full bg-muted"
+            data-testid="briefing-provenance"
+            title={PROVENANCE_LABEL[briefing.source]}
+          >
+            {PROVENANCE_LABEL[briefing.source]}
+          </span>
+        )}
+      </div>
+
+      {!isEmpty && briefing.context && (
         <p className="text-sm text-foreground/70 leading-relaxed mb-5">
           {briefing.context}
         </p>
       )}
 
-      {briefing.briefing.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
-          No open tasks today. Add one below or plan the week.
+      {isEmpty ? (
+        <div
+          className="rounded-2xl border border-dashed border-border py-8 px-5 text-center"
+          data-testid="briefing-empty"
+        >
+          <p className="font-serif text-base text-foreground mb-1">
+            Today's plan is empty.
+          </p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Mark an area active this week to draft today, or add a task.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {onChooseActiveAreas && (
+              <Button
+                size="sm"
+                className="rounded-xl"
+                onClick={onChooseActiveAreas}
+                data-testid="briefing-empty-choose-areas"
+              >
+                Choose active areas
+              </Button>
+            )}
+            {onAddTask && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-xl"
+                onClick={onAddTask}
+                data-testid="briefing-empty-add-task"
+              >
+                Add task
+              </Button>
+            )}
+          </div>
         </div>
       ) : (
         <ol className="space-y-5">
@@ -70,39 +128,41 @@ export function BriefingCard({
         </ol>
       )}
 
-      <div className="mt-6 pt-5 border-t border-border flex flex-wrap items-center gap-2">
-        <Button
-          size="sm"
-          className="rounded-xl gap-1.5"
-          onClick={onApprove}
-          disabled={isApproving || briefing.approved}
-          data-testid="briefing-approve"
-        >
-          <Check className="h-3.5 w-3.5" />
-          {briefing.approved ? "Locked in for today" : "Lock in today's focus"}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="rounded-xl gap-1.5"
-          onClick={onReshuffle}
-          disabled={isReshuffling}
-          data-testid="briefing-reshuffle"
-        >
-          <RotateCcw className={`h-3.5 w-3.5 ${isReshuffling ? "animate-spin" : ""}`} />
-          Reshuffle
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="rounded-xl gap-1.5"
-          onClick={onAddOwn}
-          data-testid="briefing-add-own"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add my own
-        </Button>
-      </div>
+      {!isEmpty && (
+        <div className="mt-6 pt-5 border-t border-border flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            className="rounded-xl gap-1.5"
+            onClick={onApprove}
+            disabled={isApproving || briefing.approved}
+            data-testid="briefing-approve"
+          >
+            <Check className="h-3.5 w-3.5" />
+            {briefing.approved ? "Locked in for today" : "Lock in today's focus"}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="rounded-xl gap-1.5"
+            onClick={onReshuffle}
+            disabled={isReshuffling}
+            data-testid="briefing-reshuffle"
+          >
+            <RotateCcw className={`h-3.5 w-3.5 ${isReshuffling ? "animate-spin" : ""}`} />
+            Reshuffle
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="rounded-xl gap-1.5"
+            onClick={onAddOwn}
+            data-testid="briefing-add-own"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add my own
+          </Button>
+        </div>
+      )}
     </motion.section>
   );
 }
@@ -133,10 +193,6 @@ function BriefingRow({
             {item.title}
           </h3>
           <div className="flex items-center gap-1.5 shrink-0">
-            {/* Phase 1 UX: drop the colored area dot from the briefing card.
-                Keeping just the priority badge reduces the multi-color noise
-                the UX walkthrough flagged. The area name still appears as
-                plain text for context. */}
             <span className="text-xs text-muted-foreground">{item.pillarName}</span>
             <PriorityBadge priority={item.priority} />
           </div>
@@ -186,20 +242,6 @@ function BriefingRow({
         </div>
       </div>
     </li>
-  );
-}
-
-function PillarPill({ name, color }: { name: string; color: string | null }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted text-xs font-medium text-foreground/80">
-      {color && (
-        <span
-          className="h-2 w-2 rounded-full flex-shrink-0"
-          style={{ backgroundColor: color }}
-        />
-      )}
-      {name}
-    </span>
   );
 }
 
