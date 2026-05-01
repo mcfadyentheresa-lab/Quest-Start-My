@@ -1,19 +1,16 @@
-import { lazy, Suspense } from "react";
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { lazy, Suspense, useEffect } from "react";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Layout from "@/components/layout";
 import { FocusTimerProvider } from "@/hooks/use-focus-timer";
 
-const Dashboard = lazy(() => import("@/pages/dashboard"));
 const TodayPage = lazy(() => import("@/pages/today"));
-const WeeklyPage = lazy(() => import("@/pages/weekly"));
-const HistoryPage = lazy(() => import("@/pages/history"));
-const ReviewPage = lazy(() => import("@/pages/review"));
+const CalendarPage = lazy(() => import("@/pages/calendar"));
+const HomeModulePage = lazy(() => import("@/pages/home-module"));
 const AreasPage = lazy(() => import("@/pages/areas"));
 const AreaDetailPage = lazy(() => import("@/pages/area-detail"));
-const HomeModulePage = lazy(() => import("@/pages/home-module"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function RouteFallback() {
@@ -24,24 +21,41 @@ function RouteFallback() {
   );
 }
 
+// Bookmarks and outbound links from earlier versions of the app may still
+// hit `/`, `/weekly`, `/history`, `/home`, or `/review` — fold them into the
+// new shape rather than 404. Each redirect uses `replace` so the back button
+// doesn't trap the user on a redirect frame.
+function Redirect({ to }: { to: string }) {
+  const [, navigate] = useLocation();
+  useEffect(() => {
+    navigate(to, { replace: true });
+  }, [to, navigate]);
+  return null;
+}
+
 function Router() {
   return (
     <Layout>
       <Suspense fallback={<RouteFallback />}>
         <Switch>
-          <Route path="/" component={Dashboard} />
           <Route path="/today" component={TodayPage} />
-          <Route path="/weekly" component={WeeklyPage} />
-          <Route path="/history" component={HistoryPage} />
-          <Route path="/home" component={HomeModulePage} />
-          <Route path="/review" component={ReviewPage} />
+          <Route path="/calendar" component={CalendarPage} />
           <Route path="/areas" component={AreasPage} />
           {/* Per-area brain-dump page (Phase 2). Mounted after /areas so
               the more specific path wins routing in wouter's Switch. */}
           <Route path="/areas/:id" component={AreaDetailPage} />
-          {/* Legacy alias: /pillars was the previous name. Keep it routable so
-              old bookmarks, links, and shared URLs don't 404. */}
-          <Route path="/pillars" component={AreasPage} />
+          {/* Reset / wellness flow. No longer in the bottom nav — reached
+              from Today's empty-state link. */}
+          <Route path="/home" component={HomeModulePage} />
+
+          {/* Legacy redirects */}
+          <Route path="/">{() => <Redirect to="/today" />}</Route>
+          <Route path="/weekly">{() => <Redirect to="/calendar?view=week" />}</Route>
+          <Route path="/history">{() => <Redirect to="/calendar?view=history" />}</Route>
+          <Route path="/review">{() => <Redirect to="/calendar?view=month" />}</Route>
+          {/* Legacy alias: /pillars was the previous name for areas. */}
+          <Route path="/pillars">{() => <Redirect to="/areas" />}</Route>
+
           <Route component={NotFound} />
         </Switch>
       </Suspense>
