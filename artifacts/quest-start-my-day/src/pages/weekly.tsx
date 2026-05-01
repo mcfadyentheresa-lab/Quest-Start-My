@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { PriorityBadge } from "@/components/priority-badge";
+import { ReflectionForm, type ReflectionValues } from "@/components/reflection-form";
 import { Plus, Trash2, Check, Loader2, ChevronDown, ChevronUp, Flame } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -59,12 +60,14 @@ export default function WeeklyPage() {
   const [businessFocus, setBusinessFocus] = useState("");
   const [creativeFocus, setCreativeFocus] = useState("");
   const [notes, setNotes] = useState("");
-  const [whatMovedForward, setWhatMovedForward] = useState("");
-  const [whatGotStuck, setWhatGotStuck] = useState("");
-  const [whatContinues, setWhatContinues] = useState("");
-  const [whatToDeprioritize, setWhatToDeprioritize] = useState("");
-  const [nextWeekFocus, setNextWeekFocus] = useState("");
+  const [reflection, setReflection] = useState<ReflectionValues>({
+    moved: "",
+    stuck: "",
+    drop: "",
+    nextFocus: "",
+  });
   const [saving, setSaving] = useState(false);
+  const [savingReflection, setSavingReflection] = useState(false);
   const [reflectionOpen, setReflectionOpen] = useState(false);
 
   useEffect(() => {
@@ -74,19 +77,20 @@ export default function WeeklyPage() {
       setBusinessFocus(existingPlan.businessFocus ?? "");
       setCreativeFocus(existingPlan.creativeFocus ?? "");
       setNotes(existingPlan.notes ?? "");
-      setWhatMovedForward(existingPlan.whatMovedForward ?? "");
-      setWhatGotStuck(existingPlan.whatGotStuck ?? "");
-      setWhatContinues(existingPlan.whatContinues ?? "");
-      setWhatToDeprioritize(existingPlan.whatToDeprioritize ?? "");
-      setNextWeekFocus(existingPlan.nextWeekFocus ?? "");
+      setReflection({
+        moved: existingPlan.whatMovedForward ?? "",
+        stuck: existingPlan.whatGotStuck ?? "",
+        drop: existingPlan.whatToDeprioritize ?? "",
+        nextFocus: existingPlan.nextWeekFocus ?? "",
+      });
       // Open reflection if they have content
-      if (existingPlan.whatMovedForward || existingPlan.whatGotStuck || existingPlan.whatContinues || existingPlan.whatToDeprioritize || existingPlan.nextWeekFocus) {
+      if (existingPlan.whatMovedForward || existingPlan.whatGotStuck || existingPlan.whatToDeprioritize || existingPlan.nextWeekFocus) {
         setReflectionOpen(true);
       }
     }
   }, [existingPlan]);
 
-  const save = async () => {
+  const savePlan = async () => {
     const cleanPriorities = priorities.filter(p => p.trim());
     setSaving(true);
     try {
@@ -99,11 +103,6 @@ export default function WeeklyPage() {
             businessFocus: businessFocus || undefined,
             creativeFocus: creativeFocus || undefined,
             notes: notes || undefined,
-            whatMovedForward: whatMovedForward || undefined,
-            whatGotStuck: whatGotStuck || undefined,
-            whatContinues: whatContinues || undefined,
-            whatToDeprioritize: whatToDeprioritize || undefined,
-            nextWeekFocus: nextWeekFocus || undefined,
           },
         });
       } else {
@@ -115,11 +114,6 @@ export default function WeeklyPage() {
             businessFocus: businessFocus || undefined,
             creativeFocus: creativeFocus || undefined,
             notes: notes || undefined,
-            whatMovedForward: whatMovedForward || undefined,
-            whatGotStuck: whatGotStuck || undefined,
-            whatContinues: whatContinues || undefined,
-            whatToDeprioritize: whatToDeprioritize || undefined,
-            nextWeekFocus: nextWeekFocus || undefined,
             areaPriorities: areas?.filter(p => p.isActiveThisWeek).map(p => p.id) ?? [],
           },
         });
@@ -131,6 +125,39 @@ export default function WeeklyPage() {
       toast({ title: "Failed to save", variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveReflection = async (next: ReflectionValues) => {
+    setReflection(next);
+    setSavingReflection(true);
+    try {
+      const payload = {
+        whatMovedForward: next.moved || undefined,
+        whatGotStuck: next.stuck || undefined,
+        whatToDeprioritize: next.drop || undefined,
+        nextWeekFocus: next.nextFocus || undefined,
+      };
+      if (existingPlan) {
+        await updatePlan.mutateAsync({ id: existingPlan.id, data: payload });
+      } else {
+        const cleanPriorities = priorities.filter(p => p.trim());
+        await createPlan.mutateAsync({
+          data: {
+            weekOf,
+            priorities: cleanPriorities,
+            areaPriorities: areas?.filter(p => p.isActiveThisWeek).map(p => p.id) ?? [],
+            ...payload,
+          },
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: getListWeeklyPlansQueryKey({ weekOf }) });
+      queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+      toast({ title: "Reflection saved" });
+    } catch {
+      toast({ title: "Failed to save", variant: "destructive" });
+    } finally {
+      setSavingReflection(false);
     }
   };
 
@@ -308,7 +335,7 @@ export default function WeeklyPage() {
           </div>
         </div>
 
-        <Button className="w-full rounded-xl" onClick={save} disabled={saving}>
+        <Button className="w-full rounded-xl" onClick={savePlan} disabled={saving}>
           {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
           Save weekly plan
         </Button>
@@ -338,66 +365,14 @@ export default function WeeklyPage() {
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <div className="px-5 pb-5 space-y-3 border-t border-border pt-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="weekly-what-moved-forward">What moved forward?</Label>
-                  <Textarea
-                    id="weekly-what-moved-forward"
-                    value={whatMovedForward}
-                    onChange={e => setWhatMovedForward(e.target.value)}
-                    placeholder="What made real progress this week?"
-                    className="rounded-xl resize-none"
-                    rows={2}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="weekly-what-got-stuck">What got stuck?</Label>
-                  <Textarea
-                    id="weekly-what-got-stuck"
-                    value={whatGotStuck}
-                    onChange={e => setWhatGotStuck(e.target.value)}
-                    placeholder="What felt blocked or stalled?"
-                    className="rounded-xl resize-none"
-                    rows={2}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="weekly-what-continues">What continues next week?</Label>
-                  <Textarea
-                    id="weekly-what-continues"
-                    value={whatContinues}
-                    onChange={e => setWhatContinues(e.target.value)}
-                    placeholder="What carries forward?"
-                    className="rounded-xl resize-none"
-                    rows={2}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="weekly-what-to-deprioritize">What to deprioritize</Label>
-                  <Textarea
-                    id="weekly-what-to-deprioritize"
-                    value={whatToDeprioritize}
-                    onChange={e => setWhatToDeprioritize(e.target.value)}
-                    placeholder="What's OK to let go of or slow down?"
-                    className="rounded-xl resize-none"
-                    rows={2}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="weekly-next-week-focus">Next week's key focus</Label>
-                  <Textarea
-                    id="weekly-next-week-focus"
-                    value={nextWeekFocus}
-                    onChange={e => setNextWeekFocus(e.target.value)}
-                    placeholder="One sentence: what's the north star next week?"
-                    className="rounded-xl resize-none"
-                    rows={2}
-                  />
-                </div>
-                <Button className="w-full rounded-xl" onClick={save} disabled={saving}>
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Save reflection
-                </Button>
+              <div className="px-5 pb-5 border-t border-border pt-4">
+                <ReflectionForm
+                  cadence="week"
+                  value={reflection}
+                  onSave={saveReflection}
+                  saving={savingReflection}
+                  saveLabel="Save reflection"
+                />
               </div>
             </motion.div>
           )}
