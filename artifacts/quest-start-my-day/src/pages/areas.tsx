@@ -16,7 +16,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AreaSparklineWidget } from "@/components/area-sparkline";
-import { PriorityBadge } from "@/components/priority-badge";
+import { PriorityBadge, PriorityHelp } from "@/components/priority-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -703,23 +703,10 @@ interface AreaCardProps {
     color?: string | null;
     isActiveThisWeek: boolean;
     portfolioStatus?: string | null;
-    featureTag?: string | null;
-    category?: string | null;
-    currentStage?: string | null;
-    whyItMatters?: string | null;
-    nowFocus?: string | null;
-    nextFocus?: string | null;
-    laterFocus?: string | null;
-    blockers?: string | null;
   };
-  onStatusChange: (id: number, status: PortfolioStatus) => void;
-  statusLoading: boolean;
 }
 
-function AreaCard({ area, onStatusChange, statusLoading }: AreaCardProps) {
-  const [expanded, setExpanded] = useState(false);
-  const hasDetail = area.whyItMatters || area.nowFocus || area.nextFocus || area.laterFocus || area.blockers || area.currentStage;
-
+function AreaCard({ area }: AreaCardProps) {
   return (
     <div className="rounded-2xl bg-card border border-card-border">
       <div className="p-4">
@@ -732,30 +719,15 @@ function AreaCard({ area, onStatusChange, statusLoading }: AreaCardProps) {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-serif font-medium text-foreground">{area.name}</span>
                 <PriorityBadge priority={area.priority} />
-                <PortfolioStatusBadge
-                  status={area.portfolioStatus}
-                  onStatusSelect={(s) => onStatusChange(area.id, s)}
-                  loading={statusLoading}
-                />
-                {area.featureTag && featureTagLabels[area.featureTag] && (
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${featureTagStyles[area.featureTag] ?? ""}`}>
-                    {featureTagLabels[area.featureTag]}
-                  </span>
-                )}
+                <PriorityHelp />
               </div>
               {area.description && (
                 <p className="text-xs text-muted-foreground mt-1">{area.description}</p>
-              )}
-              {area.currentStage && (
-                <p className="text-xs text-muted-foreground/70 mt-0.5 italic">Stage: {area.currentStage}</p>
               )}
             </div>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
             <AreaSparklineWidget areaId={area.id} />
-            {/* Phase 2: link into the per-area brain-dump page. The card
-                still expands inline below for the focus/stage notes; the
-                "Open" button is the way into adding/managing tasks. */}
             <Button
               asChild
               variant="outline"
@@ -771,71 +743,9 @@ function AreaCard({ area, onStatusChange, statusLoading }: AreaCardProps) {
                 <ArrowRight className="h-3 w-3" />
               </Link>
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-xl"
-              onClick={() => setExpanded(!expanded)}
-              aria-label={expanded ? `Collapse ${area.name} details` : `Expand ${area.name} details`}
-              aria-expanded={expanded}
-            >
-              {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </Button>
           </div>
         </div>
       </div>
-
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <motion.div
-            key="detail"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="border-t border-border mx-4" />
-            <div className="px-4 pb-4 pt-3 space-y-3">
-              {area.whyItMatters && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Why it matters</p>
-                  <p className="text-sm text-foreground/80">{area.whyItMatters}</p>
-                </div>
-              )}
-              {area.nowFocus && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Now</p>
-                  <p className="text-sm text-foreground/80">{area.nowFocus}</p>
-                </div>
-              )}
-              {area.nextFocus && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Next</p>
-                  <p className="text-sm text-foreground/80">{area.nextFocus}</p>
-                </div>
-              )}
-              {area.laterFocus && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Later</p>
-                  <p className="text-sm text-foreground/80">{area.laterFocus}</p>
-                </div>
-              )}
-              {area.blockers && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-rose-500 dark:text-rose-400 mb-1">Blockers</p>
-                  <p className="text-sm text-foreground/80">{area.blockers}</p>
-                </div>
-              )}
-
-              {/* Milestones section */}
-              <div className="border-t border-border pt-3">
-                <MilestonesSection areaId={area.id} />
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -847,69 +757,12 @@ const P_LEGEND = [
   { level: "P4", label: "Parked / inactive", color: "bg-muted text-muted-foreground" },
 ];
 
-const FOCUS_DURATION_OPTIONS = [5, 10, 15, 25] as const;
-
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: areas, isLoading, isError, refetch } = useListAreas();
   const createArea = useCreateArea();
-  const updateArea = useUpdateArea();
   const [addOpen, setAddOpen] = useState(false);
-
-  const focus = useFocusTimer();
-  const soundEnabled = focus.soundEnabled;
-  const defaultDuration = focus.defaultDuration;
-  const isPresetDuration = (FOCUS_DURATION_OPTIONS as readonly number[]).includes(defaultDuration);
-  const [customDurationInput, setCustomDurationInput] = useState<string>(isPresetDuration ? "" : String(defaultDuration));
-
-  const toggleSound = useCallback(() => {
-    focus.setSoundEnabled(!focus.soundEnabled);
-  }, [focus]);
-
-  const setDuration = useCallback((d: number) => {
-    focus.setDefaultDuration(d);
-    setCustomDurationInput("");
-  }, [focus]);
-
-  const handleCustomDurationChange = (raw: string) => {
-    const cleaned = raw.replace(/[^0-9]/g, "").slice(0, 3);
-    setCustomDurationInput(cleaned);
-    if (cleaned === "") return;
-    const parsed = parseInt(cleaned, 10);
-    if (!isNaN(parsed) && parsed >= MIN_DURATION_MINUTES && parsed <= MAX_DURATION_MINUTES) {
-      focus.setDefaultDuration(parsed);
-    }
-  };
-
-  const handleCustomDurationCommit = () => {
-    if (customDurationInput === "") return;
-    const parsed = parseInt(customDurationInput, 10);
-    if (isNaN(parsed)) { setCustomDurationInput(""); return; }
-    const safe = clampDuration(parsed);
-    focus.setDefaultDuration(safe);
-    setCustomDurationInput(String(safe));
-  };
-
-  const handleToggleNotifications = useCallback(async () => {
-    if (focus.notificationsEnabled) {
-      await focus.setNotificationsEnabled(false);
-      return;
-    }
-    const result = await focus.setNotificationsEnabled(true);
-    if (result === "denied") {
-      toast({
-        title: "Notifications blocked",
-        description: "Your browser is blocking notifications for this site. Update site permissions to enable them.",
-        variant: "destructive",
-      });
-    } else if (result === "unsupported") {
-      toast({
-        title: "Not supported",
-        description: "This browser does not support desktop notifications.",
-      });
-    }
-  }, [focus, toast]);
 
   const handleCreate = (data: AreaFormData) => {
     createArea.mutate(
@@ -930,36 +783,6 @@ export default function SettingsPage() {
           toast({ title: "Area added" });
         },
         onError: () => toast({ title: "Failed to add area", variant: "destructive" }),
-      }
-    );
-  };
-
-  const handleStatusChange = (id: number, status: PortfolioStatus, previousStatus?: PortfolioStatus) => {
-    const prevStatus = previousStatus ?? ((areas?.find(p => p.id === id)?.portfolioStatus ?? "Active") as PortfolioStatus);
-    updateArea.mutate(
-      {
-        id,
-        data: {
-          portfolioStatus: status,
-        },
-      },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListAreasQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-          toast({
-            title: `Moved to ${status}`,
-            action: (
-              <ToastAction
-                altText="Undo status change"
-                onClick={() => handleStatusChange(id, prevStatus, status)}
-              >
-                Undo
-              </ToastAction>
-            ),
-          });
-        },
-        onError: () => toast({ title: "Failed to update status", variant: "destructive" }),
       }
     );
   };
@@ -1050,19 +873,6 @@ export default function SettingsPage() {
         </section>
       )}
 
-      {/* P1-P4 legend */}
-      <section className="rounded-2xl bg-card border border-card-border p-4">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Priority guide</p>
-        <div className="space-y-2">
-          {P_LEGEND.map(({ level, label, color }) => (
-            <div key={level} className="flex items-center gap-2.5">
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${color}`}>{level}</span>
-              <span className="text-sm text-foreground/70">{label}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {areas?.length === 0 ? (
         <div className="text-center py-12 px-6 rounded-2xl bg-card border border-dashed border-border">
           <Settings className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
@@ -1095,8 +905,6 @@ export default function SettingsPage() {
                   <AreaCard
                     key={area.id}
                     area={area}
-                    onStatusChange={handleStatusChange}
-                    statusLoading={updateArea.isPending}
                   />
                 ))}
               </div>
@@ -1105,132 +913,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Focus reminders preferences */}
-      <motion.section
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl bg-card border border-card-border p-5 space-y-4"
-      >
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-0.5">Focus reminders</p>
-          <p className="text-xs text-muted-foreground">Optional timed focus blocks with a gentle nudge when time is up.</p>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-foreground">Sound reminders</p>
-            <p className="text-xs text-muted-foreground">Play a soft chime when your focus block ends</p>
-          </div>
-          <button
-            onClick={toggleSound}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
-              soundEnabled ? "bg-violet-600" : "bg-muted"
-            }`}
-            role="switch"
-            aria-checked={soundEnabled}
-            aria-label="Toggle sound reminders"
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                soundEnabled ? "translate-x-6" : "translate-x-1"
-              }`}
-            />
-          </button>
-        </div>
-
-        <div>
-          <p className="text-sm font-medium text-foreground mb-2">Default focus duration</p>
-          <div className="flex gap-2 flex-wrap items-center">
-            {FOCUS_DURATION_OPTIONS.map(d => (
-              <button
-                key={d}
-                onClick={() => setDuration(d)}
-                className={`text-sm px-4 py-1.5 rounded-full border transition-colors font-medium ${
-                  defaultDuration === d && customDurationInput === ""
-                    ? "bg-violet-100 border-violet-400 text-violet-700 dark:bg-violet-900/40 dark:border-violet-500 dark:text-violet-300"
-                    : "border-border text-muted-foreground hover:border-violet-300 hover:text-violet-600"
-                }`}
-                aria-pressed={defaultDuration === d && customDurationInput === ""}
-              >
-                {d} min
-              </button>
-            ))}
-            <input
-              type="number"
-              inputMode="numeric"
-              min={MIN_DURATION_MINUTES}
-              max={MAX_DURATION_MINUTES}
-              step={1}
-              value={customDurationInput}
-              onChange={e => handleCustomDurationChange(e.target.value)}
-              onBlur={handleCustomDurationCommit}
-              onKeyDown={e => { if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur(); }}
-              placeholder={isPresetDuration ? "custom" : `${defaultDuration}m`}
-              aria-label="Custom default duration in minutes (1 to 180)"
-              className={`w-24 text-sm px-3 py-1.5 rounded-full border bg-transparent text-center font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
-                !isPresetDuration && customDurationInput !== ""
-                  ? "bg-violet-100 border-violet-400 text-violet-700 dark:bg-violet-900/40 dark:border-violet-500 dark:text-violet-300"
-                  : "border-border text-muted-foreground"
-              }`}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground mt-1.5">Type any value from {MIN_DURATION_MINUTES} to {MAX_DURATION_MINUTES} minutes.</p>
-        </div>
-
-        <div className="flex items-center justify-between border-t border-border pt-4">
-          <div>
-            <p className="text-sm font-medium text-foreground">Desktop notifications</p>
-            <p className="text-xs text-muted-foreground">
-              {focus.notificationPermission === "denied"
-                ? "Blocked by your browser — update site permissions to enable"
-                : focus.notificationPermission === "unsupported"
-                  ? "This browser does not support notifications"
-                  : "Get notified when your focus block ends, even if the tab isn't focused"}
-            </p>
-          </div>
-          <button
-            onClick={handleToggleNotifications}
-            disabled={focus.notificationPermission === "denied" || focus.notificationPermission === "unsupported"}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed ${
-              focus.notificationsEnabled ? "bg-violet-600" : "bg-muted"
-            }`}
-            role="switch"
-            aria-checked={focus.notificationsEnabled}
-            aria-label="Toggle desktop notifications"
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                focus.notificationsEnabled ? "translate-x-6" : "translate-x-1"
-              }`}
-            />
-          </button>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1">
-          <span className="flex items-center gap-1.5">
-            {soundEnabled ? (
-              <Volume2 className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
-            ) : (
-              <VolumeX className="h-3.5 w-3.5 text-muted-foreground" />
-            )}
-            <span className="text-xs text-muted-foreground">
-              {soundEnabled
-                ? `Sound on · ${defaultDuration}-min default · Browser must allow audio after first interaction`
-                : `Sound off · ${defaultDuration}-min default · Visual reminder only`}
-            </span>
-          </span>
-          <span className="flex items-center gap-1.5">
-            {focus.notificationsEnabled ? (
-              <Bell className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
-            ) : (
-              <BellOff className="h-3.5 w-3.5 text-muted-foreground" />
-            )}
-            <span className="text-xs text-muted-foreground">
-              {focus.notificationsEnabled ? "Desktop notifications on" : "Desktop notifications off"}
-            </span>
-          </span>
-        </div>
-      </motion.section>
     </div>
   );
 }
