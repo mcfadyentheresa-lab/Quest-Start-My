@@ -28,14 +28,7 @@ export const ListAreasResponseItem = zod.object({
   "color": zod.string().nullish(),
   "createdAt": zod.string(),
   "portfolioStatus": zod.string().nullish(),
-  "currentStage": zod.string().nullish(),
-  "whyItMatters": zod.string().nullish(),
-  "nowFocus": zod.string().nullish(),
-  "nextFocus": zod.string().nullish(),
-  "laterFocus": zod.string().nullish(),
-  "blockers": zod.string().nullish(),
   "lastUpdated": zod.string().nullish(),
-  "featureTag": zod.enum(['personal', 'shared', 'sellable']).nullish().describe('Optional product\/feature label for productization tracking'),
   "category": zod.enum(['business', 'creative', 'wellness']).nullish().describe('Task category for this area, used to auto-categorize suggested tasks'),
   "honestNote": zod.string().nullish().describe('Soft acknowledgment of friction (anxiety, stuck, avoiding). Optional, user-facing only.')
 })
@@ -52,7 +45,6 @@ export const CreateAreaBody = zod.object({
   "isActiveThisWeek": zod.boolean(),
   "color": zod.string().nullish(),
   "portfolioStatus": zod.string().nullish(),
-  "featureTag": zod.enum(['personal', 'shared', 'sellable']).nullish().describe('Optional product\/feature label for productization tracking'),
   "category": zod.enum(['business', 'creative', 'wellness']).nullish().describe('Task category for this area'),
   "honestNote": zod.string().nullish()
 })
@@ -72,14 +64,7 @@ export const UpdateAreaBody = zod.object({
   "isActiveThisWeek": zod.boolean().optional(),
   "color": zod.string().nullish(),
   "portfolioStatus": zod.string().nullish(),
-  "currentStage": zod.string().nullish(),
-  "whyItMatters": zod.string().nullish(),
-  "nowFocus": zod.string().nullish(),
-  "nextFocus": zod.string().nullish(),
-  "laterFocus": zod.string().nullish(),
-  "blockers": zod.string().nullish(),
   "lastUpdated": zod.string().nullish(),
-  "featureTag": zod.enum(['personal', 'shared', 'sellable']).nullish(),
   "category": zod.enum(['business', 'creative', 'wellness']).nullish().describe('Task category for this area'),
   "honestNote": zod.string().nullish()
 })
@@ -93,14 +78,7 @@ export const UpdateAreaResponse = zod.object({
   "color": zod.string().nullish(),
   "createdAt": zod.string(),
   "portfolioStatus": zod.string().nullish(),
-  "currentStage": zod.string().nullish(),
-  "whyItMatters": zod.string().nullish(),
-  "nowFocus": zod.string().nullish(),
-  "nextFocus": zod.string().nullish(),
-  "laterFocus": zod.string().nullish(),
-  "blockers": zod.string().nullish(),
   "lastUpdated": zod.string().nullish(),
-  "featureTag": zod.enum(['personal', 'shared', 'sellable']).nullish().describe('Optional product\/feature label for productization tracking'),
   "category": zod.enum(['business', 'creative', 'wellness']).nullish().describe('Task category for this area, used to auto-categorize suggested tasks'),
   "honestNote": zod.string().nullish().describe('Soft acknowledgment of friction (anxiety, stuck, avoiding). Optional, user-facing only.')
 })
@@ -570,14 +548,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "color": zod.string().nullish(),
   "createdAt": zod.string(),
   "portfolioStatus": zod.string().nullish(),
-  "currentStage": zod.string().nullish(),
-  "whyItMatters": zod.string().nullish(),
-  "nowFocus": zod.string().nullish(),
-  "nextFocus": zod.string().nullish(),
-  "laterFocus": zod.string().nullish(),
-  "blockers": zod.string().nullish(),
   "lastUpdated": zod.string().nullish(),
-  "featureTag": zod.enum(['personal', 'shared', 'sellable']).nullish().describe('Optional product\/feature label for productization tracking'),
   "category": zod.enum(['business', 'creative', 'wellness']).nullish().describe('Task category for this area, used to auto-categorize suggested tasks'),
   "honestNote": zod.string().nullish().describe('Soft acknowledgment of friction (anxiety, stuck, avoiding). Optional, user-facing only.')
 })),

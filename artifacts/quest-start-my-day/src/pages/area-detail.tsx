@@ -27,6 +27,7 @@ import {
   useListMilestones,
   useCreateTask,
   useUpdateTask,
+  useDeleteTask,
   useUpdateArea,
   useCreateMilestone,
   useUpdateMilestone,
@@ -79,6 +80,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PriorityBadge, PriorityHelp } from "@/components/priority-badge";
 import { useToast } from "@/hooks/use-toast";
+import { parseList } from "@/lib/parse-list";
 
 const PRIORITIES = ["P1", "P2", "P3", "P4"] as const;
 type Priority = typeof PRIORITIES[number];
@@ -86,51 +88,6 @@ type Priority = typeof PRIORITIES[number];
 /** Today's date in YYYY-MM-DD (server expects this for new task `date`). */
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-/** Split a brain-dump textarea into individual task titles. */
-function splitDumpIntoTitles(raw: string): string[] {
-  return raw
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .map((line) => (line.length > 280 ? line.slice(0, 280) : line));
-}
-
-/** Strip a leading bullet/number prefix from a single line. */
-function stripBulletPrefix(line: string): string {
-  // Bullets: -, *, •, –, — (em dash), with optional spaces
-  // Numbers: 1.  1)  (1)  1:
-  return line.replace(/^\s*(?:[-*•–—]|\(\d+\)|\d+[.):])\s+/, "").trim();
-}
-
-/**
- * Parse pasted text into a list of step titles.
- * Splits on newlines (primary) then strips bullet/number prefixes.
- * If a single line has commas and no newlines, splits on commas — but
- * only if every chunk is < 80 chars (otherwise treat as one step).
- */
-function parseStepsPaste(raw: string): string[] {
-  const lines = raw
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
-
-  // Single-line, comma-separated short chunks → split on commas.
-  if (lines.length === 1 && lines[0]!.includes(",")) {
-    const chunks = lines[0]!
-      .split(",")
-      .map((c) => stripBulletPrefix(c).trim())
-      .filter((c) => c.length > 0);
-    if (chunks.length > 1 && chunks.every((c) => c.length < 80)) {
-      return chunks.map((c) => (c.length > 280 ? c.slice(0, 280) : c));
-    }
-  }
-
-  return lines
-    .map((line) => stripBulletPrefix(line))
-    .filter((line) => line.length > 0)
-    .map((line) => (line.length > 280 ? line.slice(0, 280) : line));
 }
 
 function nextPriority(p: string): Priority {
@@ -191,6 +148,7 @@ export default function AreaDetailPage() {
 
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
+  const deleteTask = useDeleteTask();
   const updateArea = useUpdateArea();
   const createMilestone = useCreateMilestone();
   const updateMilestone = useUpdateMilestone();
@@ -202,7 +160,7 @@ export default function AreaDetailPage() {
   // ---- Inbox form state ----
   const [draft, setDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const draftLines = useMemo(() => splitDumpIntoTitles(draft), [draft]);
+  const draftLines = useMemo(() => parseList(draft, { stripBullets: false }), [draft]);
 
   // ---- New goal form state ----
   const [newGoalTitle, setNewGoalTitle] = useState("");
@@ -529,6 +487,23 @@ export default function AreaDetailPage() {
                     });
                   }
                 }}
+                onEditStep={async (step, nextTitle) => {
+                  try {
+                    await updateTask.mutateAsync({ id: step.id, data: { title: nextTitle } });
+                    invalidateAreaData();
+                  } catch {
+                    toast({ title: "Couldn't save the edit.", variant: "destructive" });
+                  }
+                }}
+                onRemoveStep={async (step) => {
+                  try {
+                    await deleteTask.mutateAsync({ id: step.id });
+                    invalidateAreaData();
+                    toast({ title: "Step removed.", description: step.title });
+                  } catch {
+                    toast({ title: "Couldn't remove the step.", variant: "destructive" });
+                  }
+                }}
               />
             ))}
           </ul>
@@ -847,6 +822,8 @@ interface GoalCardProps {
   onToggleMode: () => Promise<void>;
   onDeleteGoal: () => Promise<void>;
   onSetCompleted: (completedAt: string | null) => Promise<void>;
+  onEditStep: (step: Task, nextTitle: string) => Promise<void>;
+  onRemoveStep: (step: Task) => Promise<void>;
 }
 
 function GoalCard({
@@ -861,6 +838,8 @@ function GoalCard({
   onToggleMode,
   onDeleteGoal,
   onSetCompleted,
+  onEditStep,
+  onRemoveStep,
 }: GoalCardProps) {
   const isComplete = !!goal.completedAt;
   // Default closed for completed goals — they collapse to a single line.
@@ -1075,6 +1054,8 @@ function GoalCard({
                       step={step}
                       isLive={liveStepId === null || liveStepId === step.id}
                       onToggle={() => handleStepToggle(step)}
+                      onEdit={(nextTitle) => onEditStep(step, nextTitle)}
+                      onRemove={() => onRemoveStep(step)}
                     />
                   ))}
                 </ul>
@@ -1153,7 +1134,7 @@ function BulkAddStepsPanel({ onCancel, onSave }: BulkAddStepsPanelProps) {
   const saveDisabled = saving || cleanRows.length === 0 || tooLong;
 
   const handleParse = () => {
-    const parsed = parseStepsPaste(raw);
+    const parsed = parseList(raw, { allowCommaSplit: true });
     setRows(parsed);
   };
 
@@ -1301,13 +1282,23 @@ interface SortableStepRowProps {
   step: Task;
   isLive: boolean;
   onToggle: () => void;
+  onEdit: (nextTitle: string) => Promise<void>;
+  onRemove: () => Promise<void>;
 }
 
-function SortableStepRow({ step, isLive, onToggle }: SortableStepRowProps) {
+function SortableStepRow({ step, isLive, onToggle, onEdit, onRemove }: SortableStepRowProps) {
   const isDone = step.status === "done";
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(step.title);
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const editInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Drag is disabled while editing or confirming removal — both interactions
+  // own pointer events on the row.
+  const dragDisabled = isDone || editing || confirmingRemove;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: step.id,
-    disabled: isDone,
+    disabled: dragDisabled,
   });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -1316,19 +1307,52 @@ function SortableStepRow({ step, isLive, onToggle }: SortableStepRowProps) {
   };
   const muted = !isLive && !isDone;
 
+  useEffect(() => {
+    if (editing) {
+      const t = setTimeout(() => {
+        editInputRef.current?.focus();
+        editInputRef.current?.select();
+      }, 0);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [editing]);
+
+  // Keep draft in sync if the underlying title changes (e.g. after another
+  // edit win) and the row isn't actively being edited.
+  useEffect(() => {
+    if (!editing) setDraftTitle(step.title);
+  }, [step.title, editing]);
+
+  const commitEdit = async () => {
+    const next = draftTitle.trim();
+    if (!next || next === step.title) {
+      setEditing(false);
+      setDraftTitle(step.title);
+      return;
+    }
+    try {
+      await onEdit(next);
+    } finally {
+      setEditing(false);
+    }
+  };
+
+  const cancelEdit = () => {
+    setDraftTitle(step.title);
+    setEditing(false);
+  };
+
   return (
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 rounded-xl border border-card-border/60 px-2 py-1.5 ${
+      className={`group flex items-center gap-2 rounded-xl border border-card-border/60 px-2 py-1.5 ${
         isDone ? "bg-card/30 opacity-60" : muted ? "bg-card/40 opacity-60" : "bg-background"
       }`}
     >
-      {isDone ? (
-        <span
-          className="flex-shrink-0 text-transparent"
-          aria-hidden
-        >
+      {dragDisabled ? (
+        <span className="flex-shrink-0 text-transparent" aria-hidden>
           <GripVertical className="h-3.5 w-3.5" />
         </span>
       ) : (
@@ -1355,18 +1379,79 @@ function SortableStepRow({ step, isLive, onToggle }: SortableStepRowProps) {
       >
         {isDone && <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />}
       </button>
-      <span
-        className={`flex-1 min-w-0 text-sm truncate ${
-          isDone ? "line-through text-muted-foreground" : "text-foreground"
-        }`}
-      >
-        {step.title}
-      </span>
-      {isLive && !isDone && (
-        <span className="text-[10px] uppercase tracking-wide text-foreground/60 font-medium">
+
+      {editing ? (
+        <input
+          ref={editInputRef}
+          type="text"
+          value={draftTitle}
+          onChange={(e) => setDraftTitle(e.target.value)}
+          onBlur={() => void commitEdit()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void commitEdit();
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              cancelEdit();
+            }
+          }}
+          aria-label={`Edit step "${step.title}"`}
+          className="flex-1 min-w-0 text-sm bg-transparent border-b border-card-border focus:outline-none focus:border-foreground"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          aria-label={`Edit step "${step.title}"`}
+          className={`flex-1 min-w-0 text-left text-sm truncate cursor-text ${
+            isDone ? "line-through text-muted-foreground" : "text-foreground hover:text-foreground/80"
+          }`}
+        >
+          {step.title}
+        </button>
+      )}
+
+      {isLive && !isDone && !editing && !confirmingRemove && (
+        <span className="text-[10px] uppercase tracking-wide text-foreground/60 font-medium flex-shrink-0">
           Up next
         </span>
       )}
+
+      {confirmingRemove ? (
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs"
+            onClick={() => setConfirmingRemove(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="destructive"
+            className="h-7 px-2 text-xs"
+            onClick={async () => {
+              await onRemove();
+              setConfirmingRemove(false);
+            }}
+          >
+            Remove step
+          </Button>
+        </div>
+      ) : !editing ? (
+        <button
+          type="button"
+          onClick={() => setConfirmingRemove(true)}
+          aria-label={`Remove step "${step.title}"`}
+          className="flex-shrink-0 p-1 rounded-md text-muted-foreground/50 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-opacity"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
     </li>
   );
 }

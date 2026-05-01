@@ -243,18 +243,6 @@ export const AreaPriority = {
 } as const;
 
 /**
- * Optional product/feature label for productization tracking
- */
-export type AreaFeatureTag = typeof AreaFeatureTag[keyof typeof AreaFeatureTag] | null;
-
-
-export const AreaFeatureTag = {
-  personal: 'personal',
-  shared: 'shared',
-  sellable: 'sellable',
-} as const;
-
-/**
  * Task category for this area, used to auto-categorize suggested tasks
  */
 export type AreaCategory = typeof AreaCategory[keyof typeof AreaCategory] | null;
@@ -275,15 +263,7 @@ export interface Area {
   color?: string | null;
   createdAt: string;
   portfolioStatus?: string | null;
-  currentStage?: string | null;
-  whyItMatters?: string | null;
-  nowFocus?: string | null;
-  nextFocus?: string | null;
-  laterFocus?: string | null;
-  blockers?: string | null;
   lastUpdated?: string | null;
-  /** Optional product/feature label for productization tracking */
-  featureTag?: AreaFeatureTag;
   /** Task category for this area, used to auto-categorize suggested tasks */
   category?: AreaCategory;
   /** Soft acknowledgment of friction (anxiety, stuck, avoiding). Optional, user-facing only. */
@@ -298,18 +278,6 @@ export const CreateAreaBodyPriority = {
   P2: 'P2',
   P3: 'P3',
   P4: 'P4',
-} as const;
-
-/**
- * Optional product/feature label for productization tracking
- */
-export type CreateAreaBodyFeatureTag = typeof CreateAreaBodyFeatureTag[keyof typeof CreateAreaBodyFeatureTag] | null;
-
-
-export const CreateAreaBodyFeatureTag = {
-  personal: 'personal',
-  shared: 'shared',
-  sellable: 'sellable',
 } as const;
 
 /**
@@ -331,8 +299,6 @@ export interface CreateAreaBody {
   isActiveThisWeek: boolean;
   color?: string | null;
   portfolioStatus?: string | null;
-  /** Optional product/feature label for productization tracking */
-  featureTag?: CreateAreaBodyFeatureTag;
   /** Task category for this area */
   category?: CreateAreaBodyCategory;
   honestNote?: string | null;
@@ -346,15 +312,6 @@ export const UpdateAreaBodyPriority = {
   P2: 'P2',
   P3: 'P3',
   P4: 'P4',
-} as const;
-
-export type UpdateAreaBodyFeatureTag = typeof UpdateAreaBodyFeatureTag[keyof typeof UpdateAreaBodyFeatureTag] | null;
-
-
-export const UpdateAreaBodyFeatureTag = {
-  personal: 'personal',
-  shared: 'shared',
-  sellable: 'sellable',
 } as const;
 
 /**
@@ -376,14 +333,7 @@ export interface UpdateAreaBody {
   isActiveThisWeek?: boolean;
   color?: string | null;
   portfolioStatus?: string | null;
-  currentStage?: string | null;
-  whyItMatters?: string | null;
-  nowFocus?: string | null;
-  nextFocus?: string | null;
-  laterFocus?: string | null;
-  blockers?: string | null;
   lastUpdated?: string | null;
-  featureTag?: UpdateAreaBodyFeatureTag;
   /** Task category for this area */
   category?: UpdateAreaBodyCategory;
   honestNote?: string | null;

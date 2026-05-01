@@ -1133,32 +1133,9 @@ components:
         portfolioStatus:
           type: string
           nullable: true
-        currentStage:
-          type: string
-          nullable: true
-        whyItMatters:
-          type: string
-          nullable: true
-        nowFocus:
-          type: string
-          nullable: true
-        nextFocus:
-          type: string
-          nullable: true
-        laterFocus:
-          type: string
-          nullable: true
-        blockers:
-          type: string
-          nullable: true
         lastUpdated:
           type: string
           nullable: true
-        featureTag:
-          type: string
-          nullable: true
-          enum: [personal, shared, sellable]
-          description: Optional product/feature label for productization tracking
         category:
           type: string
           nullable: true
@@ -1194,11 +1171,6 @@ components:
         portfolioStatus:
           type: string
           nullable: true
-        featureTag:
-          type: string
-          nullable: true
-          enum: [personal, shared, sellable]
-          description: Optional product/feature label for productization tracking
         category:
           type: string
           nullable: true
@@ -1231,31 +1203,9 @@ components:
         portfolioStatus:
           type: string
           nullable: true
-        currentStage:
-          type: string
-          nullable: true
-        whyItMatters:
-          type: string
-          nullable: true
-        nowFocus:
-          type: string
-          nullable: true
-        nextFocus:
-          type: string
-          nullable: true
-        laterFocus:
-          type: string
-          nullable: true
-        blockers:
-          type: string
-          nullable: true
         lastUpdated:
           type: string
           nullable: true
-        featureTag:
-          type: string
-          nullable: true
-          enum: [personal, shared, sellable]
         category:
           type: string
           nullable: true

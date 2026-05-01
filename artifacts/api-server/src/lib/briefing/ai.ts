@@ -80,7 +80,7 @@ function buildUserPrompt(input: BriefingInput): string {
   const pillarLines = input.pillars
     .map(
       (p) =>
-        `- [${p.priority ?? "P3"}] ${p.name}${p.isActiveThisWeek ? " (active this week)" : ""}${p.portfolioStatus ? ` — ${p.portfolioStatus}` : ""}${p.nowFocus ? ` — now: ${p.nowFocus}` : ""}`,
+        `- [${p.priority ?? "P3"}] ${p.name}${p.isActiveThisWeek ? " (active this week)" : ""}${p.portfolioStatus ? ` — ${p.portfolioStatus}` : ""}`,
     )
     .join("\n");
 

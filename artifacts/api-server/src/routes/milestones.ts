@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { and, eq, asc, inArray } from "drizzle-orm";
 import { db, milestonesTable, tasksTable, areasTable } from "@workspace/db";
+import { desc } from "drizzle-orm";
 import {
   ListMilestonesQueryParams,
   ListMilestonesResponse,
@@ -166,7 +167,7 @@ router.post("/milestones/:id/breakdown", asyncHandler(async (req, res): Promise<
   // 409 if the goal already has steps — the user should clear or edit them
   // rather than have the AI duplicate work.
   const existing = await db
-    .select({ id: tasksTable.id })
+    .select({ id: tasksTable.id, title: tasksTable.title })
     .from(tasksTable)
     .where(eq(tasksTable.milestoneId, milestone.id));
 
@@ -175,11 +176,19 @@ router.post("/milestones/:id/breakdown", asyncHandler(async (req, res): Promise<
     return;
   }
 
-  // Resolve area name for richer prompt context.
+  // Resolve area context for the prompt.
   const [area] = await db
-    .select({ name: areasTable.name })
+    .select()
     .from(areasTable)
     .where(eq(areasTable.id, milestone.areaId));
+
+  // Most recent completed task within this area, for "rhythm of work" signal.
+  const [recentCompleted] = await db
+    .select({ title: tasksTable.title })
+    .from(tasksTable)
+    .where(and(eq(tasksTable.areaId, milestone.areaId), eq(tasksTable.status, "done")))
+    .orderBy(desc(tasksTable.createdAt))
+    .limit(1);
 
   let steps: string[];
   const apiKey = process.env["OPENAI_API_KEY"];
@@ -188,8 +197,13 @@ router.post("/milestones/:id/breakdown", asyncHandler(async (req, res): Promise<
       steps = await buildBreakdownSteps(
         {
           goalTitle: milestone.title,
+          goalDescription: milestone.description ?? null,
           areaName: area?.name ?? null,
-          description: milestone.description ?? null,
+          areaDescription: area?.description ?? null,
+          areaPriority: area?.priority ?? null,
+          areaIsActiveThisWeek: area?.isActiveThisWeek ?? null,
+          existingStepTitles: existing.map((e) => e.title),
+          recentCompletedTitle: recentCompleted?.title ?? null,
         },
         { apiKey: apiKey.trim() },
       );

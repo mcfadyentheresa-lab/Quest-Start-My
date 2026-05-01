@@ -38,7 +38,6 @@ router.post("/areas", asyncHandler(async (req, res): Promise<void> => {
     isActiveThisWeek: parsed.data.isActiveThisWeek,
     color: parsed.data.color ?? null,
     portfolioStatus: parsed.data.portfolioStatus ?? null,
-    featureTag: parsed.data.featureTag ?? null,
     category: parsed.data.category ?? null,
     honestNote: parsed.data.honestNote ?? null,
   }).returning();
@@ -66,14 +65,7 @@ router.patch("/areas/:id", asyncHandler(async (req, res): Promise<void> => {
   if (parsed.data.isActiveThisWeek !== undefined) updates.isActiveThisWeek = parsed.data.isActiveThisWeek;
   if (parsed.data.color !== undefined) updates.color = parsed.data.color;
   if (parsed.data.portfolioStatus !== undefined) updates.portfolioStatus = parsed.data.portfolioStatus;
-  if (parsed.data.currentStage !== undefined) updates.currentStage = parsed.data.currentStage;
-  if (parsed.data.whyItMatters !== undefined) updates.whyItMatters = parsed.data.whyItMatters;
-  if (parsed.data.nowFocus !== undefined) updates.nowFocus = parsed.data.nowFocus;
-  if (parsed.data.nextFocus !== undefined) updates.nextFocus = parsed.data.nextFocus;
-  if (parsed.data.laterFocus !== undefined) updates.laterFocus = parsed.data.laterFocus;
-  if (parsed.data.blockers !== undefined) updates.blockers = parsed.data.blockers;
   if (parsed.data.lastUpdated !== undefined) updates.lastUpdated = parsed.data.lastUpdated;
-  if (parsed.data.featureTag !== undefined) updates.featureTag = parsed.data.featureTag;
   if (parsed.data.category !== undefined) updates.category = parsed.data.category;
   if (parsed.data.honestNote !== undefined) updates.honestNote = parsed.data.honestNote;
 
