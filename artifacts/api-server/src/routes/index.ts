@@ -11,6 +11,7 @@ import frictionRouter from "./friction";
 import dailyRouter from "./daily";
 import briefingRouter from "./briefing";
 import recapRouter from "./recap";
+import reflectionsRouter from "./reflections";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(frictionRouter);
 router.use(dailyRouter);
 router.use(briefingRouter);
 router.use(recapRouter);
+router.use(reflectionsRouter);
 
 export default router;

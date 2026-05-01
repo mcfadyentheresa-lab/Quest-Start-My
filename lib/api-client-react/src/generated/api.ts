@@ -34,6 +34,7 @@ import type {
   CreateWeeklyPlanBody,
   DailyPlan,
   DashboardSummary,
+  DraftReflectionBody,
   FrictionSignal,
   GetAreaCompletionHistoryParams,
   GetOutcomeMetricsParams,
@@ -49,6 +50,7 @@ import type {
   OutcomeMetrics,
   ProgressLog,
   ReentryInfo,
+  ReflectionDraft,
   ReorderMilestoneStepsBody,
   StepBackTaskResponse,
   Task,
@@ -2888,5 +2890,156 @@ export const useUpdateDailyPlan = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getUpdateDailyPlanMutationOptions(options));
+    }
+
+/**
+ * Returns a chief-of-staff style draft of the four reflection fields
+(Moved / Stuck / Drop / Next focus) so the user only has to edit, not
+write from scratch. The draft is NOT persisted — it is the user's
+responsibility to save the reflection. Cached for 60 minutes per
+(user, week) unless `bypassCache: true` is set (Regenerate).
+
+ * @summary Draft a weekly reflection from the user's current data
+ */
+export const getDraftWeeklyReflectionUrl = () => {
+
+
+
+
+  return `/api/reflections/weekly/draft`
+}
+
+export const draftWeeklyReflection = async (draftReflectionBody?: DraftReflectionBody, options?: RequestInit): Promise<ReflectionDraft> => {
+
+  return customFetch<ReflectionDraft>(getDraftWeeklyReflectionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      draftReflectionBody,)
+  }
+);}
+
+
+
+
+export const getDraftWeeklyReflectionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof draftWeeklyReflection>>, TError,{data?: BodyType<DraftReflectionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof draftWeeklyReflection>>, TError,{data?: BodyType<DraftReflectionBody>}, TContext> => {
+
+const mutationKey = ['draftWeeklyReflection'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof draftWeeklyReflection>>, {data?: BodyType<DraftReflectionBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  draftWeeklyReflection(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DraftWeeklyReflectionMutationResult = NonNullable<Awaited<ReturnType<typeof draftWeeklyReflection>>>
+    export type DraftWeeklyReflectionMutationBody = BodyType<DraftReflectionBody> | undefined
+    export type DraftWeeklyReflectionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Draft a weekly reflection from the user's current data
+ */
+export const useDraftWeeklyReflection = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof draftWeeklyReflection>>, TError,{data?: BodyType<DraftReflectionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof draftWeeklyReflection>>,
+        TError,
+        {data?: BodyType<DraftReflectionBody>},
+        TContext
+      > => {
+      return useMutation(getDraftWeeklyReflectionMutationOptions(options));
+    }
+
+/**
+ * Returns a chief-of-staff style draft of the four reflection fields
+for the past month. Same shape and semantics as the weekly draft.
+
+ * @summary Draft a monthly reflection from the user's current data
+ */
+export const getDraftMonthlyReflectionUrl = () => {
+
+
+
+
+  return `/api/reflections/monthly/draft`
+}
+
+export const draftMonthlyReflection = async (draftReflectionBody?: DraftReflectionBody, options?: RequestInit): Promise<ReflectionDraft> => {
+
+  return customFetch<ReflectionDraft>(getDraftMonthlyReflectionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      draftReflectionBody,)
+  }
+);}
+
+
+
+
+export const getDraftMonthlyReflectionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof draftMonthlyReflection>>, TError,{data?: BodyType<DraftReflectionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof draftMonthlyReflection>>, TError,{data?: BodyType<DraftReflectionBody>}, TContext> => {
+
+const mutationKey = ['draftMonthlyReflection'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof draftMonthlyReflection>>, {data?: BodyType<DraftReflectionBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  draftMonthlyReflection(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DraftMonthlyReflectionMutationResult = NonNullable<Awaited<ReturnType<typeof draftMonthlyReflection>>>
+    export type DraftMonthlyReflectionMutationBody = BodyType<DraftReflectionBody> | undefined
+    export type DraftMonthlyReflectionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Draft a monthly reflection from the user's current data
+ */
+export const useDraftMonthlyReflection = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof draftMonthlyReflection>>, TError,{data?: BodyType<DraftReflectionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof draftMonthlyReflection>>,
+        TError,
+        {data?: BodyType<DraftReflectionBody>},
+        TContext
+      > => {
+      return useMutation(getDraftMonthlyReflectionMutationOptions(options));
     }
 

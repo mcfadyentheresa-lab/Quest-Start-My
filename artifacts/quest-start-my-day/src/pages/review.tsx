@@ -336,6 +336,7 @@ export default function ReviewPage() {
               >
                 <ReflectionForm
                   cadence="month"
+                  periodKey={selectedMonth}
                   value={reflection}
                   onSave={handleSaveReflection}
                   saving={isSaving}

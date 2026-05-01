@@ -26,6 +26,8 @@ tags:
     description: Monthly review operations
   - name: daily
     description: Daily planning operations
+  - name: reflections
+    description: Reflection draft operations
 paths:
   /healthz:
     get:
@@ -798,6 +800,53 @@ paths:
                 $ref: "#/components/schemas/DailyPlan"
         "404":
           description: Daily plan not found
+
+  /reflections/weekly/draft:
+    post:
+      operationId: draftWeeklyReflection
+      tags: [reflections]
+      summary: Draft a weekly reflection from the user's current data
+      description: |
+        Returns a chief-of-staff style draft of the four reflection fields
+        (Moved / Stuck / Drop / Next focus) so the user only has to edit, not
+        write from scratch. The draft is NOT persisted — it is the user's
+        responsibility to save the reflection. Cached for 60 minutes per
+        (user, week) unless `bypassCache: true` is set (Regenerate).
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DraftReflectionBody"
+      responses:
+        "200":
+          description: Drafted reflection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReflectionDraft"
+
+  /reflections/monthly/draft:
+    post:
+      operationId: draftMonthlyReflection
+      tags: [reflections]
+      summary: Draft a monthly reflection from the user's current data
+      description: |
+        Returns a chief-of-staff style draft of the four reflection fields
+        for the past month. Same shape and semantics as the weekly draft.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DraftReflectionBody"
+      responses:
+        "200":
+          description: Drafted reflection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReflectionDraft"
 
 components:
   schemas:
@@ -1958,3 +2007,58 @@ components:
           type: array
           items:
             type: string
+
+    DraftReflectionBody:
+      type: object
+      description: |
+        Optional period selector. Weekly drafts accept `weekOf` as a
+        Monday-anchored YYYY-MM-DD date; monthly drafts accept `monthOf` as
+        YYYY-MM. When omitted, the current period is used. `bypassCache`
+        forces regeneration.
+      properties:
+        weekOf:
+          type: string
+          description: Week start (YYYY-MM-DD, Monday). Used by /reflections/weekly/draft.
+        monthOf:
+          type: string
+          description: Month key (YYYY-MM). Used by /reflections/monthly/draft.
+        bypassCache:
+          type: boolean
+          description: If true, regenerate even when a fresh draft is cached.
+
+    ReflectionDraft:
+      type: object
+      description: |
+        A drafted reflection — four fields the user can edit, accept, or
+        regenerate. The draft is not persisted server-side; the user must
+        save it explicitly via the existing weekly-plan or monthly-review
+        endpoints.
+      properties:
+        moved:
+          type: string
+          description: What moved forward in the period.
+        stuck:
+          type: string
+          description: What's blocked, stale, or quiet.
+        drop:
+          type: string
+          description: What to deactivate, pause, or stop trying to do.
+        nextFocus:
+          type: string
+          description: The single most important focus for the next period.
+        source:
+          type: string
+          enum: [ai, rules, fallback]
+          description: |
+            "ai" — drafted by the LLM; "rules" — drafted from your activity;
+            "fallback" — couldn't reach AI, basic draft.
+        generatedAt:
+          type: string
+          description: ISO timestamp the draft was generated at.
+      required:
+        - moved
+        - stuck
+        - drop
+        - nextFocus
+        - source
+        - generatedAt
