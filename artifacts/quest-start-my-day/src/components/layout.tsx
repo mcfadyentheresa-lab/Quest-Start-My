@@ -1,9 +1,17 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useTheme } from "next-themes";
-import { Sun, Moon, LayoutDashboard, Calendar, CalendarDays, History, Settings, BookOpen, Home } from "lucide-react";
+import { Sun, Moon, LayoutDashboard, Calendar, CalendarDays, History, Settings, BookOpen, Home, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FocusTimerHeaderPill } from "@/components/focus-timer-header-pill";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { FocusPrefsPanel } from "@/components/focus-prefs-panel";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -18,7 +26,7 @@ const navItems = [
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { theme, setTheme } = useTheme();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [prefsOpen, setPrefsOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -43,6 +51,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             >
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
+            <Sheet open={prefsOpen} onOpenChange={setPrefsOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  aria-label="Open preferences"
+                >
+                  <User className="h-4 w-4" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle className="font-serif text-lg">Preferences</SheetTitle>
+                </SheetHeader>
+                <div className="mt-4">
+                  <FocusPrefsPanel />
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </header>

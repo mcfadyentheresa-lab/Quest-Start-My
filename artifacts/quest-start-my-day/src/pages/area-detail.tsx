@@ -3,16 +3,16 @@
  *
  * Phase 3 + 4 combined. Two layers, in order of cognitive priority:
  *
- *   1. Inline-editable header (Phase 4): tap name/description/priority/
- *      portfolio status to change them. The old Edit-area modal is gone.
- *      A soft "Honest note" sits below — optional, muted, just for the user.
+ *   1. Inline-editable header (Phase 4): tap name/description/priority
+ *      to change them. The old Edit-area modal is gone. A soft "Note"
+ *      sits below — optional, muted, just for the user.
  *
  *   2. Goals (Phase 3): a goal is a big job. Each goal expands into its
  *      ordered steps. User can drag-reorder steps, add steps, ask AI to
  *      break the goal into 5–8 steps, or flip the goal between
  *      step-by-step ("Step-by-step") and any-order ("Any order").
  *
- *   3. Brain dump below — the loose-task surface. Anything that isn't
+ *   3. Inbox below — the unassigned-task surface. Anything that isn't
  *      tied to a goal yet.
  *
  * Voice rule: chief-of-staff. Decisive, neutral pronouns, no "I"/"me",
@@ -77,21 +77,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { PriorityBadge } from "@/components/priority-badge";
+import { PriorityBadge, PriorityHelp } from "@/components/priority-badge";
 import { useToast } from "@/hooks/use-toast";
-
-const PORTFOLIO_STATUSES = ["Active", "Warm", "Parked"] as const;
-type PortfolioStatus = typeof PORTFOLIO_STATUSES[number];
 
 const PRIORITIES = ["P1", "P2", "P3", "P4"] as const;
 type Priority = typeof PRIORITIES[number];
-
-const portfolioStatusStyles: Record<PortfolioStatus, string> = {
-  Active: "text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-900/20",
-  Warm: "text-amber-700 bg-amber-50 dark:text-amber-400 dark:bg-amber-900/20",
-  Parked: "text-muted-foreground bg-muted/50",
-};
 
 /** Today's date in YYYY-MM-DD (server expects this for new task `date`). */
 function todayIso(): string {
@@ -179,8 +169,8 @@ export default function AreaDetailPage() {
   const tasks = tasksQuery.data ?? [];
   const milestones = milestonesQuery.data ?? [];
 
-  // Loose tasks = pending tasks NOT linked to any goal. These are the
-  // brain-dump items the user hasn't grouped yet.
+  // Unassigned = pending tasks NOT linked to any goal. These are inbox
+  // items the user hasn't grouped yet.
   const looseTasks = tasks.filter((t) => t.status === "pending" && t.milestoneId == null);
   const recentlyClosed = tasks
     .filter((t) => t.status === "done")
@@ -209,7 +199,7 @@ export default function AreaDetailPage() {
   const reorderSteps = useReorderMilestoneSteps();
   const bulkAddSteps = useBulkCreateMilestoneSteps();
 
-  // ---- Brain-dump form state ----
+  // ---- Inbox form state ----
   const [draft, setDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const draftLines = useMemo(() => splitDumpIntoTitles(draft), [draft]);
@@ -264,7 +254,7 @@ export default function AreaDetailPage() {
     if (failed === 0) {
       toast({
         title: ok === 1 ? "Added" : `Added ${ok}`,
-        description: ok === 1 ? titles[0] : "Stays in the brain dump until grouped.",
+        description: ok === 1 ? titles[0] : "Stays in the inbox until grouped.",
       });
     } else if (ok === 0) {
       toast({
@@ -360,7 +350,7 @@ export default function AreaDetailPage() {
     <div className="space-y-6">
       <BackLink />
 
-      {/* Header — name, priority, portfolio status all inline-editable. */}
+      {/* Header — name, priority, description all inline-editable. */}
       <header className="space-y-2">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
@@ -374,11 +364,8 @@ export default function AreaDetailPage() {
               priority={area.priority}
               onCycle={(next) => saveAreaPatch({ priority: next })}
             />
+            <PriorityHelp />
           </div>
-          <PortfolioStatusInline
-            status={(area.portfolioStatus ?? "Active") as PortfolioStatus}
-            onSelect={(s) => saveAreaPatch({ portfolioStatus: s })}
-          />
         </div>
         <InlineDescription
           value={area.description ?? ""}
@@ -390,8 +377,8 @@ export default function AreaDetailPage() {
         />
       </header>
 
-      {/* Honest note — soft, muted, optional. Sits above the goals. */}
-      <HonestNote
+      {/* Note — soft, muted, optional. Sits above the goals. */}
+      <AreaNote
         value={area.honestNote ?? ""}
         onSave={(v) => {
           const cleaned = v.trim();
@@ -548,19 +535,19 @@ export default function AreaDetailPage() {
         )}
       </section>
 
-      {/* BRAIN DUMP — below goals. Loose tasks live here. */}
+      {/* INBOX — below goals. Unassigned tasks live here. */}
       <section
-        aria-labelledby="brain-dump-heading"
+        aria-labelledby="inbox-heading"
         className="rounded-2xl bg-card border border-card-border p-4 space-y-3"
       >
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-muted-foreground" aria-hidden />
-          <h2 id="brain-dump-heading" className="text-sm font-medium text-foreground">
-            Brain dump
+          <h2 id="inbox-heading" className="text-sm font-medium text-foreground">
+            Inbox
           </h2>
         </div>
         <p className="text-xs text-muted-foreground">
-          Anything you don't want to forget. Group later into goals.
+          Drop anything here. Sort it later, or don't.
         </p>
         <Textarea
           ref={textareaRef}
@@ -572,13 +559,13 @@ export default function AreaDetailPage() {
               void handleSubmitDraft();
             }
           }}
-          placeholder={"Dump everything. One task per line."}
+          placeholder={"Dump it. One per line."}
           rows={Math.max(3, Math.min(8, draftLines.length + 1))}
           className="resize-y min-h-[88px]"
-          aria-describedby="brain-dump-hint"
+          aria-describedby="inbox-hint"
         />
         <div className="flex items-center justify-between gap-3">
-          <p id="brain-dump-hint" className="text-xs text-muted-foreground">
+          <p id="inbox-hint" className="text-xs text-muted-foreground">
             {draftLines.length === 0
               ? "Tip: Cmd/Ctrl+Enter to add."
               : `Adds ${draftLines.length} ${draftLines.length === 1 ? "task" : "tasks"}.`}
@@ -599,14 +586,15 @@ export default function AreaDetailPage() {
         </div>
       </section>
 
-      {/* Loose tasks */}
-      <section aria-labelledby="loose-tasks-heading" className="space-y-2">
+      {/* Unassigned — tasks not in a goal yet. */}
+      <section aria-labelledby="unassigned-heading" className="space-y-2">
         <h2
-          id="loose-tasks-heading"
+          id="unassigned-heading"
           className="font-serif text-sm font-medium text-muted-foreground uppercase tracking-wide"
         >
-          Loose tasks ({looseTasks.length})
+          Unassigned ({looseTasks.length})
         </h2>
+        <p className="text-xs text-muted-foreground">Tasks not in a goal yet.</p>
         {tasksQuery.isLoading ? (
           <Skeleton className="h-20 w-full rounded-2xl" />
         ) : looseTasks.length === 0 ? (
@@ -794,56 +782,12 @@ function InlineDescription({ value, onSave }: { value: string; onSave: (v: strin
   );
 }
 
-function PortfolioStatusInline({
-  status,
-  onSelect,
-}: {
-  status: PortfolioStatus;
-  onSelect: (s: PortfolioStatus) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const style = portfolioStatusStyles[status];
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className={`text-xs font-medium px-2 py-0.5 rounded-full transition-opacity hover:opacity-70 active:scale-95 cursor-pointer ${style}`}
-          aria-label={`Portfolio status: ${status}`}
-        >
-          {status}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-36 p-1 rounded-xl" align="end" side="bottom">
-        {PORTFOLIO_STATUSES.map((option) => {
-          const optStyle = portfolioStatusStyles[option];
-          return (
-            <button
-              key={option}
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                if (option !== status) onSelect(option);
-              }}
-              className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs font-medium hover:bg-muted transition-colors"
-            >
-              <span className={`px-1.5 py-0.5 rounded-full ${optStyle}`}>{option}</span>
-              {option === status && <Check className="h-3 w-3 ml-auto text-muted-foreground" />}
-            </button>
-          );
-        })}
-      </PopoverContent>
-    </Popover>
-  );
-}
-
 /**
- * Soft, muted textarea for noting why something feels hard to start.
- * Empty state is a small placeholder; saved text shows muted above the
- * goals section. Save on blur. Empty is fine.
+ * Soft, muted textarea for a private note on this area. Empty state is a
+ * small placeholder; saved text shows muted above the goals section. Save
+ * on blur. Empty is fine. Persists to the `honestNote` column.
  */
-function HonestNote({ value, onSave }: { value: string; onSave: (v: string) => void }) {
+function AreaNote({ value, onSave }: { value: string; onSave: (v: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const ref = useRef<HTMLTextAreaElement | null>(null);
@@ -864,10 +808,10 @@ function HonestNote({ value, onSave }: { value: string; onSave: (v: string) => v
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commit(); }
           if (e.key === "Escape") { setDraft(value); setEditing(false); }
         }}
-        placeholder="Anything making this hard to start? Just for you."
+        placeholder="Anything making this hard, or worth remembering. Just for you."
         rows={2}
         className="text-sm rounded-xl resize-none bg-muted/30 border-dashed"
-        aria-label="Honest note"
+        aria-label="Note"
       />
     );
   }
@@ -877,10 +821,10 @@ function HonestNote({ value, onSave }: { value: string; onSave: (v: string) => v
       type="button"
       onClick={() => setEditing(true)}
       className="block w-full text-left rounded-xl border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground hover:bg-muted/30 transition-colors"
-      aria-label={value ? "Edit honest note" : "Add an honest note"}
+      aria-label={value ? "Edit note" : "Add a note"}
     >
       {value || (
-        <span className="italic opacity-80">Anything making this hard to start? Just for you.</span>
+        <span className="italic opacity-80">Anything making this hard, or worth remembering. Just for you.</span>
       )}
     </button>
   );
