@@ -15,6 +15,13 @@
       "when": 1761609600000,
       "tag": "0002_daily_recaps",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777939200000,
+      "tag": "0004_milestones_completed_at",
+      "breakpoints": true
     }
   ]
 }

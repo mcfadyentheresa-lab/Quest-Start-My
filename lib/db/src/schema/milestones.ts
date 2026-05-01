@@ -21,6 +21,7 @@ export const milestonesTable = pgTable("milestones", {
   //              don't depend on each other.
   // Stored as text so we can add modes later without a migration.
   mode: text("mode").notNull().default("ordered"),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

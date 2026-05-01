@@ -863,6 +863,13 @@ components:
             Phase 3 "goal" mode. "ordered" means only the lowest-sortOrder
             pending sub-task is eligible for the daily briefing. "any"
             means any open sub-task can be picked.
+        completedAt:
+          type: string
+          nullable: true
+          description: |
+            ISO timestamp when this goal was marked complete. Null while
+            open. Set independently of step status — a goal can be closed
+            with steps still pending, or stay open with all steps done.
         createdAt:
           type: string
       required:
@@ -902,6 +909,9 @@ components:
         mode:
           type: string
           enum: [ordered, any]
+        completedAt:
+          type: string
+          nullable: true
       required:
         - areaId
         - title
@@ -962,6 +972,9 @@ components:
         mode:
           type: string
           enum: [ordered, any]
+        completedAt:
+          type: string
+          nullable: true
 
     Briefing:
       type: object
