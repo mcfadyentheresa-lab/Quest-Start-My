@@ -13,6 +13,9 @@ import {
   BreakdownMilestoneParams,
   ReorderMilestoneStepsParams,
   ReorderMilestoneStepsBody,
+  BulkCreateMilestoneStepsParams,
+  BulkCreateMilestoneStepsBody,
+  bulkCreateMilestoneStepsBodyTitlesItemMax,
 } from "@workspace/api-zod";
 import { asyncHandler } from "../lib/async-handler";
 import { buildBreakdownSteps, fallbackSteps } from "../lib/breakdown/ai";
@@ -267,6 +270,101 @@ router.patch("/milestones/:id/step-order", asyncHandler(async (req, res): Promis
     .orderBy(asc(tasksTable.sortOrder));
 
   res.json(refreshed.map(serializeTask));
+}));
+
+// Append many steps to a goal in one shot. Frontend sends a parsed list
+// (paste → split on newlines/bullets/commas → edit), and these become tasks
+// with sortOrder continuing after any existing steps.
+router.post("/milestones/:id/steps/bulk", asyncHandler(async (req, res): Promise<void> => {
+  const params = BulkCreateMilestoneStepsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const body = req.body as { titles?: unknown };
+  const rawTitles = Array.isArray(body?.titles) ? body.titles : null;
+  if (rawTitles === null) {
+    res.status(400).json({ error: "titles must be an array" });
+    return;
+  }
+
+  // Trim and drop empties.
+  const trimmed = rawTitles.map((t) => (typeof t === "string" ? t.trim() : ""));
+  const filtered: string[] = [];
+  const filteredOriginalIndices: number[] = [];
+  for (let i = 0; i < trimmed.length; i++) {
+    const t = trimmed[i]!;
+    if (t.length > 0) {
+      filtered.push(t);
+      filteredOriginalIndices.push(i);
+    }
+  }
+
+  if (filtered.length === 0) {
+    res.status(400).json({ error: "titles must contain at least one non-empty step" });
+    return;
+  }
+
+  // Length check — return offending indices (referencing the post-trim list)
+  // so the client can highlight problem rows.
+  const tooLong: number[] = [];
+  for (let i = 0; i < filtered.length; i++) {
+    if (filtered[i]!.length > bulkCreateMilestoneStepsBodyTitlesItemMax) {
+      tooLong.push(i);
+    }
+  }
+  if (tooLong.length > 0) {
+    res.status(400).json({
+      error: `One or more steps exceed the ${bulkCreateMilestoneStepsBodyTitlesItemMax}-character limit.`,
+      offendingIndices: tooLong,
+    });
+    return;
+  }
+
+  // Final shape parse (catches anything we missed — array length cap, etc.)
+  const parsed = BulkCreateMilestoneStepsBody.safeParse({ titles: filtered });
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const milestoneId = params.data.id;
+
+  const [milestone] = await db
+    .select()
+    .from(milestonesTable)
+    .where(eq(milestonesTable.id, milestoneId));
+
+  if (!milestone) {
+    res.status(404).json({ error: "Goal not found" });
+    return;
+  }
+
+  // Append after the highest existing sortOrder for this milestone's steps.
+  const existing = await db
+    .select({ sortOrder: tasksTable.sortOrder })
+    .from(tasksTable)
+    .where(eq(tasksTable.milestoneId, milestoneId));
+
+  const maxOrder = existing.reduce(
+    (max, row) => Math.max(max, row.sortOrder ?? 0),
+    0,
+  );
+
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = parsed.data.titles.map((title, i) => ({
+    title,
+    category: "business" as const,
+    status: "pending" as const,
+    areaId: milestone.areaId,
+    milestoneId: milestone.id,
+    date: today,
+    sortOrder: maxOrder + i + 1,
+  }));
+
+  const created = await db.insert(tasksTable).values(rows).returning();
+  res.status(201).json(created.map(serializeTask));
 }));
 
 router.delete("/milestones/:id", asyncHandler(async (req, res): Promise<void> => {

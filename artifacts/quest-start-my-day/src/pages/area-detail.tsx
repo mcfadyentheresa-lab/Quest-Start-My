@@ -33,6 +33,7 @@ import {
   useDeleteMilestone,
   useBreakdownMilestone,
   useReorderMilestoneSteps,
+  useBulkCreateMilestoneSteps,
   getListAreaTasksQueryKey,
   getListAreasQueryKey,
   getListMilestonesQueryKey,
@@ -106,6 +107,42 @@ function splitDumpIntoTitles(raw: string): string[] {
     .map((line) => (line.length > 280 ? line.slice(0, 280) : line));
 }
 
+/** Strip a leading bullet/number prefix from a single line. */
+function stripBulletPrefix(line: string): string {
+  // Bullets: -, *, •, –, — (em dash), with optional spaces
+  // Numbers: 1.  1)  (1)  1:
+  return line.replace(/^\s*(?:[-*•–—]|\(\d+\)|\d+[.):])\s+/, "").trim();
+}
+
+/**
+ * Parse pasted text into a list of step titles.
+ * Splits on newlines (primary) then strips bullet/number prefixes.
+ * If a single line has commas and no newlines, splits on commas — but
+ * only if every chunk is < 80 chars (otherwise treat as one step).
+ */
+function parseStepsPaste(raw: string): string[] {
+  const lines = raw
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  // Single-line, comma-separated short chunks → split on commas.
+  if (lines.length === 1 && lines[0]!.includes(",")) {
+    const chunks = lines[0]!
+      .split(",")
+      .map((c) => stripBulletPrefix(c).trim())
+      .filter((c) => c.length > 0);
+    if (chunks.length > 1 && chunks.every((c) => c.length < 80)) {
+      return chunks.map((c) => (c.length > 280 ? c.slice(0, 280) : c));
+    }
+  }
+
+  return lines
+    .map((line) => stripBulletPrefix(line))
+    .filter((line) => line.length > 0)
+    .map((line) => (line.length > 280 ? line.slice(0, 280) : line));
+}
+
 function nextPriority(p: string): Priority {
   const i = PRIORITIES.indexOf(p as Priority);
   return PRIORITIES[(i === -1 ? 0 : (i + 1) % PRIORITIES.length)] as Priority;
@@ -170,6 +207,7 @@ export default function AreaDetailPage() {
   const deleteMilestone = useDeleteMilestone();
   const breakdownMilestone = useBreakdownMilestone();
   const reorderSteps = useReorderMilestoneSteps();
+  const bulkAddSteps = useBulkCreateMilestoneSteps();
 
   // ---- Brain-dump form state ----
   const [draft, setDraft] = useState("");
@@ -433,6 +471,16 @@ export default function AreaDetailPage() {
                     },
                   });
                   invalidateAreaData();
+                }}
+                onBulkAddSteps={async (titles) => {
+                  await bulkAddSteps.mutateAsync({
+                    id: goal.id,
+                    data: { titles },
+                  });
+                  invalidateAreaData();
+                  toast({
+                    title: titles.length === 1 ? "Step added" : `${titles.length} steps added`,
+                  });
                 }}
                 onReorderSteps={async (taskIds) => {
                   try {
@@ -821,6 +869,7 @@ interface GoalCardProps {
   breakdownPending: boolean;
   onBreakdown: () => Promise<void>;
   onAddStep: (title: string) => Promise<void>;
+  onBulkAddSteps: (titles: string[]) => Promise<void>;
   onReorderSteps: (taskIds: number[]) => Promise<void>;
   onToggleMode: () => Promise<void>;
   onDeleteGoal: () => Promise<void>;
@@ -833,6 +882,7 @@ function GoalCard({
   breakdownPending,
   onBreakdown,
   onAddStep,
+  onBulkAddSteps,
   onReorderSteps,
   onToggleMode,
   onDeleteGoal,
@@ -840,6 +890,7 @@ function GoalCard({
   const [open, setOpen] = useState(true);
   const [stepDraft, setStepDraft] = useState("");
   const [adding, setAdding] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   // Steps belonging to this goal, ordered by sortOrder then id.
   const steps = useMemo(() => {
@@ -996,9 +1047,194 @@ function GoalCard({
               Add
             </Button>
           </div>
+
+          {/* Bulk-add: paste a list, parse, edit, save many. */}
+          {bulkOpen ? (
+            <BulkAddStepsPanel
+              onCancel={() => setBulkOpen(false)}
+              onSave={async (titles) => {
+                await onBulkAddSteps(titles);
+                setBulkOpen(false);
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setBulkOpen(true)}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              + Add several
+            </button>
+          )}
         </div>
       )}
     </li>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Bulk-add steps panel — paste a list, parse on blur, edit rows, save all.
+// ─────────────────────────────────────────────────────────────────────────
+
+interface BulkAddStepsPanelProps {
+  onCancel: () => void;
+  onSave: (titles: string[]) => Promise<void>;
+}
+
+function BulkAddStepsPanel({ onCancel, onSave }: BulkAddStepsPanelProps) {
+  const [raw, setRaw] = useState("");
+  const [rows, setRows] = useState<string[] | null>(null);
+  const [saving, setSaving] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => { textareaRef.current?.focus(); }, []);
+
+  const tooLong = (rows ?? []).some((r) => r.length > 280);
+  const cleanRows = (rows ?? []).map((r) => r.trim()).filter((r) => r.length > 0);
+  const saveDisabled = saving || cleanRows.length === 0 || tooLong;
+
+  const handleParse = () => {
+    const parsed = parseStepsPaste(raw);
+    setRows(parsed);
+  };
+
+  const handleSave = async () => {
+    if (cleanRows.length === 0 || tooLong) return;
+    setSaving(true);
+    try {
+      await onSave(cleanRows);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-card-border/60 bg-muted/20 p-3 space-y-2">
+      {rows === null ? (
+        <>
+          <Textarea
+            ref={textareaRef}
+            value={raw}
+            onChange={(e) => setRaw(e.target.value)}
+            onBlur={handleParse}
+            placeholder="Paste your list. One per line works best."
+            rows={4}
+            className="text-sm rounded-xl resize-y"
+            aria-label="Paste steps"
+          />
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              Bullets, numbers, and commas all work.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 rounded-full text-xs"
+                onClick={onCancel}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 rounded-full text-xs"
+                onClick={handleParse}
+                disabled={raw.trim().length === 0}
+              >
+                Parse
+              </Button>
+            </div>
+          </div>
+        </>
+      ) : rows.length === 0 ? (
+        <>
+          <p className="text-xs text-muted-foreground">
+            Nothing to parse. Paste a list and try again.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 rounded-full text-xs"
+              onClick={onCancel}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 rounded-full text-xs"
+              onClick={() => setRows(null)}
+            >
+              Back to paste
+            </Button>
+          </div>
+        </>
+      ) : (
+        <>
+          <ul className="space-y-1.5">
+            {rows.map((row, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <Input
+                  value={row}
+                  onChange={(e) => {
+                    const next = [...rows];
+                    next[i] = e.target.value;
+                    setRows(next);
+                  }}
+                  className="text-sm h-8 rounded-xl"
+                  aria-label={`Step ${i + 1}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setRows(rows.filter((_, j) => j !== i))}
+                  aria-label={`Remove step ${i + 1}`}
+                  className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+          {tooLong && (
+            <p className="text-xs text-destructive">
+              One or more steps is too long. Trim to 280 characters.
+            </p>
+          )}
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setRows(null)}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ← Back to paste
+            </button>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 rounded-full text-xs"
+                onClick={onCancel}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="h-7 rounded-full text-xs"
+                onClick={() => void handleSave()}
+                disabled={saveDisabled}
+              >
+                {saving
+                  ? "Saving…"
+                  : `Save ${cleanRows.length} ${cleanRows.length === 1 ? "step" : "steps"}`}
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
