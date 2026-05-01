@@ -785,6 +785,60 @@ export interface UpdateDailyPlanBody {
   priorities?: string[];
 }
 
+/**
+ * Optional period selector. Weekly drafts accept `weekOf` as a
+Monday-anchored YYYY-MM-DD date; monthly drafts accept `monthOf` as
+YYYY-MM. When omitted, the current period is used. `bypassCache`
+forces regeneration.
+
+ */
+export interface DraftReflectionBody {
+  /** Week start (YYYY-MM-DD, Monday). Used by /reflections/weekly/draft. */
+  weekOf?: string;
+  /** Month key (YYYY-MM). Used by /reflections/monthly/draft. */
+  monthOf?: string;
+  /** If true, regenerate even when a fresh draft is cached. */
+  bypassCache?: boolean;
+}
+
+/**
+ * "ai" — drafted by the LLM; "rules" — drafted from your activity;
+"fallback" — couldn't reach AI, basic draft.
+
+ */
+export type ReflectionDraftSource = typeof ReflectionDraftSource[keyof typeof ReflectionDraftSource];
+
+
+export const ReflectionDraftSource = {
+  ai: 'ai',
+  rules: 'rules',
+  fallback: 'fallback',
+} as const;
+
+/**
+ * A drafted reflection — four fields the user can edit, accept, or
+regenerate. The draft is not persisted server-side; the user must
+save it explicitly via the existing weekly-plan or monthly-review
+endpoints.
+
+ */
+export interface ReflectionDraft {
+  /** What moved forward in the period. */
+  moved: string;
+  /** What's blocked, stale, or quiet. */
+  stuck: string;
+  /** What to deactivate, pause, or stop trying to do. */
+  drop: string;
+  /** The single most important focus for the next period. */
+  nextFocus: string;
+  /** "ai" — drafted by the LLM; "rules" — drafted from your activity;
+  "fallback" — couldn't reach AI, basic draft.
+   */
+  source: ReflectionDraftSource;
+  /** ISO timestamp the draft was generated at. */
+  generatedAt: string;
+}
+
 export type ListMilestonesParams = {
 areaId?: number;
 };

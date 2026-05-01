@@ -864,3 +864,50 @@ export const UpdateDailyPlanResponse = zod.object({
 })
 
 
+/**
+ * Returns a chief-of-staff style draft of the four reflection fields
+(Moved / Stuck / Drop / Next focus) so the user only has to edit, not
+write from scratch. The draft is NOT persisted — it is the user's
+responsibility to save the reflection. Cached for 60 minutes per
+(user, week) unless `bypassCache: true` is set (Regenerate).
+
+ * @summary Draft a weekly reflection from the user's current data
+ */
+export const DraftWeeklyReflectionBody = zod.object({
+  "weekOf": zod.string().optional().describe('Week start (YYYY-MM-DD, Monday). Used by \/reflections\/weekly\/draft.'),
+  "monthOf": zod.string().optional().describe('Month key (YYYY-MM). Used by \/reflections\/monthly\/draft.'),
+  "bypassCache": zod.boolean().optional().describe('If true, regenerate even when a fresh draft is cached.')
+}).describe('Optional period selector. Weekly drafts accept `weekOf` as a\nMonday-anchored YYYY-MM-DD date; monthly drafts accept `monthOf` as\nYYYY-MM. When omitted, the current period is used. `bypassCache`\nforces regeneration.\n')
+
+export const DraftWeeklyReflectionResponse = zod.object({
+  "moved": zod.string().describe('What moved forward in the period.'),
+  "stuck": zod.string().describe('What\'s blocked, stale, or quiet.'),
+  "drop": zod.string().describe('What to deactivate, pause, or stop trying to do.'),
+  "nextFocus": zod.string().describe('The single most important focus for the next period.'),
+  "source": zod.enum(['ai', 'rules', 'fallback']).describe('\"ai\" — drafted by the LLM; \"rules\" — drafted from your activity;\n\"fallback\" — couldn\'t reach AI, basic draft.\n'),
+  "generatedAt": zod.string().describe('ISO timestamp the draft was generated at.')
+}).describe('A drafted reflection — four fields the user can edit, accept, or\nregenerate. The draft is not persisted server-side; the user must\nsave it explicitly via the existing weekly-plan or monthly-review\nendpoints.\n')
+
+
+/**
+ * Returns a chief-of-staff style draft of the four reflection fields
+for the past month. Same shape and semantics as the weekly draft.
+
+ * @summary Draft a monthly reflection from the user's current data
+ */
+export const DraftMonthlyReflectionBody = zod.object({
+  "weekOf": zod.string().optional().describe('Week start (YYYY-MM-DD, Monday). Used by \/reflections\/weekly\/draft.'),
+  "monthOf": zod.string().optional().describe('Month key (YYYY-MM). Used by \/reflections\/monthly\/draft.'),
+  "bypassCache": zod.boolean().optional().describe('If true, regenerate even when a fresh draft is cached.')
+}).describe('Optional period selector. Weekly drafts accept `weekOf` as a\nMonday-anchored YYYY-MM-DD date; monthly drafts accept `monthOf` as\nYYYY-MM. When omitted, the current period is used. `bypassCache`\nforces regeneration.\n')
+
+export const DraftMonthlyReflectionResponse = zod.object({
+  "moved": zod.string().describe('What moved forward in the period.'),
+  "stuck": zod.string().describe('What\'s blocked, stale, or quiet.'),
+  "drop": zod.string().describe('What to deactivate, pause, or stop trying to do.'),
+  "nextFocus": zod.string().describe('The single most important focus for the next period.'),
+  "source": zod.enum(['ai', 'rules', 'fallback']).describe('\"ai\" — drafted by the LLM; \"rules\" — drafted from your activity;\n\"fallback\" — couldn\'t reach AI, basic draft.\n'),
+  "generatedAt": zod.string().describe('ISO timestamp the draft was generated at.')
+}).describe('A drafted reflection — four fields the user can edit, accept, or\nregenerate. The draft is not persisted server-side; the user must\nsave it explicitly via the existing weekly-plan or monthly-review\nendpoints.\n')
+
+

@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "wouter";
 import {
   useListWeeklyPlans,
   useCreateWeeklyPlan,
@@ -13,12 +14,11 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { PriorityBadge } from "@/components/priority-badge";
 import { ReflectionForm, type ReflectionValues } from "@/components/reflection-form";
-import { Plus, Trash2, Check, Loader2, ChevronDown, ChevronUp, Flame } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Flame, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -36,6 +36,8 @@ function formatWeek(dateStr: string) {
   end.setDate(end.getDate() + 6);
   return `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 }
+
+const NOTES_DEBOUNCE_MS = 800;
 
 export default function WeeklyPage() {
   const weekOf = getWeekStart();
@@ -55,78 +57,87 @@ export default function WeeklyPage() {
 
   const existingPlan = weeklyPlans?.[0];
 
-  const [priorities, setPriorities] = useState<string[]>([""]);
-  const [healthFocus, setHealthFocus] = useState("");
-  const [businessFocus, setBusinessFocus] = useState("");
-  const [creativeFocus, setCreativeFocus] = useState("");
   const [notes, setNotes] = useState("");
+  const [notesStatus, setNotesStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [reflection, setReflection] = useState<ReflectionValues>({
     moved: "",
     stuck: "",
     drop: "",
     nextFocus: "",
   });
-  const [saving, setSaving] = useState(false);
   const [savingReflection, setSavingReflection] = useState(false);
   const [reflectionOpen, setReflectionOpen] = useState(false);
 
+  const notesDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedNotes = useRef<string>("");
+
   useEffect(() => {
     if (existingPlan) {
-      setPriorities(existingPlan.priorities.length > 0 ? existingPlan.priorities : [""]);
-      setHealthFocus(existingPlan.healthFocus ?? "");
-      setBusinessFocus(existingPlan.businessFocus ?? "");
-      setCreativeFocus(existingPlan.creativeFocus ?? "");
-      setNotes(existingPlan.notes ?? "");
+      const initialNotes = existingPlan.notes ?? "";
+      setNotes(initialNotes);
+      lastSavedNotes.current = initialNotes;
       setReflection({
         moved: existingPlan.whatMovedForward ?? "",
         stuck: existingPlan.whatGotStuck ?? "",
         drop: existingPlan.whatToDeprioritize ?? "",
         nextFocus: existingPlan.nextWeekFocus ?? "",
       });
-      // Open reflection if they have content
       if (existingPlan.whatMovedForward || existingPlan.whatGotStuck || existingPlan.whatToDeprioritize || existingPlan.nextWeekFocus) {
         setReflectionOpen(true);
       }
     }
   }, [existingPlan]);
 
-  const savePlan = async () => {
-    const cleanPriorities = priorities.filter(p => p.trim());
-    setSaving(true);
+  const persistNotes = async (next: string) => {
+    if (next === lastSavedNotes.current) return;
+    setNotesStatus("saving");
     try {
       if (existingPlan) {
         await updatePlan.mutateAsync({
           id: existingPlan.id,
-          data: {
-            priorities: cleanPriorities,
-            healthFocus: healthFocus || undefined,
-            businessFocus: businessFocus || undefined,
-            creativeFocus: creativeFocus || undefined,
-            notes: notes || undefined,
-          },
+          data: { notes: next || undefined },
         });
       } else {
         await createPlan.mutateAsync({
           data: {
             weekOf,
-            priorities: cleanPriorities,
-            healthFocus: healthFocus || undefined,
-            businessFocus: businessFocus || undefined,
-            creativeFocus: creativeFocus || undefined,
-            notes: notes || undefined,
-            areaPriorities: areas?.filter(p => p.isActiveThisWeek).map(p => p.id) ?? [],
+            priorities: [],
+            notes: next || undefined,
+            areaPriorities: areas?.filter(a => a.isActiveThisWeek).map(a => a.id) ?? [],
           },
         });
       }
+      lastSavedNotes.current = next;
       queryClient.invalidateQueries({ queryKey: getListWeeklyPlansQueryKey({ weekOf }) });
       queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-      toast({ title: "Weekly plan saved" });
+      setNotesStatus("saved");
     } catch {
-      toast({ title: "Failed to save", variant: "destructive" });
-    } finally {
-      setSaving(false);
+      setNotesStatus("idle");
+      toast({ title: "Couldn't save notes", variant: "destructive" });
     }
   };
+
+  const handleNotesChange = (next: string) => {
+    setNotes(next);
+    if (notesDebounceRef.current) clearTimeout(notesDebounceRef.current);
+    notesDebounceRef.current = setTimeout(() => {
+      void persistNotes(next);
+    }, NOTES_DEBOUNCE_MS);
+  };
+
+  const handleNotesBlur = () => {
+    if (notesDebounceRef.current) {
+      clearTimeout(notesDebounceRef.current);
+      notesDebounceRef.current = null;
+    }
+    void persistNotes(notes);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (notesDebounceRef.current) clearTimeout(notesDebounceRef.current);
+    };
+  }, []);
 
   const saveReflection = async (next: ReflectionValues) => {
     setReflection(next);
@@ -141,12 +152,11 @@ export default function WeeklyPage() {
       if (existingPlan) {
         await updatePlan.mutateAsync({ id: existingPlan.id, data: payload });
       } else {
-        const cleanPriorities = priorities.filter(p => p.trim());
         await createPlan.mutateAsync({
           data: {
             weekOf,
-            priorities: cleanPriorities,
-            areaPriorities: areas?.filter(p => p.isActiveThisWeek).map(p => p.id) ?? [],
+            priorities: [],
+            areaPriorities: areas?.filter(a => a.isActiveThisWeek).map(a => a.id) ?? [],
             ...payload,
           },
         });
@@ -183,6 +193,9 @@ export default function WeeklyPage() {
     );
   }
 
+  const activeAreas = (areas ?? []).filter(a => a.isActiveThisWeek);
+  const hasActiveArea = activeAreas.length > 0;
+
   return (
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-start justify-between">
@@ -202,7 +215,10 @@ export default function WeeklyPage() {
 
       {/* Active areas */}
       <section>
-        <h2 className="font-serif text-base font-medium text-foreground mb-3">Active areas</h2>
+        <h2 className="font-serif text-base font-medium text-foreground mb-1">Active areas</h2>
+        <p className="text-xs text-muted-foreground mb-3" data-testid="active-areas-explainer">
+          Pick the areas to focus on this week. Today's plan is drafted from these.
+        </p>
         <div className="space-y-2">
           {areas?.map(area => (
             <div
@@ -238,107 +254,77 @@ export default function WeeklyPage() {
             </div>
           ))}
         </div>
+        <div className="mt-3" data-testid="active-areas-next-step">
+          {hasActiveArea ? (
+            <Link href="/today">
+              <a
+                className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                data-testid="see-todays-plan"
+              >
+                See today's plan
+                <ArrowRight className="h-3.5 w-3.5" />
+              </a>
+            </Link>
+          ) : (
+            <p className="text-xs text-muted-foreground" data-testid="pick-an-area-helper">
+              Pick at least one area to draft this week.
+            </p>
+          )}
+        </div>
       </section>
 
-      {/* Weekly plan form */}
-      <section className="rounded-2xl bg-card border border-card-border p-5 space-y-4">
-        <h2 className="font-serif text-base font-medium text-foreground">Weekly plan</h2>
+      {/* This week's focus — derived from active areas */}
+      <section className="rounded-2xl bg-card border border-card-border p-5 space-y-4" data-testid="weekly-focus-card">
+        <div>
+          <h2 className="font-serif text-base font-medium text-foreground">This week's focus</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Drafted from your active areas. Tap an area to change priority.
+          </p>
+        </div>
 
-        {/* Priorities */}
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Top priorities</p>
-          {priorities.map((p, i) => (
-            <div key={i} className="space-y-1">
-              <Label htmlFor={`weekly-priority-${i + 1}`} className="text-xs text-muted-foreground">Priority {i + 1}</Label>
-              <div className="flex gap-2">
-              <Input
-                id={`weekly-priority-${i + 1}`}
-                value={p}
-                onChange={e => {
-                  const next = [...priorities];
-                  next[i] = e.target.value;
-                  setPriorities(next);
-                }}
-                placeholder={`Priority ${i + 1}`}
-                className="rounded-xl flex-1"
-              />
-              {priorities.length > 1 && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-xl text-muted-foreground"
-                  onClick={() => setPriorities(priorities.filter((_, j) => j !== i))}
-                  aria-label={`Remove priority ${i + 1}`}
+        {activeAreas.length === 0 ? (
+          <p className="text-sm text-muted-foreground italic">
+            No active areas yet. Pick one above and the focus drafts itself.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2" data-testid="active-areas-summary">
+            {activeAreas.map(area => (
+              <Link key={area.id} href={`/areas/${area.id}`}>
+                <a
+                  className="inline-flex items-center gap-1.5 rounded-full border border-card-border bg-muted/40 px-3 py-1.5 text-xs hover:bg-muted transition-colors"
+                  data-testid={`focus-pill-${area.id}`}
                 >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-              </div>
-            </div>
-          ))}
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-xl gap-1.5 text-xs"
-            onClick={() => setPriorities([...priorities, ""])}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add priority
-          </Button>
+                  {area.color && (
+                    <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: area.color }} />
+                  )}
+                  <span className="font-medium text-foreground">{area.name}</span>
+                  <PriorityBadge priority={area.priority} />
+                </a>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        <div className="space-y-1.5 pt-2 border-t border-border">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="weekly-anything-else">Anything else this week?</Label>
+            {notesStatus === "saving" && (
+              <span className="text-xs text-muted-foreground" data-testid="notes-saving">Saving…</span>
+            )}
+            {notesStatus === "saved" && (
+              <span className="text-xs text-muted-foreground" data-testid="notes-saved">Saved · just now</span>
+            )}
+          </div>
+          <Textarea
+            id="weekly-anything-else"
+            value={notes}
+            onChange={e => handleNotesChange(e.target.value)}
+            onBlur={handleNotesBlur}
+            placeholder="A meeting, a deadline, a feeling. Optional."
+            className="rounded-xl resize-none"
+            rows={3}
+          />
         </div>
-
-        {/* Focus fields */}
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="weekly-health-focus">Health focus</Label>
-            <Input
-              id="weekly-health-focus"
-              value={healthFocus}
-              onChange={e => setHealthFocus(e.target.value)}
-              placeholder="e.g. Morning walks, 8h sleep..."
-              className="rounded-xl"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="weekly-business-focus">Business focus</Label>
-            <Input
-              id="weekly-business-focus"
-              value={businessFocus}
-              onChange={e => setBusinessFocus(e.target.value)}
-              placeholder="e.g. Finish the onboarding flow..."
-              className="rounded-xl"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="weekly-creative-focus">Creative / build focus</Label>
-            <Input
-              id="weekly-creative-focus"
-              value={creativeFocus}
-              onChange={e => setCreativeFocus(e.target.value)}
-              placeholder="e.g. Design the landing page..."
-              className="rounded-xl"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="weekly-notes">Notes</Label>
-            <Textarea
-              id="weekly-notes"
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder="Anything else to keep in mind this week..."
-              className="rounded-xl resize-none"
-              rows={2}
-            />
-          </div>
-        </div>
-
-        <Button className="w-full rounded-xl" onClick={savePlan} disabled={saving}>
-          {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-          Save weekly plan
-        </Button>
       </section>
 
       {/* Weekly reflection */}
@@ -368,6 +354,7 @@ export default function WeeklyPage() {
               <div className="px-5 pb-5 border-t border-border pt-4">
                 <ReflectionForm
                   cadence="week"
+                  periodKey={weekOf}
                   value={reflection}
                   onSave={saveReflection}
                   saving={savingReflection}
