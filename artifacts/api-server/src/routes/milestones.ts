@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq, asc, inArray } from "drizzle-orm";
+import { and, desc, eq, asc, inArray } from "drizzle-orm";
 import { db, milestonesTable, tasksTable, areasTable } from "@workspace/db";
 import {
   ListMilestonesQueryParams,
@@ -175,11 +175,43 @@ router.post("/milestones/:id/breakdown", asyncHandler(async (req, res): Promise<
     return;
   }
 
-  // Resolve area name for richer prompt context.
+  // Resolve richer area context for the prompt.
   const [area] = await db
-    .select({ name: areasTable.name })
+    .select({
+      name: areasTable.name,
+      description: areasTable.description,
+      priority: areasTable.priority,
+      isActiveThisWeek: areasTable.isActiveThisWeek,
+    })
     .from(areasTable)
     .where(eq(areasTable.id, milestone.areaId));
+
+  // Existing step titles on this goal (none right now since we 409'd above,
+  // but kept generic so a future "add more steps" path can reuse the same
+  // builder without new wiring).
+  const existingStepRows = await db
+    .select({ title: tasksTable.title })
+    .from(tasksTable)
+    .where(eq(tasksTable.milestoneId, milestone.id))
+    .orderBy(asc(tasksTable.sortOrder));
+  const existingStepTitles = existingStepRows.map((r) => r.title);
+
+  // 5 most recently completed tasks in this area as a "rhythm and language"
+  // signal for the model.
+  const recentlyCompletedRows = await db
+    .select({ title: tasksTable.title, createdAt: tasksTable.createdAt })
+    .from(tasksTable)
+    .where(
+      and(
+        eq(tasksTable.areaId, milestone.areaId),
+        eq(tasksTable.status, "done"),
+      ),
+    )
+    .orderBy(desc(tasksTable.createdAt))
+    .limit(5);
+  const recentlyCompletedTitles = recentlyCompletedRows.map((r) => r.title);
+
+  const todayIso = new Date().toISOString().slice(0, 10);
 
   let steps: string[];
   const apiKey = process.env["OPENAI_API_KEY"];
@@ -188,27 +220,32 @@ router.post("/milestones/:id/breakdown", asyncHandler(async (req, res): Promise<
       steps = await buildBreakdownSteps(
         {
           goalTitle: milestone.title,
+          goalDescription: milestone.description ?? null,
           areaName: area?.name ?? null,
-          description: milestone.description ?? null,
+          areaDescription: area?.description ?? null,
+          areaPriority: area?.priority ?? null,
+          areaActiveThisWeek: area?.isActiveThisWeek ?? null,
+          existingStepTitles,
+          recentlyCompletedTitles,
+          todayIso,
         },
         { apiKey: apiKey.trim() },
       );
     } catch (err) {
       logger.warn({ err: String(err) }, "AI breakdown failed, falling back");
-      steps = fallbackSteps();
+      steps = fallbackSteps({ goalTitle: milestone.title, areaName: area?.name ?? null });
     }
   } else {
-    steps = fallbackSteps();
+    steps = fallbackSteps({ goalTitle: milestone.title, areaName: area?.name ?? null });
   }
 
-  const today = new Date().toISOString().slice(0, 10);
   const rows = steps.map((title, i) => ({
     title,
     category: "business" as const,
     status: "pending" as const,
     areaId: milestone.areaId,
     milestoneId: milestone.id,
-    date: today,
+    date: todayIso,
     sortOrder: i + 1,
   }));
 

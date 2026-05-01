@@ -27,6 +27,7 @@ import {
   useListMilestones,
   useCreateTask,
   useUpdateTask,
+  useDeleteTask,
   useUpdateArea,
   useCreateMilestone,
   useUpdateMilestone,
@@ -77,6 +78,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { PriorityBadge, PriorityHelp } from "@/components/priority-badge";
 import { useToast } from "@/hooks/use-toast";
 
@@ -191,6 +202,7 @@ export default function AreaDetailPage() {
 
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
+  const deleteTask = useDeleteTask();
   const updateArea = useUpdateArea();
   const createMilestone = useCreateMilestone();
   const updateMilestone = useUpdateMilestone();
@@ -468,6 +480,22 @@ export default function AreaDetailPage() {
                     },
                   });
                   invalidateAreaData();
+                }}
+                onUpdateStepTitle={async (id, title) => {
+                  try {
+                    await updateTask.mutateAsync({ id, data: { title } });
+                    invalidateAreaData();
+                  } catch {
+                    toast({ title: "Couldn't save edit.", variant: "destructive" });
+                  }
+                }}
+                onDeleteStep={async (id) => {
+                  try {
+                    await deleteTask.mutateAsync({ id });
+                    invalidateAreaData();
+                  } catch {
+                    toast({ title: "Couldn't remove step.", variant: "destructive" });
+                  }
                 }}
                 onBulkAddSteps={async (titles) => {
                   await bulkAddSteps.mutateAsync({
@@ -844,6 +872,8 @@ interface GoalCardProps {
   onAddStep: (title: string) => Promise<void>;
   onBulkAddSteps: (titles: string[]) => Promise<void>;
   onReorderSteps: (taskIds: number[]) => Promise<void>;
+  onUpdateStepTitle: (id: number, title: string) => Promise<void>;
+  onDeleteStep: (id: number) => Promise<void>;
   onToggleMode: () => Promise<void>;
   onDeleteGoal: () => Promise<void>;
   onSetCompleted: (completedAt: string | null) => Promise<void>;
@@ -858,6 +888,8 @@ function GoalCard({
   onAddStep,
   onBulkAddSteps,
   onReorderSteps,
+  onUpdateStepTitle,
+  onDeleteStep,
   onToggleMode,
   onDeleteGoal,
   onSetCompleted,
@@ -1075,6 +1107,8 @@ function GoalCard({
                       step={step}
                       isLive={liveStepId === null || liveStepId === step.id}
                       onToggle={() => handleStepToggle(step)}
+                      onSaveTitle={(title) => onUpdateStepTitle(step.id, title)}
+                      onRemove={() => onDeleteStep(step.id)}
                     />
                   ))}
                 </ul>
@@ -1301,9 +1335,11 @@ interface SortableStepRowProps {
   step: Task;
   isLive: boolean;
   onToggle: () => void;
+  onSaveTitle: (title: string) => Promise<void>;
+  onRemove: () => Promise<void>;
 }
 
-function SortableStepRow({ step, isLive, onToggle }: SortableStepRowProps) {
+function SortableStepRow({ step, isLive, onToggle, onSaveTitle, onRemove }: SortableStepRowProps) {
   const isDone = step.status === "done";
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: step.id,
@@ -1316,11 +1352,51 @@ function SortableStepRow({ step, isLive, onToggle }: SortableStepRowProps) {
   };
   const muted = !isLive && !isDone;
 
+  // Inline edit state — same shape as InlineHeading.
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(step.title);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => { setDraft(step.title); }, [step.title]);
+  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+
+  // Removed flag: optimistically hide the row on confirm, revert on error.
+  const [removed, setRemoved] = useState(false);
+  // Confirm dialog open state.
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const commit = () => {
+    const v = draft.trim();
+    if (v.length === 0 || v === step.title) {
+      setDraft(step.title);
+      setEditing(false);
+      return;
+    }
+    setEditing(false);
+    void onSaveTitle(v);
+  };
+
+  const handleRemove = async () => {
+    setConfirmOpen(false);
+    setRemoved(true);
+    try {
+      await onRemove();
+    } catch {
+      setRemoved(false);
+    }
+  };
+
+  if (removed) return null;
+
+  // Disable edit + remove while dragging (and never offer them on the
+  // sortable handle itself). isDragging guards the bulk of the UI.
+  const interactionsDisabled = isDragging;
+
   return (
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 rounded-xl border border-card-border/60 px-2 py-1.5 ${
+      className={`group flex items-center gap-2 rounded-xl border border-card-border/60 px-2 py-1.5 ${
         isDone ? "bg-card/30 opacity-60" : muted ? "bg-card/40 opacity-60" : "bg-background"
       }`}
     >
@@ -1355,18 +1431,64 @@ function SortableStepRow({ step, isLive, onToggle }: SortableStepRowProps) {
       >
         {isDone && <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />}
       </button>
-      <span
-        className={`flex-1 min-w-0 text-sm truncate ${
-          isDone ? "line-through text-muted-foreground" : "text-foreground"
-        }`}
-      >
-        {step.title}
-      </span>
-      {isLive && !isDone && (
-        <span className="text-[10px] uppercase tracking-wide text-foreground/60 font-medium">
+      {editing ? (
+        <Input
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); commit(); }
+            if (e.key === "Escape") { setDraft(step.title); setEditing(false); }
+          }}
+          className="flex-1 min-w-0 text-sm h-6 px-1.5 py-0 rounded-md"
+          aria-label="Edit step"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => { if (!interactionsDisabled) setEditing(true); }}
+          disabled={interactionsDisabled}
+          aria-label={`Edit step: ${step.title}`}
+          className={`flex-1 min-w-0 text-sm text-left truncate rounded px-1 -mx-1 hover:bg-muted/40 transition-colors ${
+            isDone ? "line-through text-muted-foreground" : "text-foreground"
+          }`}
+        >
+          {step.title}
+        </button>
+      )}
+      {isLive && !isDone && !editing && (
+        <span className="text-[10px] uppercase tracking-wide text-foreground/60 font-medium flex-shrink-0">
           Up next
         </span>
       )}
+      {!editing && (
+        <button
+          type="button"
+          onClick={() => { if (!interactionsDisabled) setConfirmOpen(true); }}
+          disabled={interactionsDisabled}
+          aria-label={`Remove step: ${step.title}`}
+          className="flex-shrink-0 text-muted-foreground/60 hover:text-destructive transition-colors p-1 -m-1 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this step?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {`"${step.title}" will be removed from this goal.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleRemove()}>
+              Remove step
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </li>
   );
 }
