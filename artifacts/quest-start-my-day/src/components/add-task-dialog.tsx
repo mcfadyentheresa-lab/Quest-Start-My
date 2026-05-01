@@ -23,6 +23,8 @@ import { useToast } from "@/hooks/use-toast";
 interface AddTaskDialogProps {
   date: string;
   children?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 interface TaskFormData {
@@ -34,8 +36,14 @@ interface TaskFormData {
   suggestedNextStep: string;
 }
 
-export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
-  const [open, setOpen] = useState(false);
+export function AddTaskDialog({ date, children, open: controlledOpen, onOpenChange }: AddTaskDialogProps) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : uncontrolledOpen;
+  const setOpen = (next: boolean) => {
+    if (!isControlled) setUncontrolledOpen(next);
+    onOpenChange?.(next);
+  };
   const { register, handleSubmit, reset, setValue, watch } = useForm<TaskFormData>({
     defaultValues: {
       title: "",
@@ -103,14 +111,16 @@ export function AddTaskDialog({ date, children }: AddTaskDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {children ?? (
-          <Button variant="outline" size="sm" className="rounded-xl gap-2">
-            <Plus className="h-4 w-4" />
-            Add task
-          </Button>
-        )}
-      </DialogTrigger>
+      {(!isControlled || children) && (
+        <DialogTrigger asChild>
+          {children ?? (
+            <Button variant="outline" size="sm" className="rounded-xl gap-2">
+              <Plus className="h-4 w-4" />
+              Add task
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="rounded-2xl max-w-md mx-4">
         <DialogHeader>
           <DialogTitle className="font-serif text-xl">Add a task</DialogTitle>

@@ -33,6 +33,7 @@ function task(
   areaId: number | null,
   status: "pending" | "blocked" | "done" = "pending",
   blockerReason: string | null = null,
+  overrides: Partial<BriefingInput["openTasks"][number]> = {},
 ): BriefingInput["openTasks"][number] {
   return {
     id,
@@ -54,7 +55,31 @@ function task(
     adjustmentType: null,
     adjustmentReason: null,
     taskSource: null,
+    ...overrides,
   };
+}
+
+function milestone(
+  id: number,
+  title: string,
+  areaId: number,
+  mode: "ordered" | "any" = "ordered",
+): BriefingInput["milestones"][number] {
+  return {
+    id,
+    areaId,
+    title,
+    status: "active",
+    priority: null,
+    targetDate: null,
+    description: null,
+    nextAction: null,
+    sortOrder: 0,
+    mode,
+    completedAt: null,
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  } as BriefingInput["milestones"][number];
 }
 
 function makeInput(overrides: Partial<BriefingInput> = {}): BriefingInput {
@@ -158,5 +183,42 @@ describe("buildRulesBriefing", () => {
     expect(withHint.briefing[0].title).toBeDefined();
     // Without hint, ordering follows priority + recency. With hint we rotate so order may change.
     expect(withHint.briefing.length).toBeGreaterThan(0);
+  });
+
+  it("reasons about ordered-step progress on an ordered goal", () => {
+    const goal = milestone(7, "Launch Aster site", 1, "ordered");
+    const input = makeInput({
+      milestones: [goal],
+      openTasks: [
+        task(201, "Write hero copy", 1, "pending", null, { milestoneId: 7, sortOrder: 1 }),
+        task(202, "Pick hero image", 1, "pending", null, { milestoneId: 7, sortOrder: 2 }),
+      ],
+      recentlyCompleted: [
+        task(200, "Outline pages", 1, "done", null, { milestoneId: 7, sortOrder: 0 }),
+      ],
+    });
+    const out = buildRulesBriefing(input);
+    const stepReason = out.briefing.find((b) => b.taskId === 201)?.reasoning ?? "";
+    expect(stepReason).toMatch(/Step 2 of 3/);
+    expect(stepReason).toContain("Launch Aster site");
+    expect(stepReason).toMatch(/Earlier steps are done/);
+  });
+
+  it("flags an active-this-week area that has gone stale (>=5 days)", () => {
+    const sixDaysAgo = new Date(baseDate.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString();
+    const stalePillar = {
+      ...pillar(1, "Aster & Spruce Living", "P3"),
+      lastUpdated: sixDaysAgo,
+    };
+    const input = makeInput({
+      pillars: [stalePillar],
+      activePillars: [stalePillar],
+      openTasks: [task(301, "Write a status update", 1)],
+    });
+    const out = buildRulesBriefing(input);
+    const reason = out.briefing[0]?.reasoning ?? "";
+    expect(reason).toMatch(/Marked active this week/);
+    expect(reason).toMatch(/No progress logged in 6 days/);
+    expect(reason).toMatch(/25-minute push/);
   });
 });

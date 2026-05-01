@@ -84,6 +84,7 @@ export default function Dashboard() {
   const [selectedFocusDuration, setSelectedFocusDuration] = useState<number>(() => timer.defaultDuration);
   const [customDurationInput, setCustomDurationInput] = useState<string>("");
   const [showWizard, setShowWizard] = useState<boolean>(() => !isOnboardingComplete());
+  const [emptyAddTaskOpen, setEmptyAddTaskOpen] = useState<boolean>(false);
   // Phase 3: "This week" focus panel collapses by default. The dashboard
   // is mostly today — weekly context is one tap away when the user wants
   // to zoom out. Persisted to localStorage so the user's last choice
@@ -140,7 +141,7 @@ export default function Dashboard() {
   const createTask = useCreateTask();
 
   const showEveningRecap = !isViewingHistory && isAfterLocalHour(new Date(), 17);
-  const briefingEnabled = !isViewingHistory && !showEveningRecap && (summary?.activeAreas?.length ?? 0) > 0;
+  const briefingEnabled = !isViewingHistory && !showEveningRecap;
   const recapEnabled = !isViewingHistory && showEveningRecap;
 
   const briefingQuery = useGetBriefingToday({
@@ -390,34 +391,27 @@ export default function Dashboard() {
   const greetingFromBriefing = showEveningRecap
     ? recap?.greeting ?? ""
     : briefing?.greeting ?? "";
-  const showBriefing = !isViewingHistory && !showEveningRecap && (summary?.activeAreas?.length ?? 0) > 0;
+  const showBriefing = !isViewingHistory && !showEveningRecap;
+  const reasoningByTaskId = new Map<number, string>();
+  if (briefing?.briefing) {
+    for (const item of briefing.briefing) {
+      if (typeof item.taskId === "number" && item.reasoning) {
+        reasoningByTaskId.set(item.taskId, item.reasoning);
+      }
+    }
+  }
 
   return (
     <div className="space-y-6">
-      {/* Confident header */}
-      {!isViewingHistory && (
-        <motion.section
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="pt-2"
-          data-testid="briefing-header"
-        >
-          <p className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
-            {formatDateMono(today)}
-          </p>
-          <h1 className="font-serif text-3xl font-medium text-foreground mt-2 leading-tight">
-            {greetingFromBriefing || "Welcome back."}
-          </h1>
-          <p className="font-serif text-xl text-foreground/70 mt-1">
-            {headlineFromBriefing}
-          </p>
-        </motion.section>
-      )}
+      <AddTaskDialog
+        date={viewDate}
+        open={emptyAddTaskOpen}
+        onOpenChange={setEmptyAddTaskOpen}
+      />
 
-      {/* Briefing zone (morning) */}
+      {/* Today's plan — promoted to the top of the page */}
       {showBriefing && (
-        <div onMouseEnter={markBriefingViewed}>
+        <div onMouseEnter={markBriefingViewed} className="pt-2">
           {briefingQuery.isLoading && <BriefingCardSkeleton />}
           {briefingQuery.isError && (
             <BriefingCardError onRetry={() => briefingQuery.refetch()} />
@@ -435,15 +429,35 @@ export default function Dashboard() {
                 onMarkDone={handleBriefingMarkDone}
                 onPushTask={handleBriefingPush}
                 onMarkBlocked={handleBriefingBlocked}
+                onChooseActiveAreas={() => navigate("/areas")}
+                onAddTask={() => setEmptyAddTaskOpen(true)}
               />
-              {briefing.signoff && (
-                <p className="text-sm italic text-muted-foreground px-1">
+              {briefing.signoff && briefing.briefing.length > 0 && (
+                <p className="text-sm italic text-muted-foreground px-1 mt-2">
                   {briefing.signoff}
                 </p>
               )}
             </>
           )}
         </div>
+      )}
+
+      {/* Demoted header — sits below the plan as flavor, not the headline */}
+      {!isViewingHistory && (
+        <motion.section
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          data-testid="briefing-header"
+        >
+          <p className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
+            {formatDateMono(today)}
+          </p>
+          <p className="font-serif text-base text-muted-foreground mt-1">
+            {greetingFromBriefing || "Welcome back."}{" "}
+            <span className="text-foreground/70">{headlineFromBriefing}</span>
+          </p>
+        </motion.section>
       )}
 
       {/* Onboarding checklist — auto-hides once complete */}
@@ -488,24 +502,6 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* Empty areas state — only show in morning briefing mode */}
-      {!isViewingHistory && !showEveningRecap && (summary?.activeAreas?.length ?? 0) === 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-dashed border-border bg-card p-6 text-center"
-        >
-          <p className="font-serif text-base text-foreground mb-1">
-            Set up your areas to get a daily briefing.
-          </p>
-          <p className="text-sm text-muted-foreground mb-4">
-            Areas give your assistant the context to draft today's plan.
-          </p>
-          <Button onClick={() => navigate("/areas")} size="sm" className="rounded-xl">
-            Add your areas
-          </Button>
-        </motion.section>
-      )}
 
       {/* Active areas (kept) */}
       {summary?.activeAreas && summary.activeAreas.length > 0 && (
@@ -832,6 +828,7 @@ export default function Dashboard() {
                         date={viewDate}
                         areaMap={areaMap}
                         areaPriorities={summary?.weeklyPlan?.areaPriorities ?? []}
+                          reasoningByTaskId={reasoningByTaskId}
                       />
                     ))}
                   </AnimatePresence>
@@ -846,6 +843,7 @@ export default function Dashboard() {
                     date={viewDate}
                     areaMap={areaMap}
                     areaPriorities={summary?.weeklyPlan?.areaPriorities ?? []}
+                          reasoningByTaskId={reasoningByTaskId}
                   />
                 ))}
               </AnimatePresence>
@@ -875,6 +873,7 @@ export default function Dashboard() {
                             date={viewDate}
                             areaMap={areaMap}
                             areaPriorities={summary?.weeklyPlan?.areaPriorities ?? []}
+                          reasoningByTaskId={reasoningByTaskId}
                           />
                         ))}
                       </AnimatePresence>
@@ -889,6 +888,7 @@ export default function Dashboard() {
                         date={viewDate}
                         areaMap={areaMap}
                         areaPriorities={summary?.weeklyPlan?.areaPriorities ?? []}
+                          reasoningByTaskId={reasoningByTaskId}
                       />
                     ))}
                   </AnimatePresence>
