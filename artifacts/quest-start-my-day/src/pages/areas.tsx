@@ -989,6 +989,7 @@ export default function SettingsPage() {
   const warmP = areas?.filter(p => p.portfolioStatus === "Warm") ?? [];
   const parkedP = areas?.filter(p => p.portfolioStatus === "Parked") ?? [];
   const ungrouped = areas?.filter(p => !p.portfolioStatus) ?? [];
+  const activeThisWeek = areas?.filter(p => p.isActiveThisWeek) ?? [];
 
   const groups: { label: string; items: typeof activeP }[] = [
     { label: "Active", items: [...activeP, ...ungrouped] },
@@ -1019,6 +1020,35 @@ export default function SettingsPage() {
           </DialogContent>
         </Dialog>
       </motion.div>
+
+      {/* "This week" — compact pill row of active-this-week areas. Hidden
+          when none are active (no empty state — the brain dump below covers
+          first-run). Each pill links into the per-area page. */}
+      {activeThisWeek.length > 0 && (
+        <section aria-labelledby="this-week-heading" className="space-y-1.5">
+          <p
+            id="this-week-heading"
+            className="text-xs text-muted-foreground tracking-wide"
+          >
+            this week
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {activeThisWeek.map((a) => (
+              <Link
+                key={a.id}
+                href={`/areas/${a.id}`}
+                aria-label={`Open ${a.name}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-card-border bg-card px-2.5 py-1 text-xs text-foreground hover:bg-muted/50 transition-colors"
+              >
+                <span className="font-medium truncate max-w-[10rem]">{a.name}</span>
+                <span className="text-[10px] font-medium text-muted-foreground">
+                  · {a.priority}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* P1-P4 legend */}
       <section className="rounded-2xl bg-card border border-card-border p-4">

@@ -77,6 +77,11 @@ export interface Milestone {
   means any open sub-task can be picked.
    */
   mode: MilestoneMode;
+  /** ISO timestamp when this goal was marked complete. Null while
+  open. Set independently of step status — a goal can be closed
+  with steps still pending, or stay open with all steps done.
+   */
+  completedAt?: string | null;
   createdAt: string;
 }
 
@@ -118,6 +123,7 @@ export interface CreateMilestoneBody {
   nextAction?: string | null;
   sortOrder?: number;
   mode?: CreateMilestoneBodyMode;
+  completedAt?: string | null;
 }
 
 export interface BulkCreateMilestonesBody {
@@ -174,6 +180,7 @@ export interface UpdateMilestoneBody {
   nextAction?: string | null;
   sortOrder?: number;
   mode?: UpdateMilestoneBodyMode;
+  completedAt?: string | null;
 }
 
 /**

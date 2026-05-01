@@ -26,6 +26,7 @@ const router: IRouter = Router();
 function serializeMilestone(m: typeof milestonesTable.$inferSelect) {
   return {
     ...m,
+    completedAt: m.completedAt ? m.completedAt.toISOString() : null,
     createdAt: m.createdAt.toISOString(),
     updatedAt: m.updatedAt.toISOString(),
   };
@@ -65,6 +66,7 @@ router.post("/milestones", asyncHandler(async (req, res): Promise<void> => {
     nextAction: parsed.data.nextAction ?? null,
     sortOrder: parsed.data.sortOrder ?? 0,
     mode: parsed.data.mode ?? "ordered",
+    completedAt: parsed.data.completedAt ? new Date(parsed.data.completedAt) : null,
   }).returning();
 
   res.status(201).json(serializeMilestone(milestone!));
@@ -121,6 +123,9 @@ router.patch("/milestones/:id", asyncHandler(async (req, res): Promise<void> => 
   if (parsed.data.nextAction !== undefined) updates.nextAction = parsed.data.nextAction;
   if (parsed.data.sortOrder !== undefined) updates.sortOrder = parsed.data.sortOrder;
   if (parsed.data.mode !== undefined) updates.mode = parsed.data.mode;
+  if (parsed.data.completedAt !== undefined) {
+    updates.completedAt = parsed.data.completedAt ? new Date(parsed.data.completedAt) : null;
+  }
   updates.updatedAt = new Date();
 
   const [milestone] = await db

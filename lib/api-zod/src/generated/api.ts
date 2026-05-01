@@ -160,6 +160,7 @@ export const ListMilestonesResponseItem = zod.object({
   "nextAction": zod.string().nullish(),
   "sortOrder": zod.number(),
   "mode": zod.enum(['ordered', 'any']).describe('Phase 3 \"goal\" mode. \"ordered\" means only the lowest-sortOrder\npending sub-task is eligible for the daily briefing. \"any\"\nmeans any open sub-task can be picked.\n'),
+  "completedAt": zod.string().nullish().describe('ISO timestamp when this goal was marked complete. Null while\nopen. Set independently of step status — a goal can be closed\nwith steps still pending, or stay open with all steps done.\n'),
   "createdAt": zod.string()
 })
 export const ListMilestonesResponse = zod.array(ListMilestonesResponseItem)
@@ -177,7 +178,8 @@ export const CreateMilestoneBody = zod.object({
   "description": zod.string().nullish(),
   "nextAction": zod.string().nullish(),
   "sortOrder": zod.number().optional(),
-  "mode": zod.enum(['ordered', 'any']).optional()
+  "mode": zod.enum(['ordered', 'any']).optional(),
+  "completedAt": zod.string().nullish()
 })
 
 
@@ -210,7 +212,8 @@ export const UpdateMilestoneBody = zod.object({
   "description": zod.string().nullish(),
   "nextAction": zod.string().nullish(),
   "sortOrder": zod.number().optional(),
-  "mode": zod.enum(['ordered', 'any']).optional()
+  "mode": zod.enum(['ordered', 'any']).optional(),
+  "completedAt": zod.string().nullish()
 })
 
 export const UpdateMilestoneResponse = zod.object({
@@ -224,6 +227,7 @@ export const UpdateMilestoneResponse = zod.object({
   "nextAction": zod.string().nullish(),
   "sortOrder": zod.number(),
   "mode": zod.enum(['ordered', 'any']).describe('Phase 3 \"goal\" mode. \"ordered\" means only the lowest-sortOrder\npending sub-task is eligible for the daily briefing. \"any\"\nmeans any open sub-task can be picked.\n'),
+  "completedAt": zod.string().nullish().describe('ISO timestamp when this goal was marked complete. Null while\nopen. Set independently of step status — a goal can be closed\nwith steps still pending, or stay open with all steps done.\n'),
   "createdAt": zod.string()
 })
 

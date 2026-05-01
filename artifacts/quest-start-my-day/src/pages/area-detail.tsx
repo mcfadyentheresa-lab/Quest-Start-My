@@ -342,9 +342,19 @@ export default function AreaDetailPage() {
     );
   }
 
-  const sortedGoals = [...milestones].sort(
-    (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id,
-  );
+  // Goals: open ones first (in their stored order), then completed at the
+  // bottom (most recently completed first so the latest win sits closest
+  // to the live work).
+  const sortedGoals = (() => {
+    const all = [...milestones].sort(
+      (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id,
+    );
+    const open = all.filter((g) => !g.completedAt);
+    const done = all
+      .filter((g) => !!g.completedAt)
+      .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? ""));
+    return [...open, ...done];
+  })();
 
   return (
     <div className="space-y-6">
@@ -511,6 +521,25 @@ export default function AreaDetailPage() {
                     toast({ title: "Goal deleted." });
                   } catch {
                     toast({ title: "Couldn't delete.", variant: "destructive" });
+                  }
+                }}
+                onSetCompleted={async (completedAt) => {
+                  try {
+                    await updateMilestone.mutateAsync({
+                      id: goal.id,
+                      data: { completedAt },
+                    });
+                    invalidateAreaData();
+                    toast({
+                      title: completedAt ? "Goal complete." : "Goal reopened.",
+                    });
+                  } catch {
+                    toast({
+                      title: completedAt
+                        ? "Couldn't mark complete."
+                        : "Couldn't reopen.",
+                      variant: "destructive",
+                    });
                   }
                 }}
               />
@@ -873,6 +902,7 @@ interface GoalCardProps {
   onReorderSteps: (taskIds: number[]) => Promise<void>;
   onToggleMode: () => Promise<void>;
   onDeleteGoal: () => Promise<void>;
+  onSetCompleted: (completedAt: string | null) => Promise<void>;
 }
 
 function GoalCard({
@@ -886,17 +916,35 @@ function GoalCard({
   onReorderSteps,
   onToggleMode,
   onDeleteGoal,
+  onSetCompleted,
 }: GoalCardProps) {
-  const [open, setOpen] = useState(true);
+  const isComplete = !!goal.completedAt;
+  // Default closed for completed goals — they collapse to a single line.
+  const [open, setOpen] = useState(!isComplete);
   const [stepDraft, setStepDraft] = useState("");
   const [adding, setAdding] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
 
-  // Steps belonging to this goal, ordered by sortOrder then id.
+  // Auto-collapse when a goal flips to complete (whether by manual toggle
+  // or by the last step being checked). Re-expand when reopened.
+  const prevCompleteRef = useRef(isComplete);
+  useEffect(() => {
+    if (prevCompleteRef.current !== isComplete) {
+      setOpen(!isComplete);
+      prevCompleteRef.current = isComplete;
+    }
+  }, [isComplete]);
+
+  // Steps belonging to this goal: pending first (in their stored order),
+  // then done at the bottom in their relative order. Sorting the
+  // completed ones down keeps focus on what's left.
   const steps = useMemo(() => {
-    return tasks
+    const all = tasks
       .filter((t) => t.milestoneId === goal.id)
       .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id);
+    const pending = all.filter((s) => s.status !== "done");
+    const done = all.filter((s) => s.status === "done");
+    return [...pending, ...done];
   }, [tasks, goal.id]);
 
   const pendingSteps = steps.filter((s) => s.status === "pending");
@@ -933,8 +981,62 @@ function GoalCard({
   // pending steps are visually muted to mirror the briefing rule.
   const liveStepId = goal.mode === "ordered" ? pendingSteps[0]?.id ?? null : null;
 
+  // Toggling a step: if this flip closes the last open step, also mark
+  // the goal complete. Frontend drives this — the API stays simple.
+  const handleStepToggle = (step: Task) => {
+    onUpdateTask(step);
+    if (
+      step.status !== "done" &&
+      pendingSteps.length === 1 &&
+      pendingSteps[0]!.id === step.id &&
+      !goal.completedAt
+    ) {
+      void onSetCompleted(new Date().toISOString());
+    }
+  };
+
+  const handleManualToggleComplete = () => {
+    void onSetCompleted(goal.completedAt ? null : new Date().toISOString());
+  };
+
+  // Collapsed view for a completed goal: a single muted line. Click expands.
+  if (isComplete && !open) {
+    return (
+      <li className="rounded-2xl bg-card/60 border border-card-border overflow-hidden">
+        <div className="flex items-center gap-2 p-3">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="flex items-center gap-2 flex-1 min-w-0 text-left"
+            aria-expanded={false}
+            aria-label={`Expand completed goal: ${goal.title}`}
+          >
+            <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+            <span className="text-sm text-muted-foreground line-through truncate flex-1 min-w-0">
+              {goal.title}
+            </span>
+            <span className="text-xs text-muted-foreground/80 flex-shrink-0">
+              {steps.length} {steps.length === 1 ? "step" : "steps"}
+            </span>
+          </button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+            onClick={handleManualToggleComplete}
+            aria-label={`Reopen goal: ${goal.title}`}
+          >
+            Reopen
+          </Button>
+        </div>
+      </li>
+    );
+  }
+
   return (
-    <li className="rounded-2xl bg-card border border-card-border overflow-hidden">
+    <li className={`rounded-2xl border border-card-border overflow-hidden ${
+      isComplete ? "bg-card/60" : "bg-card"
+    }`}>
       {/* Goal header row */}
       <div className="flex items-start justify-between gap-2 p-3">
         <button
@@ -949,7 +1051,11 @@ function GoalCard({
             <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
           )}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">{goal.title}</p>
+            <p className={`text-sm font-medium truncate ${
+              isComplete ? "text-muted-foreground line-through" : "text-foreground"
+            }`}>
+              {goal.title}
+            </p>
             <p className="text-xs text-muted-foreground mt-0.5">
               {steps.length === 0
                 ? "No steps yet."
@@ -959,6 +1065,15 @@ function GoalCard({
             </p>
           </div>
         </button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+          onClick={handleManualToggleComplete}
+          aria-label={isComplete ? `Reopen goal: ${goal.title}` : `Mark goal complete: ${goal.title}`}
+        >
+          {isComplete ? "Reopen" : "Mark complete"}
+        </Button>
         <Button
           variant="ghost"
           size="sm"
@@ -1015,7 +1130,7 @@ function GoalCard({
                       key={step.id}
                       step={step}
                       isLive={liveStepId === null || liveStepId === step.id}
-                      onToggle={() => onUpdateTask(step)}
+                      onToggle={() => handleStepToggle(step)}
                     />
                   ))}
                 </ul>
@@ -1245,15 +1360,16 @@ interface SortableStepRowProps {
 }
 
 function SortableStepRow({ step, isLive, onToggle }: SortableStepRowProps) {
+  const isDone = step.status === "done";
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: step.id,
+    disabled: isDone,
   });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
-  const isDone = step.status === "done";
   const muted = !isLive && !isDone;
 
   return (
@@ -1261,25 +1377,39 @@ function SortableStepRow({ step, isLive, onToggle }: SortableStepRowProps) {
       ref={setNodeRef}
       style={style}
       className={`flex items-center gap-2 rounded-xl border border-card-border/60 px-2 py-1.5 ${
-        muted ? "bg-card/40 opacity-60" : "bg-background"
+        isDone ? "bg-card/30 opacity-60" : muted ? "bg-card/40 opacity-60" : "bg-background"
       }`}
     >
-      <button
-        type="button"
-        {...attributes}
-        {...listeners}
-        className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors touch-none"
-        aria-label="Drag to reorder"
-      >
-        <GripVertical className="h-3.5 w-3.5" />
-      </button>
+      {isDone ? (
+        <span
+          className="flex-shrink-0 text-transparent"
+          aria-hidden
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </span>
+      ) : (
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors touch-none"
+          aria-label="Drag to reorder"
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+      )}
       <button
         type="button"
         onClick={onToggle}
-        aria-label={isDone ? `Reopen ${step.title}` : `Mark "${step.title}" done`}
-        className="h-4 w-4 rounded-full border border-card-border hover:border-foreground transition-colors flex items-center justify-center flex-shrink-0"
+        aria-label={isDone ? `Reopen "${step.title}"` : `Mark "${step.title}" done`}
+        aria-pressed={isDone}
+        className={`h-4 w-4 rounded-full border transition-colors flex items-center justify-center flex-shrink-0 ${
+          isDone
+            ? "border-emerald-500/60 bg-emerald-500/15 hover:border-emerald-500"
+            : "border-card-border hover:border-foreground"
+        }`}
       >
-        {isDone && <CheckCircle2 className="h-3 w-3 text-muted-foreground" />}
+        {isDone && <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />}
       </button>
       <span
         className={`flex-1 min-w-0 text-sm truncate ${
