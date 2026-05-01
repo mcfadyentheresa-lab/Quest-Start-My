@@ -107,7 +107,7 @@ export function OnboardingWizard({ open, onComplete }: OnboardingWizardProps) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) finishWithoutAreas(); }}>
-      <DialogContent className="rounded-2xl max-w-md mx-4 p-0 overflow-hidden">
+      <DialogContent className="rounded-2xl w-[calc(100%-2rem)] max-w-md p-0 overflow-hidden">
         <AnimatePresence mode="wait">
           {step === "welcome" && (
             <motion.div
