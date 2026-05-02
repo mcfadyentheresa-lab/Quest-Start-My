@@ -82,6 +82,16 @@ export interface Milestone {
   with steps still pending, or stay open with all steps done.
    */
   completedAt?: string | null;
+  /** Phase-dependency pointer. When set, this goal is held until the
+  referenced milestone has its completedAt timestamp set. Must
+  point at another milestone in the same area. Null means no hold.
+   */
+  holdUntilMilestoneId?: number | null;
+  /** Read-only. True when holdUntilMilestoneId is set and the
+  referenced milestone has not been completed. Recomputed on every
+  read; never stored.
+   */
+  isOnHold: boolean;
   createdAt: string;
 }
 
@@ -124,6 +134,7 @@ export interface CreateMilestoneBody {
   sortOrder?: number;
   mode?: CreateMilestoneBodyMode;
   completedAt?: string | null;
+  holdUntilMilestoneId?: number | null;
 }
 
 export interface BulkCreateMilestonesBody {
@@ -181,6 +192,7 @@ export interface UpdateMilestoneBody {
   sortOrder?: number;
   mode?: UpdateMilestoneBodyMode;
   completedAt?: string | null;
+  holdUntilMilestoneId?: number | null;
 }
 
 /**

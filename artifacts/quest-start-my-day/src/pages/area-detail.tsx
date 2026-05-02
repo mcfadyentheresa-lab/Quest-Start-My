@@ -56,7 +56,13 @@ import {
   Trash2,
   Wand2,
   Check,
+  Lock,
 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   DndContext,
   closestCenter,
@@ -344,18 +350,20 @@ export default function AreaDetailPage() {
     );
   }
 
-  // Goals: open ones first (in their stored order), then completed at the
-  // bottom (most recently completed first so the latest win sits closest
-  // to the live work).
+  // Goals: active open ones first (stored order), then on-hold open ones,
+  // then completed at the bottom (most recently completed first so the
+  // latest win sits closest to the live work).
   const sortedGoals = (() => {
     const all = [...milestones].sort(
       (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id,
     );
     const open = all.filter((g) => !g.completedAt);
+    const active = open.filter((g) => !g.isOnHold);
+    const held = open.filter((g) => !!g.isOnHold);
     const done = all
       .filter((g) => !!g.completedAt)
       .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? ""));
-    return [...open, ...done];
+    return [...active, ...held, ...done];
   })();
 
   return (
@@ -450,6 +458,29 @@ export default function AreaDetailPage() {
                 key={goal.id}
                 goal={goal}
                 tasks={tasks}
+                siblings={milestones.filter((m) => m.id !== goal.id)}
+                onSetHoldUntil={async (holdUntilMilestoneId) => {
+                  try {
+                    await updateMilestone.mutateAsync({
+                      id: goal.id,
+                      data: { holdUntilMilestoneId },
+                    });
+                    invalidateAreaData();
+                    toast({
+                      title:
+                        holdUntilMilestoneId === null
+                          ? "Hold cleared."
+                          : "On hold.",
+                    });
+                  } catch {
+                    toast({
+                      title: "Couldn't set hold.",
+                      description:
+                        "That target may be in another area or create a cycle.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
                 onUpdateTask={(t) => handleToggleDone(t)}
                 onAfterMutation={invalidateAreaData}
                 breakdownPending={breakdownMilestone.isPending}
@@ -865,6 +896,7 @@ function AreaNote({ value, onSave }: { value: string; onSave: (v: string) => voi
 interface GoalCardProps {
   goal: Milestone;
   tasks: Task[];
+  siblings: Milestone[];
   onUpdateTask: (t: Task) => void;
   onAfterMutation: () => void;
   breakdownPending: boolean;
@@ -877,11 +909,13 @@ interface GoalCardProps {
   onToggleMode: () => Promise<void>;
   onDeleteGoal: () => Promise<void>;
   onSetCompleted: (completedAt: string | null) => Promise<void>;
+  onSetHoldUntil: (holdUntilMilestoneId: number | null) => Promise<void>;
 }
 
-function GoalCard({
+export function GoalCard({
   goal,
   tasks,
+  siblings,
   onUpdateTask,
   breakdownPending,
   onBreakdown,
@@ -893,13 +927,33 @@ function GoalCard({
   onToggleMode,
   onDeleteGoal,
   onSetCompleted,
+  onSetHoldUntil,
 }: GoalCardProps) {
   const isComplete = !!goal.completedAt;
+  const isOnHold = !!goal.isOnHold;
   // Default closed for completed goals — they collapse to a single line.
-  const [open, setOpen] = useState(!isComplete);
+  // Held goals also default closed: steps are still expandable on demand.
+  const [open, setOpen] = useState(!isComplete && !isOnHold);
   const [stepDraft, setStepDraft] = useState("");
   const [adding, setAdding] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [holdPickerOpen, setHoldPickerOpen] = useState(false);
+
+  // Held → resolve the prerequisite goal title from siblings for the pill.
+  const heldUntil = useMemo(() => {
+    if (goal.holdUntilMilestoneId == null) return null;
+    return siblings.find((s) => s.id === goal.holdUntilMilestoneId) ?? null;
+  }, [goal.holdUntilMilestoneId, siblings]);
+
+  // Auto-unmute: when isOnHold flips from true → false (the prerequisite
+  // got marked complete), re-expand the card so the user sees it surface.
+  const prevHoldRef = useRef(isOnHold);
+  useEffect(() => {
+    if (prevHoldRef.current && !isOnHold && !isComplete) {
+      setOpen(true);
+    }
+    prevHoldRef.current = isOnHold;
+  }, [isOnHold, isComplete]);
 
   // Auto-collapse when a goal flips to complete (whether by manual toggle
   // or by the last step being checked). Re-expand when reopened.
@@ -1010,9 +1064,29 @@ function GoalCard({
   }
 
   return (
-    <li className={`rounded-2xl border border-card-border overflow-hidden ${
-      isComplete ? "bg-card/60" : "bg-card"
-    }`}>
+    <li
+      className={`rounded-2xl border border-card-border overflow-hidden ${
+        isComplete ? "bg-card/60" : "bg-card"
+      } ${isOnHold && !isComplete ? "opacity-60 shadow-none" : ""}`}
+      data-on-hold={isOnHold && !isComplete ? "true" : undefined}
+    >
+      {/* On-hold pill — sits above the header so the reason is the first
+          thing the eye lands on. */}
+      {isOnHold && !isComplete && (
+        <div
+          className="flex items-center gap-1.5 px-3 pt-3 text-xs text-muted-foreground"
+          data-testid="on-hold-pill"
+        >
+          <Lock className="h-3 w-3 flex-shrink-0" aria-hidden />
+          <span className="truncate">
+            On hold — waiting on{" "}
+            <span className="font-medium text-foreground/80">
+              {heldUntil ? heldUntil.title : "another goal"}
+            </span>
+            .
+          </span>
+        </div>
+      )}
       {/* Goal header row */}
       <div className="flex items-start justify-between gap-2 p-3">
         <button
@@ -1033,14 +1107,89 @@ function GoalCard({
               {goal.title}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {steps.length === 0
-                ? "No steps yet."
-                : `${doneCount} of ${steps.length} done${
-                    goal.mode === "ordered" ? " · step-by-step" : " · any order"
-                  }`}
+              {isOnHold && !open
+                ? `${steps.length} ${steps.length === 1 ? "step" : "steps"} — show`
+                : steps.length === 0
+                  ? "No steps yet."
+                  : `${doneCount} of ${steps.length} done${
+                      goal.mode === "ordered" ? " · step-by-step" : " · any order"
+                    }`}
             </p>
           </div>
         </button>
+        {/* Hold until — small popover. Hidden when the goal is complete. */}
+        {!isComplete && (
+          <Popover open={holdPickerOpen} onOpenChange={setHoldPickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                aria-label="Hold this goal until another goal completes"
+              >
+                <Lock className="h-3 w-3 mr-1" />
+                Hold until
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-2" align="end">
+              <p className="px-2 pb-2 text-xs text-muted-foreground">
+                Hold this goal until another in this area is done.
+              </p>
+              <ul className="space-y-0.5 max-h-64 overflow-y-auto">
+                <li>
+                  <button
+                    type="button"
+                    className="w-full text-left text-sm rounded-md px-2 py-1.5 hover:bg-muted/40 transition-colors"
+                    onClick={async () => {
+                      setHoldPickerOpen(false);
+                      if (goal.holdUntilMilestoneId !== null) {
+                        await onSetHoldUntil(null);
+                      }
+                    }}
+                  >
+                    <span className="text-muted-foreground">Don't hold</span>
+                    {goal.holdUntilMilestoneId === null && (
+                      <span className="ml-2 text-xs text-muted-foreground/70">·  current</span>
+                    )}
+                  </button>
+                </li>
+                {siblings.length === 0 ? (
+                  <li className="px-2 py-1.5 text-xs text-muted-foreground">
+                    No other goals in this area yet.
+                  </li>
+                ) : (
+                  siblings.map((s) => {
+                    const selected = goal.holdUntilMilestoneId === s.id;
+                    return (
+                      <li key={s.id}>
+                        <button
+                          type="button"
+                          className="w-full text-left text-sm rounded-md px-2 py-1.5 hover:bg-muted/40 transition-colors flex items-center gap-2"
+                          onClick={async () => {
+                            setHoldPickerOpen(false);
+                            if (!selected) {
+                              await onSetHoldUntil(s.id);
+                            }
+                          }}
+                        >
+                          {s.completedAt ? (
+                            <Check className="h-3 w-3 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+                          ) : (
+                            <span className="h-3 w-3 flex-shrink-0" />
+                          )}
+                          <span className="truncate flex-1">{s.title}</span>
+                          {selected && (
+                            <span className="text-xs text-muted-foreground/70">current</span>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            </PopoverContent>
+          </Popover>
+        )}
         <Button
           variant="ghost"
           size="sm"
