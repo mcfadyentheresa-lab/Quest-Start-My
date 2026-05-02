@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, gte, lte, lt, desc, asc } from "drizzle-orm";
 import { db, tasksTable, areasTable, weeklyPlansTable, progressLogsTable, milestonesTable } from "@workspace/db";
+import { getUserId } from "../lib/auth";
 import {
   GetDashboardSummaryResponse,
   GetWeekSummaryResponse,
@@ -49,14 +50,15 @@ function computeGuidance(status: string, suggestedNextStep: string | null | unde
 }
 
 router.get("/dashboard/summary", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const today = new Date().toISOString().slice(0, 10);
   const weekOf = getWeekStart();
 
   const [todayTasks, allAreas, weeklyPlans, allWeeklyPlans] = await Promise.all([
-    db.select().from(tasksTable).where(eq(tasksTable.date, today)),
-    db.select().from(areasTable).orderBy(areasTable.id),
-    db.select().from(weeklyPlansTable).where(eq(weeklyPlansTable.weekOf, weekOf)),
-    db.select({ weekOf: weeklyPlansTable.weekOf }).from(weeklyPlansTable).orderBy(asc(weeklyPlansTable.weekOf)),
+    db.select().from(tasksTable).where(and(eq(tasksTable.userId, userId), eq(tasksTable.date, today))),
+    db.select().from(areasTable).where(eq(areasTable.userId, userId)).orderBy(areasTable.id),
+    db.select().from(weeklyPlansTable).where(and(eq(weeklyPlansTable.userId, userId), eq(weeklyPlansTable.weekOf, weekOf))),
+    db.select({ weekOf: weeklyPlansTable.weekOf }).from(weeklyPlansTable).where(eq(weeklyPlansTable.userId, userId)).orderBy(asc(weeklyPlansTable.weekOf)),
   ]);
 
   const doneCount = todayTasks.filter(t => t.status === "done").length;
@@ -95,15 +97,17 @@ router.get("/dashboard/summary", asyncHandler(async (req, res): Promise<void> =>
 }));
 
 router.get("/dashboard/week-summary", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const weekOf = getWeekStart();
   const weekEnd = getWeekEnd(weekOf);
 
   const [tasks, areas] = await Promise.all([
     db.select().from(tasksTable).where(and(
+      eq(tasksTable.userId, userId),
       gte(tasksTable.date, weekOf),
-      lte(tasksTable.date, weekEnd)
+      lte(tasksTable.date, weekEnd),
     )),
-    db.select().from(areasTable),
+    db.select().from(areasTable).where(eq(areasTable.userId, userId)),
   ]);
 
   const totalTasks = tasks.length;
@@ -150,13 +154,15 @@ router.get("/dashboard/week-summary", asyncHandler(async (req, res): Promise<voi
 }));
 
 router.get("/dashboard/reentry", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const today = new Date().toISOString().slice(0, 10);
 
   // First: look for most recent unfinished (pending) or blocked task from a prior date
   const unfinished = await db.select().from(tasksTable)
     .where(and(
+      eq(tasksTable.userId, userId),
       lt(tasksTable.date, today),
-      eq(tasksTable.status, "pending")
+      eq(tasksTable.status, "pending"),
     ))
     .orderBy(desc(tasksTable.date), desc(tasksTable.id))
     .limit(1);
@@ -166,7 +172,7 @@ router.get("/dashboard/reentry", asyncHandler(async (req, res): Promise<void> =>
     if (t.milestoneId) {
       const [milestone] = await db.select({ title: milestonesTable.title })
         .from(milestonesTable)
-        .where(eq(milestonesTable.id, t.milestoneId));
+        .where(and(eq(milestonesTable.id, t.milestoneId), eq(milestonesTable.userId, userId)));
       milestoneTitle = milestone?.title ?? null;
     }
     return {
@@ -198,8 +204,9 @@ router.get("/dashboard/reentry", asyncHandler(async (req, res): Promise<void> =>
   // Also check blocked tasks from prior dates
   const blocked = await db.select().from(tasksTable)
     .where(and(
+      eq(tasksTable.userId, userId),
       lt(tasksTable.date, today),
-      eq(tasksTable.status, "blocked")
+      eq(tasksTable.status, "blocked"),
     ))
     .orderBy(desc(tasksTable.date), desc(tasksTable.id))
     .limit(1);
@@ -219,8 +226,9 @@ router.get("/dashboard/reentry", asyncHandler(async (req, res): Promise<void> =>
   // Check passed tasks from prior dates
   const passed = await db.select().from(tasksTable)
     .where(and(
+      eq(tasksTable.userId, userId),
       lt(tasksTable.date, today),
-      eq(tasksTable.status, "passed")
+      eq(tasksTable.status, "passed"),
     ))
     .orderBy(desc(tasksTable.date), desc(tasksTable.id))
     .limit(1);
@@ -239,7 +247,7 @@ router.get("/dashboard/reentry", asyncHandler(async (req, res): Promise<void> =>
 
   // Fallback: most recent done task from any date
   const completed = await db.select().from(tasksTable)
-    .where(eq(tasksTable.status, "done"))
+    .where(and(eq(tasksTable.userId, userId), eq(tasksTable.status, "done")))
     .orderBy(desc(tasksTable.date), desc(tasksTable.id))
     .limit(1);
 
@@ -258,21 +266,26 @@ router.get("/dashboard/reentry", asyncHandler(async (req, res): Promise<void> =>
 }));
 
 router.get("/dashboard/area-health", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const weekOf = getWeekStart();
   const weekEnd = getWeekEnd(weekOf);
 
   const [areas, weekTasks, recentLogs] = await Promise.all([
-    db.select().from(areasTable).orderBy(areasTable.id),
+    db.select().from(areasTable).where(eq(areasTable.userId, userId)).orderBy(areasTable.id),
     db.select().from(tasksTable).where(and(
+      eq(tasksTable.userId, userId),
       gte(tasksTable.date, weekOf),
-      lte(tasksTable.date, weekEnd)
+      lte(tasksTable.date, weekEnd),
     )),
-    db.select().from(progressLogsTable).orderBy(desc(progressLogsTable.loggedAt)),
+    db.select().from(progressLogsTable)
+      .where(eq(progressLogsTable.userId, userId))
+      .orderBy(desc(progressLogsTable.loggedAt)),
   ]);
 
   const totalDoneThisWeek = weekTasks.filter(t => t.status === "done").length;
 
-  const allTasks = await db.select({ id: tasksTable.id, areaId: tasksTable.areaId }).from(tasksTable);
+  const allTasks = await db.select({ id: tasksTable.id, areaId: tasksTable.areaId }).from(tasksTable)
+    .where(eq(tasksTable.userId, userId));
   const taskAreaMap = new Map(allTasks.map(t => [t.id, t.areaId]));
 
   const areaEntries = areas.map(area => {
@@ -347,6 +360,7 @@ router.get("/dashboard/area-health", asyncHandler(async (req, res): Promise<void
 }));
 
 router.get("/dashboard/outcome-metrics", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const weekOfParam = typeof req.query.weekOf === "string" ? req.query.weekOf : null;
   if (weekOfParam !== null) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(weekOfParam) || isNaN(Date.parse(weekOfParam + "T00:00:00"))) {
@@ -361,11 +375,12 @@ router.get("/dashboard/outcome-metrics", asyncHandler(async (req, res): Promise<
 
   const [weekTasks, areas, allMilestones] = await Promise.all([
     db.select().from(tasksTable).where(and(
+      eq(tasksTable.userId, userId),
       gte(tasksTable.date, weekOf),
-      lte(tasksTable.date, weekEnd)
+      lte(tasksTable.date, weekEnd),
     )),
-    db.select().from(areasTable).orderBy(areasTable.id),
-    db.select().from(milestonesTable),
+    db.select().from(areasTable).where(eq(areasTable.userId, userId)).orderBy(areasTable.id),
+    db.select().from(milestonesTable).where(eq(milestonesTable.userId, userId)),
   ]);
 
   // Milestones completed this week: status=complete AND createdAt within this week
@@ -438,6 +453,7 @@ function getPastWeekStarts(n: number, fromWeekStart: string): string[] {
 }
 
 router.get("/dashboard/area-completion-history", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const parsed = GetAreaCompletionHistoryParams.safeParse(req.query);
   const weekCount = parsed.success && parsed.data.weeks !== undefined
     ? Math.min(Math.max(parsed.data.weeks, 1), 52)
@@ -451,10 +467,11 @@ router.get("/dashboard/area-completion-history", asyncHandler(async (req, res): 
 
   const [allTasks, areas] = await Promise.all([
     db.select().from(tasksTable).where(and(
+      eq(tasksTable.userId, userId),
       gte(tasksTable.date, oldestWeekStart),
       lte(tasksTable.date, newestWeekEnd),
     )),
-    db.select().from(areasTable).orderBy(areasTable.id),
+    db.select().from(areasTable).where(eq(areasTable.userId, userId)).orderBy(areasTable.id),
   ]);
 
   const areaData = areas.map(area => {

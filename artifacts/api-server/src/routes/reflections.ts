@@ -1,13 +1,9 @@
 import { Router, type IRouter } from "express";
 import { generateReflectionDraft } from "../lib/reflections-draft";
 import { asyncHandler } from "../lib/async-handler";
+import { getUserId } from "../lib/auth";
 
 const router: IRouter = Router();
-
-function getUserId(req: { userId?: string | null } & object): string | null {
-  const candidate = (req as { userId?: string | null }).userId;
-  return typeof candidate === "string" && candidate.length > 0 ? candidate : null;
-}
 
 const WEEK_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MONTH_RE = /^\d{4}-\d{2}$/;

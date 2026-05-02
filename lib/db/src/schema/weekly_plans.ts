@@ -1,9 +1,10 @@
-import { pgTable, text, serial, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const weeklyPlansTable = pgTable("weekly_plans", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().default("owner"),
   weekOf: text("week_of").notNull(),
   priorities: text("priorities").array().notNull().default([]),
   healthFocus: text("health_focus"),
@@ -17,8 +18,10 @@ export const weeklyPlansTable = pgTable("weekly_plans", {
   whatContinues: text("what_continues"),
   whatToDeprioritize: text("what_to_deprioritize"),
   nextWeekFocus: text("next_week_focus"),
-});
+}, (t) => ({
+  userWeekIdx: index("weekly_plans_user_week_idx").on(t.userId, t.weekOf),
+}));
 
-export const insertWeeklyPlanSchema = createInsertSchema(weeklyPlansTable).omit({ id: true, createdAt: true });
+export const insertWeeklyPlanSchema = createInsertSchema(weeklyPlansTable).omit({ id: true, createdAt: true, userId: true });
 export type InsertWeeklyPlan = z.infer<typeof insertWeeklyPlanSchema>;
 export type WeeklyPlan = typeof weeklyPlansTable.$inferSelect;

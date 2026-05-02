@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, weeklyPlansTable } from "@workspace/db";
 import {
   CreateWeeklyPlanBody,
@@ -10,6 +10,7 @@ import {
   UpdateWeeklyPlanResponse,
 } from "@workspace/api-zod";
 import { asyncHandler } from "../lib/async-handler";
+import { getUserId } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -30,16 +31,18 @@ function serializePlan(plan: typeof weeklyPlansTable.$inferSelect) {
 }
 
 router.get("/weekly", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const query = ListWeeklyPlansQueryParams.safeParse(req.query);
   const weekOf = query.success && query.data.weekOf ? query.data.weekOf : getWeekStart();
 
   const plans = await db.select().from(weeklyPlansTable)
-    .where(eq(weeklyPlansTable.weekOf, weekOf));
+    .where(and(eq(weeklyPlansTable.userId, userId), eq(weeklyPlansTable.weekOf, weekOf)));
 
   res.json(ListWeeklyPlansResponse.parse(plans.map(serializePlan)));
 }));
 
 router.post("/weekly", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const parsed = CreateWeeklyPlanBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -47,6 +50,7 @@ router.post("/weekly", asyncHandler(async (req, res): Promise<void> => {
   }
 
   const [plan] = await db.insert(weeklyPlansTable).values({
+    userId,
     weekOf: parsed.data.weekOf,
     priorities: parsed.data.priorities,
     healthFocus: parsed.data.healthFocus ?? null,
@@ -65,6 +69,7 @@ router.post("/weekly", asyncHandler(async (req, res): Promise<void> => {
 }));
 
 router.patch("/weekly/:id", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const params = UpdateWeeklyPlanParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -93,7 +98,7 @@ router.patch("/weekly/:id", asyncHandler(async (req, res): Promise<void> => {
   const [plan] = await db
     .update(weeklyPlansTable)
     .set(updates)
-    .where(eq(weeklyPlansTable.id, params.data.id))
+    .where(and(eq(weeklyPlansTable.id, params.data.id), eq(weeklyPlansTable.userId, userId)))
     .returning();
 
   if (!plan) {

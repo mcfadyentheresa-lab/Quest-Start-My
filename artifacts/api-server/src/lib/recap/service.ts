@@ -27,10 +27,18 @@ function dateKey(now: Date): string {
 async function loadInput(deps: RecapDeps): Promise<RecapInput> {
   const now = deps.now ?? new Date();
   const date = dateKey(now);
+  const userId = deps.userId ?? null;
+
+  const pillarsCondition = userId === null ? undefined : eq(areasTable.userId, userId);
+  const tasksCondition = userId === null
+    ? eq(tasksTable.date, date)
+    : and(eq(tasksTable.userId, userId), eq(tasksTable.date, date));
 
   const [pillars, todayTasks] = await Promise.all([
-    db.select().from(areasTable).orderBy(areasTable.id),
-    db.select().from(tasksTable).where(eq(tasksTable.date, date)),
+    pillarsCondition
+      ? db.select().from(areasTable).where(pillarsCondition).orderBy(areasTable.id)
+      : db.select().from(areasTable).orderBy(areasTable.id),
+    db.select().from(tasksTable).where(tasksCondition),
   ]);
 
   const closedToday = todayTasks.filter((t) => t.status === "done");
@@ -110,13 +118,17 @@ async function loadDoneCount(
   userId: string | null,
   date: string,
 ): Promise<number> {
-  // Tasks table has no userId scope yet; owner-mode (userId='owner' or null)
-  // shares the global task pool. When per-user scoping lands, add the filter.
-  void userId;
+  const condition = userId === null
+    ? and(eq(tasksTable.date, date), eq(tasksTable.status, "done"))
+    : and(
+        eq(tasksTable.userId, userId),
+        eq(tasksTable.date, date),
+        eq(tasksTable.status, "done"),
+      );
   const rows = await db
     .select({ id: tasksTable.id })
     .from(tasksTable)
-    .where(and(eq(tasksTable.date, date), eq(tasksTable.status, "done")));
+    .where(condition);
   return rows.length;
 }
 

@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, isNull } from "drizzle-orm";
 import { db, tasksTable, progressLogsTable, areasTable, milestonesTable } from "@workspace/db";
+import { getUserId } from "../lib/auth";
 import {
   CreateTaskBody,
   UpdateTaskBody,
@@ -76,14 +77,15 @@ function serializeTask(task: typeof tasksTable.$inferSelect) {
 }
 
 router.get("/tasks", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const query = ListTasksQueryParams.safeParse(req.query);
   const today = new Date().toISOString().slice(0, 10);
   const date = query.success && query.data.date ? query.data.date : today;
   const source = query.success ? query.data.source : undefined;
 
   const whereClause = source
-    ? and(eq(tasksTable.date, date), eq(tasksTable.taskSource, source))
-    : and(eq(tasksTable.date, date), isNull(tasksTable.taskSource));
+    ? and(eq(tasksTable.userId, userId), eq(tasksTable.date, date), eq(tasksTable.taskSource, source))
+    : and(eq(tasksTable.userId, userId), eq(tasksTable.date, date), isNull(tasksTable.taskSource));
 
   const tasks = await db.select().from(tasksTable)
     .where(whereClause)
@@ -93,6 +95,7 @@ router.get("/tasks", asyncHandler(async (req, res): Promise<void> => {
 }));
 
 router.post("/tasks", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const parsed = CreateTaskBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -100,6 +103,7 @@ router.post("/tasks", asyncHandler(async (req, res): Promise<void> => {
   }
 
   const [task] = await db.insert(tasksTable).values({
+    userId,
     title: parsed.data.title,
     category: parsed.data.category,
     whyItMatters: parsed.data.whyItMatters ?? null,
@@ -117,6 +121,7 @@ router.post("/tasks", asyncHandler(async (req, res): Promise<void> => {
 }));
 
 router.get("/tasks/suggestions", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const queryResult = GetTaskSuggestionsQueryParams.safeParse(req.query);
   if (!queryResult.success) {
     res.status(400).json({ error: queryResult.error.message });
@@ -129,7 +134,7 @@ router.get("/tasks/suggestions", asyncHandler(async (req, res): Promise<void> =>
   const activeAreas = await db
     .select()
     .from(areasTable)
-    .where(eq(areasTable.isActiveThisWeek, true))
+    .where(and(eq(areasTable.userId, userId), eq(areasTable.isActiveThisWeek, true)))
     .orderBy(areasTable.priority, areasTable.id);
 
   if (activeAreas.length === 0) {
@@ -141,7 +146,7 @@ router.get("/tasks/suggestions", asyncHandler(async (req, res): Promise<void> =>
   const existingTasks = await db
     .select({ areaId: tasksTable.areaId })
     .from(tasksTable)
-    .where(and(eq(tasksTable.date, date), isNull(tasksTable.taskSource)));
+    .where(and(eq(tasksTable.userId, userId), eq(tasksTable.date, date), isNull(tasksTable.taskSource)));
 
   const coveredAreaIds = new Set(
     existingTasks.flatMap(t => (t.areaId != null ? [t.areaId] : []))
@@ -158,7 +163,7 @@ router.get("/tasks/suggestions", asyncHandler(async (req, res): Promise<void> =>
   const allMilestones = await db
     .select()
     .from(milestonesTable)
-    .where(eq(milestonesTable.status, "planned"))
+    .where(and(eq(milestonesTable.userId, userId), eq(milestonesTable.status, "planned")))
     .orderBy(milestonesTable.sortOrder, milestonesTable.id);
 
   const milestonesByArea = new Map<number, typeof allMilestones>();
@@ -201,6 +206,7 @@ router.get("/tasks/suggestions", asyncHandler(async (req, res): Promise<void> =>
 }));
 
 router.patch("/tasks/:id", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const params = UpdateTaskParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -230,7 +236,7 @@ router.patch("/tasks/:id", asyncHandler(async (req, res): Promise<void> => {
   const [task] = await db
     .update(tasksTable)
     .set(updates)
-    .where(eq(tasksTable.id, params.data.id))
+    .where(and(eq(tasksTable.id, params.data.id), eq(tasksTable.userId, userId)))
     .returning();
 
   if (!task) {
@@ -240,6 +246,7 @@ router.patch("/tasks/:id", asyncHandler(async (req, res): Promise<void> => {
 
   if (parsed.data.status && parsed.data.status !== "pending") {
     await db.insert(progressLogsTable).values({
+      userId,
       taskId: task.id,
       taskTitle: task.title,
       category: task.category,
@@ -252,13 +259,15 @@ router.patch("/tasks/:id", asyncHandler(async (req, res): Promise<void> => {
 }));
 
 router.post("/tasks/:id/step-back", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const params = StepBackTaskParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
 
-  const [original] = await db.select().from(tasksTable).where(eq(tasksTable.id, params.data.id));
+  const [original] = await db.select().from(tasksTable)
+    .where(and(eq(tasksTable.id, params.data.id), eq(tasksTable.userId, userId)));
   if (!original) {
     res.status(404).json({ error: "Task not found" });
     return;
@@ -279,6 +288,7 @@ router.post("/tasks/:id/step-back", asyncHandler(async (req, res): Promise<void>
   const generated = generateStepBackTask(original.title, original.stepBackDepth);
 
   const [prereq] = await db.insert(tasksTable).values({
+    userId,
     title: generated.title,
     category: original.category,
     whyItMatters: generated.whyItMatters,
@@ -300,10 +310,11 @@ router.post("/tasks/:id/step-back", asyncHandler(async (req, res): Promise<void>
       status: "stepped_back",
       adjustmentReason: `Prerequisite created: ${generated.title}`,
     })
-    .where(eq(tasksTable.id, original.id))
+    .where(and(eq(tasksTable.id, original.id), eq(tasksTable.userId, userId)))
     .returning();
 
   await db.insert(progressLogsTable).values({
+    userId,
     taskId: original.id,
     taskTitle: original.title,
     category: original.category,
@@ -318,6 +329,7 @@ router.post("/tasks/:id/step-back", asyncHandler(async (req, res): Promise<void>
 }));
 
 router.delete("/tasks/:id", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const params = DeleteTaskParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -326,7 +338,7 @@ router.delete("/tasks/:id", asyncHandler(async (req, res): Promise<void> => {
 
   const [task] = await db
     .delete(tasksTable)
-    .where(eq(tasksTable.id, params.data.id))
+    .where(and(eq(tasksTable.id, params.data.id), eq(tasksTable.userId, userId)))
     .returning();
 
   if (!task) {

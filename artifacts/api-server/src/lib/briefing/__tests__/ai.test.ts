@@ -17,6 +17,7 @@ function pillar(id: number, name: string, priority: "P1" | "P2" | "P3" | "P4", a
     nowFocus: null,
     lastUpdated: null,
     category: null,
+    userId: "owner",
     honestNote: null,
   } as BriefingInput["pillars"][number];
 }

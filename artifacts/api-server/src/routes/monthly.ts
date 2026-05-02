@@ -8,6 +8,7 @@ import {
   UpdateMonthlyReviewResponse,
 } from "@workspace/api-zod";
 import { asyncHandler } from "../lib/async-handler";
+import { getUserId } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -18,14 +19,17 @@ const serializeReview = (r: typeof monthlyReviewsTable.$inferSelect) => ({
 });
 
 router.get("/monthly", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const reviews = await db.select()
     .from(monthlyReviewsTable)
+    .where(eq(monthlyReviewsTable.userId, userId))
     .orderBy(desc(monthlyReviewsTable.monthOf));
 
   res.json(ListMonthlyReviewsResponse.parse(reviews.map(serializeReview)));
 }));
 
 router.post("/monthly", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const parsed = CreateMonthlyReviewBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -33,10 +37,10 @@ router.post("/monthly", asyncHandler(async (req, res): Promise<void> => {
   }
   const body = parsed.data;
 
-  // Check for duplicate monthOf (UNIQUE constraint — return 409 instead of DB error)
+  // Check for duplicate (user_id, monthOf) (UNIQUE constraint — return 409 instead of DB error)
   const existing = await db.select({ id: monthlyReviewsTable.id })
     .from(monthlyReviewsTable)
-    .where(eq(monthlyReviewsTable.monthOf, body.monthOf))
+    .where(and(eq(monthlyReviewsTable.userId, userId), eq(monthlyReviewsTable.monthOf, body.monthOf)))
     .limit(1);
 
   if (existing.length > 0) {
@@ -48,6 +52,7 @@ router.post("/monthly", asyncHandler(async (req, res): Promise<void> => {
   try {
     [created] = await db.insert(monthlyReviewsTable)
       .values({
+        userId,
         monthOf: body.monthOf,
         whatMoved: body.whatMoved ?? null,
         areasAdvanced: body.areasAdvanced ?? null,
@@ -70,6 +75,7 @@ router.post("/monthly", asyncHandler(async (req, res): Promise<void> => {
 }));
 
 router.patch("/monthly/:id", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const id = parseInt(req.params.id!, 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
@@ -87,7 +93,11 @@ router.patch("/monthly/:id", asyncHandler(async (req, res): Promise<void> => {
   if ("monthOf" in body && body.monthOf !== undefined) {
     const conflict = await db.select({ id: monthlyReviewsTable.id })
       .from(monthlyReviewsTable)
-      .where(and(eq(monthlyReviewsTable.monthOf, body.monthOf), ne(monthlyReviewsTable.id, id)))
+      .where(and(
+        eq(monthlyReviewsTable.userId, userId),
+        eq(monthlyReviewsTable.monthOf, body.monthOf),
+        ne(monthlyReviewsTable.id, id),
+      ))
       .limit(1);
     if (conflict.length > 0) {
       res.status(409).json({ error: "A review for this month already exists", monthOf: body.monthOf });
@@ -111,7 +121,7 @@ router.patch("/monthly/:id", asyncHandler(async (req, res): Promise<void> => {
 
   const [updated] = await db.update(monthlyReviewsTable)
     .set(updateFields)
-    .where(eq(monthlyReviewsTable.id, id))
+    .where(and(eq(monthlyReviewsTable.id, id), eq(monthlyReviewsTable.userId, userId)))
     .returning();
 
   if (!updated) {

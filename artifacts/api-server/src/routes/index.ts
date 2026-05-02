@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { buildAuthRouter } from "../lib/auth";
 import healthRouter from "./health";
 import areasRouter from "./areas";
 import milestonesRouter from "./milestones";
@@ -16,6 +17,7 @@ import yearRibbonRouter from "./year-ribbon";
 
 const router: IRouter = Router();
 
+router.use(buildAuthRouter());
 router.use(healthRouter);
 router.use(areasRouter);
 router.use(milestonesRouter);

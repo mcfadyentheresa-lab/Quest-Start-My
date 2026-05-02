@@ -1,13 +1,9 @@
 import { Router, type IRouter } from "express";
 import { generateRecap, saveRecapReflection } from "../lib/recap";
 import { asyncHandler } from "../lib/async-handler";
+import { getUserId } from "../lib/auth";
 
 const router: IRouter = Router();
-
-function getUserId(req: { userId?: string | null } & object): string | null {
-  const candidate = (req as { userId?: string | null }).userId;
-  return typeof candidate === "string" && candidate.length > 0 ? candidate : null;
-}
 
 router.get("/dashboard/recap", asyncHandler(async (req, res, next) => {
   try {

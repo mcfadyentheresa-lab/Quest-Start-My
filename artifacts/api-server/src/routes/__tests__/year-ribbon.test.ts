@@ -3,6 +3,7 @@ import express, { type Express } from "express";
 
 type Area = {
   id: number;
+  userId: string;
   name: string;
   priority: string;
   description: string | null;
@@ -28,6 +29,7 @@ type Task = {
 };
 type Milestone = {
   id: number;
+  userId: string;
   areaId: number;
   title: string;
   status: string;
@@ -142,6 +144,7 @@ const { default: router, clearYearRibbonCache } = await import("../year-ribbon")
 function buildApp(): Express {
   const app = express();
   app.use(express.json());
+  app.use((req, _res, next) => { (req as { userId?: string }).userId = "owner"; next(); });
   app.use("/api", router);
   return app;
 }
@@ -187,6 +190,7 @@ function makeArea(id: number, overrides: Partial<Area> = {}): Area {
     nowFocus: null,
     lastUpdated: null,
     category: null,
+    userId: "owner",
     honestNote: null,
     ...overrides,
   };
@@ -243,6 +247,7 @@ describe("GET /api/year-ribbon", () => {
         id: 11, areaId: 3, title: "Site rebuild", status: "active",
         holdUntilMilestoneId: null, completedAt: null,
         createdAt: new Date("2026-01-01"), updatedAt: new Date("2026-01-01"),
+        userId: "owner",
         sortOrder: 0,
       },
     ];

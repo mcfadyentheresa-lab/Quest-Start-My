@@ -1,10 +1,11 @@
-import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { milestonesTable } from "./milestones";
 
 export const tasksTable = pgTable("tasks", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().default("owner"),
   title: text("title").notNull(),
   category: text("category").notNull().default("business"),
   whyItMatters: text("why_it_matters"),
@@ -26,8 +27,11 @@ export const tasksTable = pgTable("tasks", {
   // step-by-step goals one step at a time — lowest pending sortOrder
   // wins. For loose tasks (no milestoneId) this is unused; default 0.
   sortOrder: integer("sort_order").notNull().default(0),
-});
+}, (t) => ({
+  userIdIdx: index("tasks_user_id_idx").on(t.userId),
+  userDateIdx: index("tasks_user_date_idx").on(t.userId, t.date),
+}));
 
-export const insertTaskSchema = createInsertSchema(tasksTable).omit({ id: true, createdAt: true });
+export const insertTaskSchema = createInsertSchema(tasksTable).omit({ id: true, createdAt: true, userId: true });
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type Task = typeof tasksTable.$inferSelect;

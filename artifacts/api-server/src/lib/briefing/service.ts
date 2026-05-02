@@ -43,45 +43,53 @@ async function loadInput(deps: BriefingDeps): Promise<BriefingInput> {
   const date = now.toISOString().slice(0, 10);
   const weekOf = getWeekStart(now);
   const weekEnd = getWeekEnd(weekOf);
+  const userId = deps.userId ?? null;
 
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10);
 
+  // Helper: AND a userId scope onto an existing condition. When userId is
+  // null (test/legacy) the existing condition is used as-is.
+  const scopeBy = <T>(table: { userId: T }, cond: ReturnType<typeof and>) =>
+    userId === null ? cond : and(eq(table.userId as never, userId), cond);
+
   const [pillars, plans, openTasks, recentlyCompleted, recentLogs, milestones] = await Promise.all([
-    db.select().from(areasTable).orderBy(areasTable.id),
+    userId === null
+      ? db.select().from(areasTable).orderBy(areasTable.id)
+      : db.select().from(areasTable).where(eq(areasTable.userId, userId)).orderBy(areasTable.id),
     db
       .select()
       .from(weeklyPlansTable)
-      .where(eq(weeklyPlansTable.weekOf, weekOf)),
+      .where(scopeBy(weeklyPlansTable, eq(weeklyPlansTable.weekOf, weekOf))),
     db
       .select()
       .from(tasksTable)
       .where(
-        and(
+        scopeBy(tasksTable, and(
           gte(tasksTable.date, weekOf),
           lte(tasksTable.date, weekEnd),
-        ),
+        )),
       )
       .orderBy(desc(tasksTable.createdAt)),
     db
       .select()
       .from(tasksTable)
       .where(
-        and(
+        scopeBy(tasksTable, and(
           eq(tasksTable.status, "done"),
           gte(tasksTable.date, sevenDaysAgo),
           lt(tasksTable.date, date),
-        ),
+        )),
       )
       .orderBy(desc(tasksTable.date), desc(tasksTable.id))
       .limit(10),
-    db
-      .select()
-      .from(progressLogsTable)
-      .orderBy(desc(progressLogsTable.loggedAt))
-      .limit(20),
-    db.select().from(milestonesTable),
+    userId === null
+      ? db.select().from(progressLogsTable).orderBy(desc(progressLogsTable.loggedAt)).limit(20)
+      : db.select().from(progressLogsTable).where(eq(progressLogsTable.userId, userId)).orderBy(desc(progressLogsTable.loggedAt)).limit(20),
+    userId === null
+      ? db.select().from(milestonesTable)
+      : db.select().from(milestonesTable).where(eq(milestonesTable.userId, userId)),
   ]);
 
   const open = openTasks.filter((t) => t.status === "pending" || t.status === "blocked");

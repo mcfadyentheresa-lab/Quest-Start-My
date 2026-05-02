@@ -8,6 +8,7 @@ import fs from "node:fs";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { errorHandler, notFoundHandler } from "./lib/errors";
+import { requireAuth } from "./lib/auth";
 
 const app: Express = express();
 
@@ -37,6 +38,12 @@ app.use(
   }),
 );
 
+// CORS — same-origin SPA model.
+//
+// In production, the API server also serves the built frontend (see the
+// STATIC_DIR block below), so requests come from the same origin and no
+// CORS headers are required. CORS_ORIGINS is therefore opt-in for cases
+// where a separate frontend host is added later.
 const corsOriginsRaw = process.env["CORS_ORIGINS"];
 const corsOrigins = corsOriginsRaw
   ? corsOriginsRaw
@@ -52,6 +59,8 @@ if (corsOrigins.length > 0) {
     }),
   );
 }
+// (No CORS middleware on same-origin path — the SPA fetches /api/* from
+// the same host and cookies are sent automatically.)
 
 app.use(express.json({ limit: "100kb" }));
 app.use(express.urlencoded({ extended: true, limit: "100kb" }));
@@ -65,7 +74,7 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-app.use("/api", apiLimiter, router);
+app.use("/api", apiLimiter, requireAuth, router);
 
 // Optionally serve the built frontend from this server so the whole app runs
 // as a single service (e.g. on Railway). Enable by setting STATIC_DIR to the

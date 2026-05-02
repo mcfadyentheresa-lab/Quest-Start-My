@@ -3,6 +3,7 @@ import { and, lte, ne, eq, desc } from "drizzle-orm";
 import { db, tasksTable, areasTable, milestonesTable, progressLogsTable } from "@workspace/db";
 import { GetFrictionSignalsResponse } from "@workspace/api-zod";
 import { asyncHandler } from "../lib/async-handler";
+import { getUserId } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -12,6 +13,7 @@ function monthStartFromDate(d: Date): Date {
 }
 
 router.get("/dashboard/friction", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const weekOfParam = typeof req.query.weekOf === "string" ? req.query.weekOf : null;
   if (weekOfParam !== null) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(weekOfParam) || isNaN(Date.parse(weekOfParam + "T00:00:00"))) {
@@ -45,20 +47,18 @@ router.get("/dashboard/friction", asyncHandler(async (req, res): Promise<void> =
 
   // Fetch base data — filter logs by week end when a past week is selected
   const passedLogsCondition = weekOfParam
-    ? and(eq(progressLogsTable.status, "passed"), lte(progressLogsTable.date, weekEndStr))
-    : eq(progressLogsTable.status, "passed");
+    ? and(eq(progressLogsTable.userId, userId), eq(progressLogsTable.status, "passed"), lte(progressLogsTable.date, weekEndStr))
+    : and(eq(progressLogsTable.userId, userId), eq(progressLogsTable.status, "passed"));
 
   const allLogsCondition = weekOfParam
-    ? lte(progressLogsTable.date, weekEndStr)
-    : undefined;
+    ? and(eq(progressLogsTable.userId, userId), lte(progressLogsTable.date, weekEndStr))
+    : eq(progressLogsTable.userId, userId);
 
   const [areas, openMilestones, allPassedLogs, allLogs] = await Promise.all([
-    db.select().from(areasTable),
-    db.select().from(milestonesTable).where(ne(milestonesTable.status, "complete")),
+    db.select().from(areasTable).where(eq(areasTable.userId, userId)),
+    db.select().from(milestonesTable).where(and(eq(milestonesTable.userId, userId), ne(milestonesTable.status, "complete"))),
     db.select().from(progressLogsTable).where(passedLogsCondition),
-    allLogsCondition
-      ? db.select().from(progressLogsTable).where(allLogsCondition).orderBy(desc(progressLogsTable.loggedAt))
-      : db.select().from(progressLogsTable).orderBy(desc(progressLogsTable.loggedAt)),
+    db.select().from(progressLogsTable).where(allLogsCondition).orderBy(desc(progressLogsTable.loggedAt)),
   ]);
 
   const areaMap = new Map(areas.map(p => [p.id, p]));
@@ -72,7 +72,7 @@ router.get("/dashboard/friction", asyncHandler(async (req, res): Promise<void> =
     status: tasksTable.status,
     title: tasksTable.title,
     createdAt: tasksTable.createdAt,
-  }).from(tasksTable);
+  }).from(tasksTable).where(eq(tasksTable.userId, userId));
 
   const taskAreaMap = new Map(allTaskRows.map(t => [t.id, t.areaId]));
 
