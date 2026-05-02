@@ -9,8 +9,10 @@
 --
 -- Tables touched: areas, tasks, milestones, weekly_plans, monthly_reviews,
 -- progress_logs, daily_plans.
-
-BEGIN;
+--
+-- The runner (migrate-rename.mjs) wraps each migration file in its own
+-- transaction, so this file does NOT add an outer BEGIN/COMMIT — a nested
+-- COMMIT would close the runner's transaction prematurely.
 
 -- ── areas ────────────────────────────────────────────────────────────────
 ALTER TABLE areas ADD COLUMN IF NOT EXISTS user_id text NOT NULL DEFAULT 'owner';
@@ -91,5 +93,3 @@ UPDATE weekly_plans    SET user_id = 'owner' WHERE user_id IS NULL OR user_id = 
 UPDATE monthly_reviews SET user_id = 'owner' WHERE user_id IS NULL OR user_id = '';
 UPDATE progress_logs   SET user_id = 'owner' WHERE user_id IS NULL OR user_id = '';
 UPDATE daily_plans     SET user_id = 'owner' WHERE user_id IS NULL OR user_id = '';
-
-COMMIT;
