@@ -1,23 +1,25 @@
 import { lazy, Suspense, useEffect, useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
-import { CalendarDays, Calendar as CalendarIcon, BookOpen, History as HistoryIcon } from "lucide-react";
+import { CalendarDays, Calendar as CalendarIcon, BookOpen, History as HistoryIcon, Rows3 } from "lucide-react";
 
 const DayView = lazy(() => import("@/pages/day-plan"));
 const WeekView = lazy(() => import("@/pages/weekly"));
 const MonthView = lazy(() => import("@/pages/review"));
+const YearView = lazy(() => import("@/components/year-ribbon"));
 const HistoryView = lazy(() => import("@/pages/history"));
 
-type CalendarView = "day" | "week" | "month" | "history";
+type CalendarView = "day" | "week" | "month" | "year" | "history";
 
 const VIEWS: { id: CalendarView; label: string; icon: typeof CalendarDays }[] = [
   { id: "day", label: "Day", icon: CalendarDays },
   { id: "week", label: "Week", icon: CalendarIcon },
   { id: "month", label: "Month", icon: BookOpen },
+  { id: "year", label: "Year", icon: Rows3 },
   { id: "history", label: "History", icon: HistoryIcon },
 ];
 
 function parseView(raw: string | null): CalendarView {
-  if (raw === "day" || raw === "week" || raw === "month" || raw === "history") return raw;
+  if (raw === "day" || raw === "week" || raw === "month" || raw === "year" || raw === "history") return raw;
   return "week";
 }
 
@@ -52,7 +54,7 @@ export default function CalendarPage() {
     <div className="space-y-4">
       <nav
         aria-label="Calendar view"
-        className="rounded-2xl bg-card border border-card-border p-1 grid grid-cols-4 gap-1"
+        className="rounded-2xl bg-card border border-card-border p-1 grid grid-cols-5 gap-1"
       >
         {VIEWS.map(({ id, label, icon: Icon }) => {
           const active = id === view;
@@ -79,6 +81,7 @@ export default function CalendarPage() {
         {view === "day" && <DayView />}
         {view === "week" && <WeekView />}
         {view === "month" && <MonthView />}
+        {view === "year" && <YearView />}
         {view === "history" && <HistoryView />}
       </Suspense>
     </div>
