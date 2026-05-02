@@ -23,13 +23,109 @@ import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
-function serializeMilestone(m: typeof milestonesTable.$inferSelect) {
+function serializeMilestone(
+  m: typeof milestonesTable.$inferSelect,
+  // Pass `undefined` when the prerequisite hasn't been resolved yet (in
+  // which case the safe default is that no hold is active). Pass `null`
+  // explicitly when the prerequisite exists but is not complete.
+  prereqCompletedAt?: Date | null,
+) {
+  const isOnHold =
+    m.holdUntilMilestoneId !== null &&
+    m.holdUntilMilestoneId !== undefined &&
+    prereqCompletedAt !== undefined &&
+    prereqCompletedAt === null;
   return {
     ...m,
     completedAt: m.completedAt ? m.completedAt.toISOString() : null,
     createdAt: m.createdAt.toISOString(),
     updatedAt: m.updatedAt.toISOString(),
+    isOnHold,
   };
+}
+
+// Resolve a single milestone's isOnHold by fetching its prereq if any.
+async function serializeMilestoneWithHold(m: typeof milestonesTable.$inferSelect) {
+  if (m.holdUntilMilestoneId === null || m.holdUntilMilestoneId === undefined) {
+    return serializeMilestone(m, null);
+  }
+  const [prereq] = await db
+    .select({ completedAt: milestonesTable.completedAt })
+    .from(milestonesTable)
+    .where(eq(milestonesTable.id, m.holdUntilMilestoneId));
+  return serializeMilestone(m, prereq?.completedAt ?? null);
+}
+
+// Resolve isOnHold for a list of milestones in one query. Returns a Map of
+// milestoneId -> the prerequisite's completedAt (Date | null). Milestones
+// without a holdUntilMilestoneId are absent from the map.
+async function resolvePrereqCompletion(
+  rows: ReadonlyArray<typeof milestonesTable.$inferSelect>,
+): Promise<Map<number, Date | null>> {
+  const ids = Array.from(
+    new Set(
+      rows
+        .map((r) => r.holdUntilMilestoneId)
+        .filter((id): id is number => typeof id === "number"),
+    ),
+  );
+  const out = new Map<number, Date | null>();
+  if (ids.length === 0) return out;
+  const prereqs = await db
+    .select({ id: milestonesTable.id, completedAt: milestonesTable.completedAt })
+    .from(milestonesTable)
+    .where(inArray(milestonesTable.id, ids));
+  for (const p of prereqs) out.set(p.id, p.completedAt ?? null);
+  return out;
+}
+
+// Validate a proposed holdUntilMilestoneId for a given milestone. Returns
+// an error string when invalid (caller maps to 400 / 409); null when ok.
+// Pass the milestone's areaId so the same-area rule can be checked, and the
+// id of the milestone being updated (or null for inserts) so cycle detection
+// can refuse a chain that loops back to it.
+async function validateHoldUntil(args: {
+  thisMilestoneId: number | null;
+  thisAreaId: number;
+  holdUntilMilestoneId: number | null;
+}): Promise<{ status: 400 | 409; error: string } | null> {
+  const { thisMilestoneId, thisAreaId, holdUntilMilestoneId } = args;
+  if (holdUntilMilestoneId === null) return null;
+  if (thisMilestoneId !== null && holdUntilMilestoneId === thisMilestoneId) {
+    return { status: 400, error: "A goal cannot hold on itself." };
+  }
+  const [target] = await db
+    .select({
+      id: milestonesTable.id,
+      areaId: milestonesTable.areaId,
+      holdUntilMilestoneId: milestonesTable.holdUntilMilestoneId,
+    })
+    .from(milestonesTable)
+    .where(eq(milestonesTable.id, holdUntilMilestoneId));
+  if (!target) {
+    return { status: 400, error: "Hold target does not exist." };
+  }
+  if (target.areaId !== thisAreaId) {
+    return { status: 400, error: "Hold target must be in the same area." };
+  }
+  // Walk the chain from the proposed target. If we visit thisMilestoneId,
+  // it's a cycle.
+  const visited = new Set<number>();
+  let cursor: number | null = target.holdUntilMilestoneId;
+  while (cursor !== null) {
+    if (thisMilestoneId !== null && cursor === thisMilestoneId) {
+      return { status: 409, error: "That hold would create a cycle." };
+    }
+    if (visited.has(cursor)) break;
+    visited.add(cursor);
+    const [next] = await db
+      .select({ holdUntilMilestoneId: milestonesTable.holdUntilMilestoneId })
+      .from(milestonesTable)
+      .where(eq(milestonesTable.id, cursor));
+    if (!next) break;
+    cursor = next.holdUntilMilestoneId;
+  }
+  return null;
 }
 
 function serializeTask(t: typeof tasksTable.$inferSelect) {
@@ -46,7 +142,14 @@ router.get("/milestones", asyncHandler(async (req, res): Promise<void> => {
     .where(areaId ? eq(milestonesTable.areaId, areaId) : undefined)
     .orderBy(milestonesTable.sortOrder, milestonesTable.createdAt);
 
-  res.json(ListMilestonesResponse.parse(milestones.map(serializeMilestone)));
+  const prereqMap = await resolvePrereqCompletion(milestones);
+  const serialized = milestones.map((m) => {
+    if (m.holdUntilMilestoneId === null || m.holdUntilMilestoneId === undefined) {
+      return serializeMilestone(m, null);
+    }
+    return serializeMilestone(m, prereqMap.get(m.holdUntilMilestoneId) ?? null);
+  });
+  res.json(ListMilestonesResponse.parse(serialized));
 }));
 
 router.post("/milestones", asyncHandler(async (req, res): Promise<void> => {
@@ -54,6 +157,18 @@ router.post("/milestones", asyncHandler(async (req, res): Promise<void> => {
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
+  }
+
+  if (parsed.data.holdUntilMilestoneId !== undefined && parsed.data.holdUntilMilestoneId !== null) {
+    const validation = await validateHoldUntil({
+      thisMilestoneId: null,
+      thisAreaId: parsed.data.areaId,
+      holdUntilMilestoneId: parsed.data.holdUntilMilestoneId,
+    });
+    if (validation) {
+      res.status(validation.status).json({ error: validation.error });
+      return;
+    }
   }
 
   const [milestone] = await db.insert(milestonesTable).values({
@@ -67,9 +182,10 @@ router.post("/milestones", asyncHandler(async (req, res): Promise<void> => {
     sortOrder: parsed.data.sortOrder ?? 0,
     mode: parsed.data.mode ?? "ordered",
     completedAt: parsed.data.completedAt ? new Date(parsed.data.completedAt) : null,
+    holdUntilMilestoneId: parsed.data.holdUntilMilestoneId ?? null,
   }).returning();
 
-  res.status(201).json(serializeMilestone(milestone!));
+  res.status(201).json(await serializeMilestoneWithHold(milestone!));
 }));
 
 router.post("/milestones/bulk", asyncHandler(async (req, res): Promise<void> => {
@@ -98,7 +214,8 @@ router.post("/milestones/bulk", asyncHandler(async (req, res): Promise<void> => 
 
   const created = await db.insert(milestonesTable).values(rows).returning();
 
-  res.status(201).json(created.map(serializeMilestone));
+  // bulk create never sets holdUntilMilestoneId, so isOnHold is always false.
+  res.status(201).json(created.map((m) => serializeMilestone(m, null)));
 }));
 
 router.patch("/milestones/:id", asyncHandler(async (req, res): Promise<void> => {
@@ -114,6 +231,29 @@ router.patch("/milestones/:id", asyncHandler(async (req, res): Promise<void> => 
     return;
   }
 
+  // Validate holdUntilMilestoneId against the existing row's areaId before
+  // applying updates, since cycle / same-area checks need to know the
+  // milestone's id and area.
+  if (parsed.data.holdUntilMilestoneId !== undefined && parsed.data.holdUntilMilestoneId !== null) {
+    const [existing] = await db
+      .select({ id: milestonesTable.id, areaId: milestonesTable.areaId })
+      .from(milestonesTable)
+      .where(eq(milestonesTable.id, params.data.id));
+    if (!existing) {
+      res.status(404).json({ error: "Milestone not found" });
+      return;
+    }
+    const validation = await validateHoldUntil({
+      thisMilestoneId: existing.id,
+      thisAreaId: existing.areaId,
+      holdUntilMilestoneId: parsed.data.holdUntilMilestoneId,
+    });
+    if (validation) {
+      res.status(validation.status).json({ error: validation.error });
+      return;
+    }
+  }
+
   const updates: Record<string, unknown> = {};
   if (parsed.data.title !== undefined) updates.title = parsed.data.title;
   if (parsed.data.status !== undefined) updates.status = parsed.data.status;
@@ -125,6 +265,9 @@ router.patch("/milestones/:id", asyncHandler(async (req, res): Promise<void> => 
   if (parsed.data.mode !== undefined) updates.mode = parsed.data.mode;
   if (parsed.data.completedAt !== undefined) {
     updates.completedAt = parsed.data.completedAt ? new Date(parsed.data.completedAt) : null;
+  }
+  if (parsed.data.holdUntilMilestoneId !== undefined) {
+    updates.holdUntilMilestoneId = parsed.data.holdUntilMilestoneId;
   }
   updates.updatedAt = new Date();
 
@@ -139,7 +282,7 @@ router.patch("/milestones/:id", asyncHandler(async (req, res): Promise<void> => 
     return;
   }
 
-  res.json(UpdateMilestoneResponse.parse(serializeMilestone(milestone)));
+  res.json(UpdateMilestoneResponse.parse(await serializeMilestoneWithHold(milestone)));
 }));
 
 // Phase 3: AI breakdown of a goal into 5–8 ordered steps.

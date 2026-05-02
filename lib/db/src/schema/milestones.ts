@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { type AnyPgColumn, pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { areasTable } from "./areas";
@@ -13,6 +13,10 @@ export const milestonesTable = pgTable("milestones", {
   description: text("description"),
   nextAction: text("next_action"),
   sortOrder: integer("sort_order").notNull().default(0),
+  // Phase deps: when set, this goal is "on hold" until the referenced
+  // milestone has completedAt set. Same-area only (enforced at the API
+  // layer, not the schema). Null = not held.
+  holdUntilMilestoneId: integer("hold_until_milestone_id").references((): AnyPgColumn => milestonesTable.id),
   // Phase 3: how the goal hands out its sub-tasks.
   //   "ordered" — only the lowest-sortOrder pending sub-task is eligible
   //              for the daily briefing. Later steps stay locked until

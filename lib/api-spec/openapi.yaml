@@ -919,6 +919,19 @@ components:
             ISO timestamp when this goal was marked complete. Null while
             open. Set independently of step status — a goal can be closed
             with steps still pending, or stay open with all steps done.
+        holdUntilMilestoneId:
+          type: integer
+          nullable: true
+          description: |
+            Phase-dependency pointer. When set, this goal is held until the
+            referenced milestone has its completedAt timestamp set. Must
+            point at another milestone in the same area. Null means no hold.
+        isOnHold:
+          type: boolean
+          description: |
+            Read-only. True when holdUntilMilestoneId is set and the
+            referenced milestone has not been completed. Recomputed on every
+            read; never stored.
         createdAt:
           type: string
       required:
@@ -928,6 +941,7 @@ components:
         - status
         - sortOrder
         - mode
+        - isOnHold
         - createdAt
 
     CreateMilestoneBody:
@@ -960,6 +974,9 @@ components:
           enum: [ordered, any]
         completedAt:
           type: string
+          nullable: true
+        holdUntilMilestoneId:
+          type: integer
           nullable: true
       required:
         - areaId
@@ -1023,6 +1040,9 @@ components:
           enum: [ordered, any]
         completedAt:
           type: string
+          nullable: true
+        holdUntilMilestoneId:
+          type: integer
           nullable: true
 
     Briefing:

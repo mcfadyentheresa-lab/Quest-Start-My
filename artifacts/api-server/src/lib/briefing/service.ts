@@ -13,6 +13,7 @@ import { buildAiBriefing } from "./ai";
 import type { BriefingInput, BriefingResponse } from "./types";
 import { logger } from "../logger";
 import { shouldServeFromCache } from "./cache";
+import { computeHeldMilestoneIds } from "./holds";
 
 export type BriefingDeps = {
   now?: Date;
@@ -104,7 +105,12 @@ async function loadInput(deps: BriefingDeps): Promise<BriefingInput> {
       minSortByMilestone.set(t.milestoneId, t.sortOrder);
     }
   }
+  // Phase deps: skip tasks whose milestone is on hold. Held milestones
+  // still appear in input.milestones so the rules layer can quote them
+  // in reasoning, but their tasks never make it into the open-task pool.
+  const heldMilestoneIds = computeHeldMilestoneIds(milestones);
   const filteredOpen = open.filter((t) => {
+    if (t.milestoneId != null && heldMilestoneIds.has(t.milestoneId)) return false;
     if (t.status !== "pending") return true;
     if (t.milestoneId == null) return true;
     if (!orderedMilestoneIds.has(t.milestoneId)) return true;

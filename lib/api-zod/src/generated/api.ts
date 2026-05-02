@@ -161,6 +161,8 @@ export const ListMilestonesResponseItem = zod.object({
   "sortOrder": zod.number(),
   "mode": zod.enum(['ordered', 'any']).describe('Phase 3 \"goal\" mode. \"ordered\" means only the lowest-sortOrder\npending sub-task is eligible for the daily briefing. \"any\"\nmeans any open sub-task can be picked.\n'),
   "completedAt": zod.string().nullish().describe('ISO timestamp when this goal was marked complete. Null while\nopen. Set independently of step status — a goal can be closed\nwith steps still pending, or stay open with all steps done.\n'),
+  "holdUntilMilestoneId": zod.number().nullish().describe('Phase-dependency pointer. When set, this goal is held until the\nreferenced milestone has its completedAt timestamp set. Must\npoint at another milestone in the same area. Null means no hold.\n'),
+  "isOnHold": zod.boolean().describe('Read-only. True when holdUntilMilestoneId is set and the\nreferenced milestone has not been completed. Recomputed on every\nread; never stored.\n'),
   "createdAt": zod.string()
 })
 export const ListMilestonesResponse = zod.array(ListMilestonesResponseItem)
@@ -179,7 +181,8 @@ export const CreateMilestoneBody = zod.object({
   "nextAction": zod.string().nullish(),
   "sortOrder": zod.number().optional(),
   "mode": zod.enum(['ordered', 'any']).optional(),
-  "completedAt": zod.string().nullish()
+  "completedAt": zod.string().nullish(),
+  "holdUntilMilestoneId": zod.number().nullish()
 })
 
 
@@ -213,7 +216,8 @@ export const UpdateMilestoneBody = zod.object({
   "nextAction": zod.string().nullish(),
   "sortOrder": zod.number().optional(),
   "mode": zod.enum(['ordered', 'any']).optional(),
-  "completedAt": zod.string().nullish()
+  "completedAt": zod.string().nullish(),
+  "holdUntilMilestoneId": zod.number().nullish()
 })
 
 export const UpdateMilestoneResponse = zod.object({
@@ -228,6 +232,8 @@ export const UpdateMilestoneResponse = zod.object({
   "sortOrder": zod.number(),
   "mode": zod.enum(['ordered', 'any']).describe('Phase 3 \"goal\" mode. \"ordered\" means only the lowest-sortOrder\npending sub-task is eligible for the daily briefing. \"any\"\nmeans any open sub-task can be picked.\n'),
   "completedAt": zod.string().nullish().describe('ISO timestamp when this goal was marked complete. Null while\nopen. Set independently of step status — a goal can be closed\nwith steps still pending, or stay open with all steps done.\n'),
+  "holdUntilMilestoneId": zod.number().nullish().describe('Phase-dependency pointer. When set, this goal is held until the\nreferenced milestone has its completedAt timestamp set. Must\npoint at another milestone in the same area. Null means no hold.\n'),
+  "isOnHold": zod.boolean().describe('Read-only. True when holdUntilMilestoneId is set and the\nreferenced milestone has not been completed. Recomputed on every\nread; never stored.\n'),
   "createdAt": zod.string()
 })
 

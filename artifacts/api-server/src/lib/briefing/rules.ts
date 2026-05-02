@@ -35,6 +35,17 @@ function pickItems(input: BriefingInput): BriefingItem[] {
   const milestoneMap = new Map<number, Milestone>();
   for (const m of milestones) milestoneMap.set(m.id, m);
 
+  // Phase deps: build a map from prerequisite milestone id -> list of
+  // milestones that are waiting on it. Used to add a "Phase 2 holds until
+  // Phase 1 wraps" line when the surfaced task closes a gating milestone.
+  const dependentsByPrereq = new Map<number, Milestone[]>();
+  for (const m of milestones) {
+    if (m.holdUntilMilestoneId == null) continue;
+    const list = dependentsByPrereq.get(m.holdUntilMilestoneId) ?? [];
+    list.push(m);
+    dependentsByPrereq.set(m.holdUntilMilestoneId, list);
+  }
+
   const activeIds = new Set(activePillars.map((p) => p.id));
 
   function priorityForTask(t: Task): BriefingPriority {
@@ -77,6 +88,7 @@ function pickItems(input: BriefingInput): BriefingItem[] {
     const pillar = t.areaId !== null ? pillarMap.get(t.areaId) : undefined;
     const priority = priorityForTask(t);
     const milestone = t.milestoneId !== null ? milestoneMap.get(t.milestoneId) ?? null : null;
+    const dependents = milestone ? dependentsByPrereq.get(milestone.id) ?? [] : [];
     const reasoning = buildReasoning(
       t,
       pillar ?? null,
@@ -86,6 +98,7 @@ function pickItems(input: BriefingInput): BriefingItem[] {
       openTasks,
       recentlyCompleted,
       now,
+      dependents,
     );
     return {
       taskId: t.id,
@@ -110,9 +123,19 @@ function buildReasoning(
   allOpenTasks: Task[],
   recentlyCompleted: Task[],
   now: Date,
+  dependents: Milestone[] = [],
 ): string {
+  // Phase deps: when this task lives on a milestone that another goal is
+  // holding for, drop a one-line "next phase holds until this one wraps"
+  // hint that's appendable to the main reasoning.
+  const heldFollowUp = (() => {
+    if (!milestone || dependents.length === 0) return "";
+    const next = dependents[0]!;
+    return ` "${next.title}" holds until "${milestone.title}" wraps.`;
+  })();
+
   if (task.status === "blocked") {
-    return `Surfaced because it's been blocked${task.blockerReason ? ` on "${task.blockerReason}"` : ""} — clearing this unsticks momentum.`;
+    return `Surfaced because it's been blocked${task.blockerReason ? ` on "${task.blockerReason}"` : ""} — clearing this unsticks momentum.${heldFollowUp}`;
   }
 
   // Ordered-step progress: this task is the lowest-sortOrder open step on
@@ -131,7 +154,7 @@ function buildReasoning(
       const total = openForMilestone.length + closedForMilestone;
       if (total > 1) {
         const stepNumber = closedForMilestone + 1;
-        return `Step ${stepNumber} of ${total} on goal "${milestone.title}". Earlier steps are done; later ones stay hidden until this one closes.`;
+        return `Step ${stepNumber} of ${total} on goal "${milestone.title}". Earlier steps are done; later ones stay hidden until this one closes.${heldFollowUp}`;
       }
     }
   }
