@@ -20,6 +20,7 @@ import {
 import { asyncHandler } from "../lib/async-handler";
 import { buildBreakdownSteps, fallbackSteps } from "../lib/breakdown/ai";
 import { logger } from "../lib/logger";
+import { getUserId } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -52,7 +53,7 @@ async function serializeMilestoneWithHold(m: typeof milestonesTable.$inferSelect
   const [prereq] = await db
     .select({ completedAt: milestonesTable.completedAt })
     .from(milestonesTable)
-    .where(eq(milestonesTable.id, m.holdUntilMilestoneId));
+    .where(and(eq(milestonesTable.id, m.holdUntilMilestoneId), eq(milestonesTable.userId, m.userId)));
   return serializeMilestone(m, prereq?.completedAt ?? null);
 }
 
@@ -71,10 +72,11 @@ async function resolvePrereqCompletion(
   );
   const out = new Map<number, Date | null>();
   if (ids.length === 0) return out;
+  const userIds = Array.from(new Set(rows.map((r) => r.userId)));
   const prereqs = await db
     .select({ id: milestonesTable.id, completedAt: milestonesTable.completedAt })
     .from(milestonesTable)
-    .where(inArray(milestonesTable.id, ids));
+    .where(and(inArray(milestonesTable.id, ids), inArray(milestonesTable.userId, userIds)));
   for (const p of prereqs) out.set(p.id, p.completedAt ?? null);
   return out;
 }
@@ -88,8 +90,9 @@ async function validateHoldUntil(args: {
   thisMilestoneId: number | null;
   thisAreaId: number;
   holdUntilMilestoneId: number | null;
+  userId: string;
 }): Promise<{ status: 400 | 409; error: string } | null> {
-  const { thisMilestoneId, thisAreaId, holdUntilMilestoneId } = args;
+  const { thisMilestoneId, thisAreaId, holdUntilMilestoneId, userId } = args;
   if (holdUntilMilestoneId === null) return null;
   if (thisMilestoneId !== null && holdUntilMilestoneId === thisMilestoneId) {
     return { status: 400, error: "A goal cannot hold on itself." };
@@ -101,7 +104,7 @@ async function validateHoldUntil(args: {
       holdUntilMilestoneId: milestonesTable.holdUntilMilestoneId,
     })
     .from(milestonesTable)
-    .where(eq(milestonesTable.id, holdUntilMilestoneId));
+    .where(and(eq(milestonesTable.id, holdUntilMilestoneId), eq(milestonesTable.userId, userId)));
   if (!target) {
     return { status: 400, error: "Hold target does not exist." };
   }
@@ -121,7 +124,7 @@ async function validateHoldUntil(args: {
     const [next] = await db
       .select({ holdUntilMilestoneId: milestonesTable.holdUntilMilestoneId })
       .from(milestonesTable)
-      .where(eq(milestonesTable.id, cursor));
+      .where(and(eq(milestonesTable.id, cursor), eq(milestonesTable.userId, userId)));
     if (!next) break;
     cursor = next.holdUntilMilestoneId;
   }
@@ -133,13 +136,18 @@ function serializeTask(t: typeof tasksTable.$inferSelect) {
 }
 
 router.get("/milestones", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const query = ListMilestonesQueryParams.safeParse(req.query);
   const areaId = query.success && query.data.areaId ? query.data.areaId : undefined;
 
   const milestones = await db
     .select()
     .from(milestonesTable)
-    .where(areaId ? eq(milestonesTable.areaId, areaId) : undefined)
+    .where(
+      areaId
+        ? and(eq(milestonesTable.userId, userId), eq(milestonesTable.areaId, areaId))
+        : eq(milestonesTable.userId, userId),
+    )
     .orderBy(milestonesTable.sortOrder, milestonesTable.createdAt);
 
   const prereqMap = await resolvePrereqCompletion(milestones);
@@ -153,9 +161,20 @@ router.get("/milestones", asyncHandler(async (req, res): Promise<void> => {
 }));
 
 router.post("/milestones", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const parsed = CreateMilestoneBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  // Verify area belongs to this user before allowing milestone creation under it.
+  const [parentArea] = await db
+    .select({ id: areasTable.id })
+    .from(areasTable)
+    .where(and(eq(areasTable.id, parsed.data.areaId), eq(areasTable.userId, userId)));
+  if (!parentArea) {
+    res.status(404).json({ error: "Area not found" });
     return;
   }
 
@@ -164,6 +183,7 @@ router.post("/milestones", asyncHandler(async (req, res): Promise<void> => {
       thisMilestoneId: null,
       thisAreaId: parsed.data.areaId,
       holdUntilMilestoneId: parsed.data.holdUntilMilestoneId,
+      userId,
     });
     if (validation) {
       res.status(validation.status).json({ error: validation.error });
@@ -172,6 +192,7 @@ router.post("/milestones", asyncHandler(async (req, res): Promise<void> => {
   }
 
   const [milestone] = await db.insert(milestonesTable).values({
+    userId,
     areaId: parsed.data.areaId,
     title: parsed.data.title,
     status: parsed.data.status ?? "planned",
@@ -189,6 +210,7 @@ router.post("/milestones", asyncHandler(async (req, res): Promise<void> => {
 }));
 
 router.post("/milestones/bulk", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const parsed = BulkCreateMilestonesBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -197,15 +219,26 @@ router.post("/milestones/bulk", asyncHandler(async (req, res): Promise<void> => 
 
   const { areaId, titles } = parsed.data;
 
+  // Verify the area belongs to this user.
+  const [parentArea] = await db
+    .select({ id: areasTable.id })
+    .from(areasTable)
+    .where(and(eq(areasTable.id, areaId), eq(areasTable.userId, userId)));
+  if (!parentArea) {
+    res.status(404).json({ error: "Area not found" });
+    return;
+  }
+
   // Get current max sort_order for this area so new ones go at the bottom
   const existing = await db
     .select({ sortOrder: milestonesTable.sortOrder })
     .from(milestonesTable)
-    .where(eq(milestonesTable.areaId, areaId));
+    .where(and(eq(milestonesTable.userId, userId), eq(milestonesTable.areaId, areaId)));
 
   const maxOrder = existing.reduce((max, m) => Math.max(max, m.sortOrder ?? 0), -1);
 
   const rows = titles.map((title, i) => ({
+    userId,
     areaId,
     title: title.trim(),
     status: "planned" as const,
@@ -219,6 +252,7 @@ router.post("/milestones/bulk", asyncHandler(async (req, res): Promise<void> => 
 }));
 
 router.patch("/milestones/:id", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const params = UpdateMilestoneParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -238,7 +272,7 @@ router.patch("/milestones/:id", asyncHandler(async (req, res): Promise<void> => 
     const [existing] = await db
       .select({ id: milestonesTable.id, areaId: milestonesTable.areaId })
       .from(milestonesTable)
-      .where(eq(milestonesTable.id, params.data.id));
+      .where(and(eq(milestonesTable.id, params.data.id), eq(milestonesTable.userId, userId)));
     if (!existing) {
       res.status(404).json({ error: "Milestone not found" });
       return;
@@ -247,6 +281,7 @@ router.patch("/milestones/:id", asyncHandler(async (req, res): Promise<void> => 
       thisMilestoneId: existing.id,
       thisAreaId: existing.areaId,
       holdUntilMilestoneId: parsed.data.holdUntilMilestoneId,
+      userId,
     });
     if (validation) {
       res.status(validation.status).json({ error: validation.error });
@@ -274,7 +309,7 @@ router.patch("/milestones/:id", asyncHandler(async (req, res): Promise<void> => 
   const [milestone] = await db
     .update(milestonesTable)
     .set(updates)
-    .where(eq(milestonesTable.id, params.data.id))
+    .where(and(eq(milestonesTable.id, params.data.id), eq(milestonesTable.userId, userId)))
     .returning();
 
   if (!milestone) {
@@ -290,6 +325,7 @@ router.patch("/milestones/:id", asyncHandler(async (req, res): Promise<void> => 
 // generic plan if OPENAI_API_KEY is unset or the LLM call fails — UI never
 // sees a hard error.
 router.post("/milestones/:id/breakdown", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const params = BreakdownMilestoneParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -299,7 +335,7 @@ router.post("/milestones/:id/breakdown", asyncHandler(async (req, res): Promise<
   const [milestone] = await db
     .select()
     .from(milestonesTable)
-    .where(eq(milestonesTable.id, params.data.id));
+    .where(and(eq(milestonesTable.id, params.data.id), eq(milestonesTable.userId, userId)));
 
   if (!milestone) {
     res.status(404).json({ error: "Goal not found" });
@@ -311,7 +347,7 @@ router.post("/milestones/:id/breakdown", asyncHandler(async (req, res): Promise<
   const existing = await db
     .select({ id: tasksTable.id })
     .from(tasksTable)
-    .where(eq(tasksTable.milestoneId, milestone.id));
+    .where(and(eq(tasksTable.milestoneId, milestone.id), eq(tasksTable.userId, userId)));
 
   if (existing.length > 0) {
     res.status(409).json({ error: "This goal already has steps. Clear them first." });
@@ -327,7 +363,7 @@ router.post("/milestones/:id/breakdown", asyncHandler(async (req, res): Promise<
       isActiveThisWeek: areasTable.isActiveThisWeek,
     })
     .from(areasTable)
-    .where(eq(areasTable.id, milestone.areaId));
+    .where(and(eq(areasTable.id, milestone.areaId), eq(areasTable.userId, userId)));
 
   // Existing step titles on this goal (none right now since we 409'd above,
   // but kept generic so a future "add more steps" path can reuse the same
@@ -335,7 +371,7 @@ router.post("/milestones/:id/breakdown", asyncHandler(async (req, res): Promise<
   const existingStepRows = await db
     .select({ title: tasksTable.title })
     .from(tasksTable)
-    .where(eq(tasksTable.milestoneId, milestone.id))
+    .where(and(eq(tasksTable.milestoneId, milestone.id), eq(tasksTable.userId, userId)))
     .orderBy(asc(tasksTable.sortOrder));
   const existingStepTitles = existingStepRows.map((r) => r.title);
 
@@ -346,6 +382,7 @@ router.post("/milestones/:id/breakdown", asyncHandler(async (req, res): Promise<
     .from(tasksTable)
     .where(
       and(
+        eq(tasksTable.userId, userId),
         eq(tasksTable.areaId, milestone.areaId),
         eq(tasksTable.status, "done"),
       ),
@@ -383,6 +420,7 @@ router.post("/milestones/:id/breakdown", asyncHandler(async (req, res): Promise<
   }
 
   const rows = steps.map((title, i) => ({
+    userId,
     title,
     category: "business" as const,
     status: "pending" as const,
@@ -400,6 +438,7 @@ router.post("/milestones/:id/breakdown", asyncHandler(async (req, res): Promise<
 // each task's sortOrder is set to its index. Tasks not belonging to this
 // milestone are silently ignored (defensive — UI shouldn't send them).
 router.patch("/milestones/:id/step-order", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const params = ReorderMilestoneStepsParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -414,7 +453,7 @@ router.patch("/milestones/:id/step-order", asyncHandler(async (req, res): Promis
   const [milestone] = await db
     .select({ id: milestonesTable.id })
     .from(milestonesTable)
-    .where(eq(milestonesTable.id, params.data.id));
+    .where(and(eq(milestonesTable.id, params.data.id), eq(milestonesTable.userId, userId)));
 
   if (!milestone) {
     res.status(404).json({ error: "Goal not found" });
@@ -433,6 +472,7 @@ router.patch("/milestones/:id/step-order", asyncHandler(async (req, res): Promis
     .from(tasksTable)
     .where(
       and(
+        eq(tasksTable.userId, userId),
         eq(tasksTable.milestoneId, milestone.id),
         inArray(tasksTable.id, taskIds),
       ),
@@ -445,13 +485,13 @@ router.patch("/milestones/:id/step-order", asyncHandler(async (req, res): Promis
     await db
       .update(tasksTable)
       .set({ sortOrder: i + 1 })
-      .where(eq(tasksTable.id, taskId));
+      .where(and(eq(tasksTable.id, taskId), eq(tasksTable.userId, userId)));
   }
 
   const refreshed = await db
     .select()
     .from(tasksTable)
-    .where(eq(tasksTable.milestoneId, milestone.id))
+    .where(and(eq(tasksTable.userId, userId), eq(tasksTable.milestoneId, milestone.id)))
     .orderBy(asc(tasksTable.sortOrder));
 
   res.json(refreshed.map(serializeTask));
@@ -461,6 +501,7 @@ router.patch("/milestones/:id/step-order", asyncHandler(async (req, res): Promis
 // (paste → split on newlines/bullets/commas → edit), and these become tasks
 // with sortOrder continuing after any existing steps.
 router.post("/milestones/:id/steps/bulk", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const params = BulkCreateMilestoneStepsParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -519,7 +560,7 @@ router.post("/milestones/:id/steps/bulk", asyncHandler(async (req, res): Promise
   const [milestone] = await db
     .select()
     .from(milestonesTable)
-    .where(eq(milestonesTable.id, milestoneId));
+    .where(and(eq(milestonesTable.id, milestoneId), eq(milestonesTable.userId, userId)));
 
   if (!milestone) {
     res.status(404).json({ error: "Goal not found" });
@@ -530,7 +571,7 @@ router.post("/milestones/:id/steps/bulk", asyncHandler(async (req, res): Promise
   const existing = await db
     .select({ sortOrder: tasksTable.sortOrder })
     .from(tasksTable)
-    .where(eq(tasksTable.milestoneId, milestoneId));
+    .where(and(eq(tasksTable.userId, userId), eq(tasksTable.milestoneId, milestoneId)));
 
   const maxOrder = existing.reduce(
     (max, row) => Math.max(max, row.sortOrder ?? 0),
@@ -539,6 +580,7 @@ router.post("/milestones/:id/steps/bulk", asyncHandler(async (req, res): Promise
 
   const today = new Date().toISOString().slice(0, 10);
   const rows = parsed.data.titles.map((title, i) => ({
+    userId,
     title,
     category: "business" as const,
     status: "pending" as const,
@@ -553,6 +595,7 @@ router.post("/milestones/:id/steps/bulk", asyncHandler(async (req, res): Promise
 }));
 
 router.delete("/milestones/:id", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const params = DeleteMilestoneParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -562,7 +605,7 @@ router.delete("/milestones/:id", asyncHandler(async (req, res): Promise<void> =>
   try {
     const [milestone] = await db
       .delete(milestonesTable)
-      .where(eq(milestonesTable.id, params.data.id))
+      .where(and(eq(milestonesTable.id, params.data.id), eq(milestonesTable.userId, userId)))
       .returning();
 
     if (!milestone) {

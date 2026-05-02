@@ -1,10 +1,11 @@
-import { type AnyPgColumn, pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { type AnyPgColumn, pgTable, text, serial, timestamp, integer, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { areasTable } from "./areas";
 
 export const milestonesTable = pgTable("milestones", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().default("owner"),
   areaId: integer("area_id").notNull().references(() => areasTable.id),
   title: text("title").notNull(),
   status: text("status").notNull().default("planned"),
@@ -28,8 +29,10 @@ export const milestonesTable = pgTable("milestones", {
   completedAt: timestamp("completed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => ({
+  userIdIdx: index("milestones_user_id_idx").on(t.userId),
+}));
 
-export const insertMilestoneSchema = createInsertSchema(milestonesTable).omit({ id: true, createdAt: true });
+export const insertMilestoneSchema = createInsertSchema(milestonesTable).omit({ id: true, createdAt: true, userId: true });
 export type InsertMilestone = z.infer<typeof insertMilestoneSchema>;
 export type Milestone = typeof milestonesTable.$inferSelect;

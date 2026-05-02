@@ -31,8 +31,12 @@ If you haven't already:
 | `NODE_ENV` | `production` |
 | `BASE_PATH` | `/` |
 | `STATIC_DIR` | `/app/artifacts/dist` |
+| `QUEST_AUTH_TOKEN` | A long random string you generate (e.g. `openssl rand -hex 32`). Required — the API returns 503 on every request until this is set. |
+| `QUEST_OWNER_USER_ID` | `owner` (default). Single-owner deployments can leave this as `owner`. |
+| `COOKIE_SECURE` | `true` |
 
 > ⚠️ **Do NOT** set `PORT` — Railway provides it automatically.
+> ⚠️ **`QUEST_AUTH_TOKEN` must be set before the first request.** The API gates all `/api/*` routes (except `/api/healthz` and `/api/auth/*`) on a session cookie issued in exchange for this token. Without the env var the server returns `503 SERVER_NOT_CONFIGURED`.
 
 ## Step 4 — Redeploy
 
@@ -58,7 +62,7 @@ If you haven't already:
 → This monorepo is large. In Railway → service → **Settings** → **Resources**, increase the build memory if possible. Or contact Railway support to enable a higher tier build.
 
 **"relation does not exist" in logs at runtime**
-→ The database tables weren't created or a rename migration didn't apply. Check the build logs — the step `pnpm --filter @workspace/db run deploy` should run automatically. It runs the pillars→areas rename (idempotent) and then `drizzle-kit push --force`. If it failed, the build logs will show which statement broke.
+→ The database tables weren't created or a migration didn't apply. Check the build logs — the step `pnpm --filter @workspace/db run deploy` should run automatically. It applies the ordered list of idempotent SQL migration files in `lib/db/migrations/` (currently `0001` through `0005`). If it failed, the build logs will show which statement broke.
 
 **"503 DATABASE_SCHEMA_MISMATCH" from any /api/ endpoint**
 → A required table or column is missing from the database. This usually means a migration was added to the codebase but the deployed database hasn't received it yet. Trigger a redeploy in Railway — the build phase will run pending migrations. If the issue persists, you can manually run:
@@ -70,6 +74,6 @@ DATABASE_URL=<railway-pg-url> node lib/db/migrate-rename.mjs up
 
 1. Railway runs `pnpm install` to download all the code pieces.
 2. Runs `pnpm run build` — this compiles the backend and builds the frontend into plain HTML/CSS/JS files at `artifacts/dist/`.
-3. Runs `pnpm --filter @workspace/db run deploy` — this applies pending rename migrations (e.g. pillars→areas) and then runs `drizzle-kit push --force` to sync the rest of the schema.
+3. Runs `pnpm --filter @workspace/db run deploy` — this applies the ordered list of idempotent SQL migrations in `lib/db/migrations/` (`0001`–`0005`, including the user-scope migration that adds `user_id` to every domain table). It does **not** run `drizzle-kit push` in production: schema changes only happen through the explicit numbered SQL files, never by auto-sync from the schema files.
 4. Starts the backend with `pnpm --filter @workspace/api-server run start`.
 5. The backend sees `STATIC_DIR=/app/artifacts/dist` and serves the frontend from the same URL. When you visit `/`, you get the React app. When the React app asks for data at `/api/...`, the backend handles it.

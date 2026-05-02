@@ -41,6 +41,7 @@ function area(id: number, name: string, priority: "P1" | "P2" | "P3" | "P4", act
     nowFocus: null,
     lastUpdated: null,
     category: null,
+    userId: "owner",
     honestNote: null,
   } as ReflectionDraftInput["areas"][number];
 }
@@ -61,6 +62,7 @@ function task(id: number, title: string, areaId: number, status: "pending" | "bl
     createdAt: baseDate,
     parentTaskId: null,
     stepBackDepth: 0,
+    userId: "owner",
     sortOrder: 0,
     blockerType: null,
     adjustmentType: null,

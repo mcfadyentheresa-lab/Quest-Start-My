@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db, dailyPlansTable } from "@workspace/db";
 import {
   CreateDailyPlanBody,
@@ -8,6 +8,7 @@ import {
   UpdateDailyPlanParams,
 } from "@workspace/api-zod";
 import { asyncHandler } from "../lib/async-handler";
+import { getUserId } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -21,6 +22,7 @@ function serializePlan(plan: typeof dailyPlansTable.$inferSelect) {
 const MAX_DAILY_PLAN_LIMIT = 200;
 
 router.get("/daily", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const parsed = ListDailyPlansQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -31,7 +33,7 @@ router.get("/daily", asyncHandler(async (req, res): Promise<void> => {
 
   if (date !== undefined) {
     const plans = await db.select().from(dailyPlansTable)
-      .where(eq(dailyPlansTable.date, date));
+      .where(and(eq(dailyPlansTable.userId, userId), eq(dailyPlansTable.date, date)));
     res.json(plans.map(serializePlan));
     return;
   }
@@ -41,6 +43,7 @@ router.get("/daily", asyncHandler(async (req, res): Promise<void> => {
     : MAX_DAILY_PLAN_LIMIT;
 
   const plans = await db.select().from(dailyPlansTable)
+    .where(eq(dailyPlansTable.userId, userId))
     .orderBy(desc(dailyPlansTable.date))
     .limit(limit);
 
@@ -48,6 +51,7 @@ router.get("/daily", asyncHandler(async (req, res): Promise<void> => {
 }));
 
 router.post("/daily", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const parsed = CreateDailyPlanBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -56,7 +60,7 @@ router.post("/daily", asyncHandler(async (req, res): Promise<void> => {
 
   const existing = await db.select({ id: dailyPlansTable.id })
     .from(dailyPlansTable)
-    .where(eq(dailyPlansTable.date, parsed.data.date))
+    .where(and(eq(dailyPlansTable.userId, userId), eq(dailyPlansTable.date, parsed.data.date)))
     .limit(1);
 
   if (existing.length > 0) {
@@ -68,6 +72,7 @@ router.post("/daily", asyncHandler(async (req, res): Promise<void> => {
   try {
     [created] = await db.insert(dailyPlansTable)
       .values({
+        userId,
         date: parsed.data.date,
         priorities: parsed.data.priorities,
       })
@@ -84,6 +89,7 @@ router.post("/daily", asyncHandler(async (req, res): Promise<void> => {
 }));
 
 router.patch("/daily/:id", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const params = UpdateDailyPlanParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: "Invalid id" });
@@ -106,7 +112,7 @@ router.patch("/daily/:id", asyncHandler(async (req, res): Promise<void> => {
 
   const [updated] = await db.update(dailyPlansTable)
     .set(updateFields)
-    .where(eq(dailyPlansTable.id, params.data.id))
+    .where(and(eq(dailyPlansTable.id, params.data.id), eq(dailyPlansTable.userId, userId)))
     .returning();
 
   if (!updated) {

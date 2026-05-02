@@ -17,6 +17,7 @@ function pillar(id: number, name: string): RecapInput["pillars"][number] {
     nowFocus: null,
     lastUpdated: null,
     category: null,
+    userId: "owner",
     honestNote: null,
   };
 }
@@ -42,6 +43,7 @@ function task(
     createdAt: baseDate,
     parentTaskId: null,
     stepBackDepth: 0,
+    userId: "owner",
     sortOrder: 0,
     blockerType: null,
     adjustmentType: null,

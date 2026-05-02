@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and, gte, lte } from "drizzle-orm";
 import { db, tasksTable, areasTable, milestonesTable, progressLogsTable } from "@workspace/db";
 import { asyncHandler } from "../lib/async-handler";
+import { getUserId } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -43,8 +44,8 @@ type YearRibbonPayload = {
 
 const cache = new Map<string, { expiresAt: number; payload: YearRibbonPayload }>();
 
-function cacheKey(year: number): string {
-  return `year:${year}`;
+function cacheKey(year: number, userId: string): string {
+  return `year:${userId}:${year}`;
 }
 
 function getFromCache(key: string): YearRibbonPayload | null {
@@ -115,6 +116,7 @@ function parseYear(raw: unknown): number | null {
 }
 
 router.get("/year-ribbon", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const yearParam = req.query.year;
   const year = yearParam !== undefined ? parseYear(yearParam) : new Date().getUTCFullYear();
   if (year === null) {
@@ -122,7 +124,7 @@ router.get("/year-ribbon", asyncHandler(async (req, res): Promise<void> => {
     return;
   }
 
-  const cached = getFromCache(cacheKey(year));
+  const cached = getFromCache(cacheKey(year, userId));
   if (cached) {
     res.setHeader("X-Year-Ribbon-Cache", "hit");
     res.json(cached);
@@ -133,16 +135,16 @@ router.get("/year-ribbon", asyncHandler(async (req, res): Promise<void> => {
   const yearEnd = `${year}-12-31`;
 
   const [areas, tasks, milestones, progressLogs] = await Promise.all([
-    db.select().from(areasTable).orderBy(areasTable.id),
+    db.select().from(areasTable).where(eq(areasTable.userId, userId)).orderBy(areasTable.id),
     db
       .select()
       .from(tasksTable)
-      .where(and(gte(tasksTable.date, yearStart), lte(tasksTable.date, yearEnd))),
-    db.select().from(milestonesTable),
+      .where(and(eq(tasksTable.userId, userId), gte(tasksTable.date, yearStart), lte(tasksTable.date, yearEnd))),
+    db.select().from(milestonesTable).where(eq(milestonesTable.userId, userId)),
     db
       .select()
       .from(progressLogsTable)
-      .where(and(gte(progressLogsTable.date, yearStart), lte(progressLogsTable.date, yearEnd))),
+      .where(and(eq(progressLogsTable.userId, userId), gte(progressLogsTable.date, yearStart), lte(progressLogsTable.date, yearEnd))),
   ]);
 
   // Map task id -> areaId for log attribution. Logs are kept even if the
@@ -278,7 +280,7 @@ router.get("/year-ribbon", asyncHandler(async (req, res): Promise<void> => {
     })),
   };
 
-  setCache(cacheKey(year), payload);
+  setCache(cacheKey(year, userId), payload);
   res.setHeader("X-Year-Ribbon-Cache", "miss");
   res.json(payload);
 }));

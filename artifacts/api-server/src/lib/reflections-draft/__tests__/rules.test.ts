@@ -23,6 +23,7 @@ function area(
     nowFocus: null,
     lastUpdated: null,
     category: null,
+    userId: "owner",
     honestNote: null,
   } as ReflectionDraftInput["areas"][number];
 }
@@ -50,6 +51,7 @@ function task(
     createdAt: baseDate,
     parentTaskId: null,
     stepBackDepth: 0,
+    userId: "owner",
     sortOrder: 0,
     blockerType: null,
     adjustmentType: null,

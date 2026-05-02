@@ -51,35 +51,51 @@ function resolveMonthRange(monthOf: string): { start: string; end: string; label
 async function loadInput(req: DraftRequest): Promise<ReflectionDraftInput> {
   const now = req.now ?? new Date();
   const range = req.cadence === "week" ? resolveWeekRange(req.periodKey) : resolveMonthRange(req.periodKey);
+  const userId = req.userId ?? null;
 
   const [areas, completedTasks, openTasks, recentLogs, milestones] = await Promise.all([
-    db.select().from(areasTable).orderBy(areasTable.id),
+    userId === null
+      ? db.select().from(areasTable).orderBy(areasTable.id)
+      : db.select().from(areasTable).where(eq(areasTable.userId, userId)).orderBy(areasTable.id),
     db
       .select()
       .from(tasksTable)
       .where(
-        and(
-          eq(tasksTable.status, "done"),
-          gte(tasksTable.date, range.start),
-          lte(tasksTable.date, range.end),
-        ),
+        userId === null
+          ? and(
+              eq(tasksTable.status, "done"),
+              gte(tasksTable.date, range.start),
+              lte(tasksTable.date, range.end),
+            )
+          : and(
+              eq(tasksTable.userId, userId),
+              eq(tasksTable.status, "done"),
+              gte(tasksTable.date, range.start),
+              lte(tasksTable.date, range.end),
+            ),
       )
       .orderBy(desc(tasksTable.date), desc(tasksTable.id)),
     db
       .select()
       .from(tasksTable)
       .where(
-        and(
-          gte(tasksTable.date, range.start),
-          lte(tasksTable.date, range.end),
-        ),
+        userId === null
+          ? and(
+              gte(tasksTable.date, range.start),
+              lte(tasksTable.date, range.end),
+            )
+          : and(
+              eq(tasksTable.userId, userId),
+              gte(tasksTable.date, range.start),
+              lte(tasksTable.date, range.end),
+            ),
       ),
-    db
-      .select()
-      .from(progressLogsTable)
-      .orderBy(desc(progressLogsTable.loggedAt))
-      .limit(40),
-    db.select().from(milestonesTable),
+    userId === null
+      ? db.select().from(progressLogsTable).orderBy(desc(progressLogsTable.loggedAt)).limit(40)
+      : db.select().from(progressLogsTable).where(eq(progressLogsTable.userId, userId)).orderBy(desc(progressLogsTable.loggedAt)).limit(40),
+    userId === null
+      ? db.select().from(milestonesTable)
+      : db.select().from(milestonesTable).where(eq(milestonesTable.userId, userId)),
   ]);
 
   const open = openTasks.filter((t) => t.status !== "done");

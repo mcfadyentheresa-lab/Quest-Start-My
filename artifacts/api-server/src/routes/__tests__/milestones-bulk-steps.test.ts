@@ -170,6 +170,7 @@ const { default: router } = await import("../milestones");
 function buildApp(): Express {
   const app = express();
   app.use(express.json());
+  app.use((req, _res, next) => { (req as { userId?: string }).userId = "owner"; next(); });
   app.use("/api", router);
   return app;
 }

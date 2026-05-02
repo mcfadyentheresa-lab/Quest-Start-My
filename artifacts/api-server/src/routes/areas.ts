@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, isNull, desc } from "drizzle-orm";
 import { db, areasTable, tasksTable } from "@workspace/db";
+import { getUserId } from "../lib/auth";
 import {
   CreateAreaBody,
   UpdateAreaBody,
@@ -20,11 +21,15 @@ function serializeArea(p: typeof areasTable.$inferSelect) {
 }
 
 router.get("/areas", asyncHandler(async (req, res): Promise<void> => {
-  const areas = await db.select().from(areasTable).orderBy(areasTable.id);
+  const userId = getUserId(req);
+  const areas = await db.select().from(areasTable)
+    .where(eq(areasTable.userId, userId))
+    .orderBy(areasTable.id);
   res.json(ListAreasResponse.parse(areas.map(serializeArea)));
 }));
 
 router.post("/areas", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const parsed = CreateAreaBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -32,6 +37,7 @@ router.post("/areas", asyncHandler(async (req, res): Promise<void> => {
   }
 
   const [area] = await db.insert(areasTable).values({
+    userId,
     name: parsed.data.name,
     priority: parsed.data.priority,
     description: parsed.data.description ?? null,
@@ -46,6 +52,7 @@ router.post("/areas", asyncHandler(async (req, res): Promise<void> => {
 }));
 
 router.patch("/areas/:id", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const params = UpdateAreaParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -71,7 +78,7 @@ router.patch("/areas/:id", asyncHandler(async (req, res): Promise<void> => {
   const [area] = await db
     .update(areasTable)
     .set(updates)
-    .where(eq(areasTable.id, params.data.id))
+    .where(and(eq(areasTable.id, params.data.id), eq(areasTable.userId, userId)))
     .returning();
 
   if (!area) {
@@ -94,13 +101,16 @@ router.patch("/areas/:id", asyncHandler(async (req, res): Promise<void> => {
  * Newest-first by createdAt so newly brain-dumped tasks appear at the top.
  */
 router.get("/areas/:id/tasks", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id <= 0) {
     res.status(400).json({ error: "Invalid area id" });
     return;
   }
 
-  const [area] = await db.select().from(areasTable).where(eq(areasTable.id, id)).limit(1);
+  const [area] = await db.select().from(areasTable)
+    .where(and(eq(areasTable.id, id), eq(areasTable.userId, userId)))
+    .limit(1);
   if (!area) {
     res.status(404).json({ error: "Area not found" });
     return;
@@ -109,7 +119,11 @@ router.get("/areas/:id/tasks", asyncHandler(async (req, res): Promise<void> => {
   const tasks = await db
     .select()
     .from(tasksTable)
-    .where(and(eq(tasksTable.areaId, id), isNull(tasksTable.taskSource)))
+    .where(and(
+      eq(tasksTable.userId, userId),
+      eq(tasksTable.areaId, id),
+      isNull(tasksTable.taskSource),
+    ))
     .orderBy(desc(tasksTable.createdAt));
 
   res.json(tasks.map((t) => ({ ...t, createdAt: t.createdAt.toISOString() })));
