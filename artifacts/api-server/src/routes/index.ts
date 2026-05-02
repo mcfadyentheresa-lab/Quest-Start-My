@@ -12,6 +12,7 @@ import dailyRouter from "./daily";
 import briefingRouter from "./briefing";
 import recapRouter from "./recap";
 import reflectionsRouter from "./reflections";
+import yearRibbonRouter from "./year-ribbon";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(dailyRouter);
 router.use(briefingRouter);
 router.use(recapRouter);
 router.use(reflectionsRouter);
+router.use(yearRibbonRouter);
 
 export default router;
