@@ -17,6 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { parseList } from "@/lib/parse-list";
 
 type WhenChoice = "today" | "week" | "later";
 
@@ -50,20 +51,6 @@ function dateForWhen(when: WhenChoice): string {
   return laterIso();
 }
 
-function stripBulletPrefix(line: string): string {
-  return line.replace(/^\s*(?:[-*•–—]|\(\d+\)|\d+[.):])\s+/, "").trim();
-}
-
-function parseInboxLines(raw: string): string[] {
-  return raw
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .map((line) => stripBulletPrefix(line))
-    .filter((line) => line.length > 0)
-    .map((line) => (line.length > 280 ? line.slice(0, 280) : line));
-}
-
 export function InboxComposer() {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
@@ -79,7 +66,7 @@ export function InboxComposer() {
   const { data: areas } = useListAreas();
   const createTask = useCreateTask();
 
-  const lines = parseInboxLines(text);
+  const lines = parseList(text);
   const canSave = lines.length > 0 && !submitting;
 
   useEffect(() => {
