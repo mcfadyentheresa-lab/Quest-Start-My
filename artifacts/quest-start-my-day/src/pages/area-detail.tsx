@@ -96,6 +96,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { PriorityBadge, PriorityHelp } from "@/components/priority-badge";
 import { useToast } from "@/hooks/use-toast";
+import { parseList, parseStepsPaste } from "@/lib/parse-list";
 
 const PRIORITIES = ["P1", "P2", "P3", "P4"] as const;
 type Priority = typeof PRIORITIES[number];
@@ -103,51 +104,6 @@ type Priority = typeof PRIORITIES[number];
 /** Today's date in YYYY-MM-DD (server expects this for new task `date`). */
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-/** Split a brain-dump textarea into individual task titles. */
-function splitDumpIntoTitles(raw: string): string[] {
-  return raw
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .map((line) => (line.length > 280 ? line.slice(0, 280) : line));
-}
-
-/** Strip a leading bullet/number prefix from a single line. */
-function stripBulletPrefix(line: string): string {
-  // Bullets: -, *, •, –, — (em dash), with optional spaces
-  // Numbers: 1.  1)  (1)  1:
-  return line.replace(/^\s*(?:[-*•–—]|\(\d+\)|\d+[.):])\s+/, "").trim();
-}
-
-/**
- * Parse pasted text into a list of step titles.
- * Splits on newlines (primary) then strips bullet/number prefixes.
- * If a single line has commas and no newlines, splits on commas — but
- * only if every chunk is < 80 chars (otherwise treat as one step).
- */
-function parseStepsPaste(raw: string): string[] {
-  const lines = raw
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
-
-  // Single-line, comma-separated short chunks → split on commas.
-  if (lines.length === 1 && lines[0]!.includes(",")) {
-    const chunks = lines[0]!
-      .split(",")
-      .map((c) => stripBulletPrefix(c).trim())
-      .filter((c) => c.length > 0);
-    if (chunks.length > 1 && chunks.every((c) => c.length < 80)) {
-      return chunks.map((c) => (c.length > 280 ? c.slice(0, 280) : c));
-    }
-  }
-
-  return lines
-    .map((line) => stripBulletPrefix(line))
-    .filter((line) => line.length > 0)
-    .map((line) => (line.length > 280 ? line.slice(0, 280) : line));
 }
 
 function nextPriority(p: string): Priority {
@@ -220,7 +176,7 @@ export default function AreaDetailPage() {
   // ---- Inbox form state ----
   const [draft, setDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const draftLines = useMemo(() => splitDumpIntoTitles(draft), [draft]);
+  const draftLines = useMemo(() => parseList(draft, { stripBullets: false }), [draft]);
 
   // ---- New goal form state ----
   const [newGoalTitle, setNewGoalTitle] = useState("");

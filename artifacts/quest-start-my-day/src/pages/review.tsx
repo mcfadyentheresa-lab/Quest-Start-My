@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarCheck, Clock, ChevronRight, ArrowLeft, Target, Search, X } from "lucide-react";
 import { ReflectionForm, type ReflectionValues } from "@/components/reflection-form";
+import { parseList } from "@/lib/parse-list";
 
 function getRecentMonths(): string[] {
   const months: string[] = [];
@@ -203,10 +204,7 @@ export default function ReviewPage() {
   const isSaving = createReview.isPending || updateReview.isPending;
 
   const handleSaveReflection = (next: ReflectionValues) => {
-    const priorities = next.nextFocus
-      .split(/\r?\n/)
-      .map(s => s.trim())
-      .filter(Boolean);
+    const priorities = parseList(next.nextFocus, { stripBullets: false });
     const payload = {
       whatMoved: next.moved || null,
       whatDelayed: next.stuck || null,

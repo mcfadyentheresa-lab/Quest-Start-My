@@ -28,6 +28,7 @@ import { DataLoadError } from "@/components/data-load-error";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Plus, Pencil, ChevronDown, ChevronUp, Settings, Check, Trash2, GripVertical, AlertCircle, Volume2, VolumeX, Bell, BellOff, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { parseList } from "@/lib/parse-list";
 import { useFocusTimer, MIN_DURATION_MINUTES, MAX_DURATION_MINUTES, clampDuration } from "@/hooks/use-focus-timer";
 import { ToastAction } from "@/components/ui/toast";
 import { useForm } from "react-hook-form";
@@ -501,10 +502,7 @@ function MilestonesSection({ areaId }: { areaId: number }) {
   };
 
   const handleBulkCreate = () => {
-    const titles = bulkText
-      .split("\n")
-      .map(t => t.trim())
-      .filter(t => t.length > 0);
+    const titles = parseList(bulkText, { stripBullets: false });
 
     if (titles.length === 0) return;
 
@@ -601,7 +599,7 @@ function MilestonesSection({ areaId }: { areaId: number }) {
                   }}
                 />
                 {(() => {
-                  const count = bulkText.split("\n").filter(t => t.trim().length > 0).length;
+                  const count = parseList(bulkText, { stripBullets: false }).length;
                   return count > 0 ? (
                     <p className="text-xs text-muted-foreground">{count} milestone{count !== 1 ? "s" : ""} will be added</p>
                   ) : null;
@@ -609,10 +607,10 @@ function MilestonesSection({ areaId }: { areaId: number }) {
                 <Button
                   className="w-full rounded-xl"
                   onClick={handleBulkCreate}
-                  disabled={bulkCreateMilestones.isPending || bulkText.split("\n").filter(t => t.trim().length > 0).length === 0}
+                  disabled={bulkCreateMilestones.isPending || parseList(bulkText, { stripBullets: false }).length === 0}
                 >
                   {bulkCreateMilestones.isPending ? "Adding..." : (() => {
-                    const count = bulkText.split("\n").filter(t => t.trim().length > 0).length;
+                    const count = parseList(bulkText, { stripBullets: false }).length;
                     return count > 0 ? `Add ${count} milestone${count !== 1 ? "s" : ""}` : "Add milestones";
                   })()}
                 </Button>
