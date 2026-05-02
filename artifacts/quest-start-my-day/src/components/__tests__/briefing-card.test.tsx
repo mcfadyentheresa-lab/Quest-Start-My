@@ -151,8 +151,44 @@ describe("BriefingCard", () => {
     expect(html).toContain("Today&#x27;s plan is empty");
     expect(html).toContain("Choose active areas");
     expect(html).toContain("Add task");
-    // Provenance badge is hidden in the empty state.
-    expect(html).not.toContain("Drafted from your priorities");
+    // Provenance badge stays visible on empty plans so users see where the (lack of) plan came from.
+    expect(html).toContain("Drafted from your priorities");
+  });
+
+  it("shows the AI-drafted badge even when the briefing is empty", () => {
+    const html = renderToStaticMarkup(
+      <BriefingCard
+        briefing={{ ...briefing, briefing: [], source: "ai" }}
+        isReshuffling={false}
+        isApproving={false}
+        onApprove={() => {}}
+        onReshuffle={() => {}}
+        onAddOwn={() => {}}
+        onStartFocus={() => {}}
+        onMarkDone={() => {}}
+        onPushTask={() => {}}
+        onMarkBlocked={() => {}}
+      />,
+    );
+    expect(html).toContain("AI-drafted");
+  });
+
+  it("shows the rules badge even when the briefing is empty", () => {
+    const html = renderToStaticMarkup(
+      <BriefingCard
+        briefing={{ ...briefing, briefing: [], source: "rules" }}
+        isReshuffling={false}
+        isApproving={false}
+        onApprove={() => {}}
+        onReshuffle={() => {}}
+        onAddOwn={() => {}}
+        onStartFocus={() => {}}
+        onMarkDone={() => {}}
+        onPushTask={() => {}}
+        onMarkBlocked={() => {}}
+      />,
+    );
+    expect(html).toContain("Drafted from your priorities");
   });
 });
 

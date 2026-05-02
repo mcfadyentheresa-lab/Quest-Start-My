@@ -60,15 +60,13 @@ export function BriefingCard({
         <h2 className="text-base font-medium tracking-tight text-muted-foreground">
           Today's plan
         </h2>
-        {!isEmpty && (
-          <span
-            className="text-[10px] font-medium tracking-wide uppercase text-muted-foreground/80 px-2 py-0.5 rounded-full bg-muted"
-            data-testid="briefing-provenance"
-            title={PROVENANCE_LABEL[briefing.source]}
-          >
-            {PROVENANCE_LABEL[briefing.source]}
-          </span>
-        )}
+        <span
+          className="text-[10px] font-medium tracking-wide uppercase text-muted-foreground/80 px-2 py-0.5 rounded-full bg-muted"
+          data-testid="briefing-provenance"
+          title={PROVENANCE_LABEL[briefing.source]}
+        >
+          {PROVENANCE_LABEL[briefing.source]}
+        </span>
       </div>
 
       {!isEmpty && briefing.context && (
