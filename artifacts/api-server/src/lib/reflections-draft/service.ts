@@ -11,6 +11,7 @@ import { buildEmptyFallback, buildRulesDraft } from "./rules";
 import { getCachedDraft, makeCacheKey, setCachedDraft } from "./cache";
 import type { ReflectionCadence, ReflectionDraft, ReflectionDraftInput } from "./types";
 import { logger } from "../logger";
+import { readOpenAiApiKey } from "../openai-key";
 
 export type DraftRequest = {
   cadence: ReflectionCadence;
@@ -139,10 +140,10 @@ export async function generateReflectionDraft(deps: GenerateDraftDeps): Promise<
 
   let draft: ReflectionDraft;
 
-  const apiKey = process.env["OPENAI_API_KEY"];
-  if (apiKey && apiKey.trim().length > 0 && hasAnyData) {
+  const apiKey = readOpenAiApiKey();
+  if (apiKey && hasAnyData) {
     try {
-      draft = await buildAiDraft(input, { apiKey: apiKey.trim() });
+      draft = await buildAiDraft(input, { apiKey });
       // Guard: if AI returned all-empty, fall back to rules.
       if (!draft.moved && !draft.stuck && !draft.drop && !draft.nextFocus) {
         draft = { ...buildRulesDraft(input), source: "fallback" };

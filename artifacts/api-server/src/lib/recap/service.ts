@@ -9,6 +9,7 @@ import { buildRulesRecap } from "./rules";
 import { buildAiRecap } from "./ai";
 import type { RecapInput, RecapResponse } from "./types";
 import { logger } from "../logger";
+import { readOpenAiApiKey } from "../openai-key";
 import { shouldServeFromCache } from "./cache";
 
 export type RecapDeps = {
@@ -153,11 +154,11 @@ export async function generateRecap(deps: RecapDeps = {}): Promise<RecapResponse
     }
   }
 
-  const apiKey = process.env["OPENAI_API_KEY"];
+  const apiKey = readOpenAiApiKey();
   let recap: RecapResponse;
-  if (apiKey && apiKey.trim().length > 0) {
+  if (apiKey) {
     try {
-      recap = await buildAiRecap(input, { apiKey: apiKey.trim() });
+      recap = await buildAiRecap(input, { apiKey });
     } catch (err) {
       logger.warn({ err: String(err) }, "AI recap failed, falling back to rules");
       recap = { ...buildRulesRecap(input), source: "fallback" };
