@@ -12,8 +12,11 @@
  *      break the goal into 5–8 steps, or flip the goal between
  *      step-by-step ("Step-by-step") and any-order ("Any order").
  *
- *   3. Inbox below — the unassigned-task surface. Anything that isn't
- *      tied to a goal yet.
+ *   3. Loose tasks below — tasks attached to this project that aren't
+ *      part of a goal yet. Hidden when empty so the page stays calm.
+ *      A small "+ Add task" affordance lets the user tack a quick task
+ *      onto this project; brain-dumping with no project still happens
+ *      via the global Inbox pill.
  *
  * Voice rule: chief-of-staff. Decisive, neutral pronouns, no "I"/"me",
  * no app name in user-facing copy.
@@ -50,7 +53,6 @@ import {
   Plus,
   CheckCircle2,
   Undo2,
-  Sparkles,
   ChevronDown,
   ChevronRight,
   GripVertical,
@@ -97,7 +99,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { PriorityBadge, PriorityHelp } from "@/components/priority-badge";
 import { useToast } from "@/hooks/use-toast";
-import { parseList, parseStepsPaste } from "@/lib/parse-list";
+import { parseStepsPaste } from "@/lib/parse-list";
 
 const PRIORITIES = ["P1", "P2", "P3", "P4"] as const;
 type Priority = typeof PRIORITIES[number];
@@ -176,10 +178,13 @@ export default function AreaDetailPage() {
   const reorderSteps = useReorderMilestoneSteps();
   const bulkAddSteps = useBulkCreateMilestoneSteps();
 
-  // ---- Inbox form state ----
+  // ---- Quick-add task state ----
+  // A small inline input that creates a task scoped to this project.
+  // Starts collapsed; the user clicks "+ Add task" to reveal it.
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [draft, setDraft] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const draftLines = useMemo(() => parseList(draft, { stripBullets: false }), [draft]);
+  const textareaRef = useRef<HTMLInputElement | null>(null);
+  const draftTitle = draft.trim();
 
   // ---- New goal form state ----
   const [newGoalTitle, setNewGoalTitle] = useState("");
@@ -205,46 +210,27 @@ export default function AreaDetailPage() {
   };
 
   const handleSubmitDraft = async () => {
-    if (!validId || draftLines.length === 0) return;
-    const titles = draftLines;
+    if (!validId || !draftTitle) return;
+    const title = draftTitle;
     setDraft("");
 
-    const date = todayIso();
-    const results = await Promise.allSettled(
-      titles.map((title) =>
-        createTask.mutateAsync({
-          data: {
-            title,
-            category: "business",
-            areaId,
-            date,
-          },
-        }),
-      ),
-    );
-
-    const ok = results.filter((r) => r.status === "fulfilled").length;
-    const failed = results.length - ok;
-
-    invalidateAreaData();
-
-    if (failed === 0) {
-      toast({
-        title: ok === 1 ? "Added" : `Added ${ok}`,
-        description: ok === 1 ? titles[0] : "Stays in the inbox until grouped.",
+    try {
+      await createTask.mutateAsync({
+        data: {
+          title,
+          category: "business",
+          areaId,
+          date: todayIso(),
+        },
       });
-    } else if (ok === 0) {
-      toast({
-        title: "Couldn't save",
-        description: "Try again in a second.",
-        variant: "destructive",
-      });
-      setDraft(titles.join("\n"));
-    } else {
-      toast({
-        title: `Added ${ok} of ${results.length}`,
-        description: `${failed} didn't save — try again.`,
-      });
+      invalidateAreaData();
+      toast({ title: "Added", description: title });
+      // Keep the quick-add open so the user can add several in a row
+      // without re-clicking. Refocus the input.
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    } catch {
+      toast({ title: "Couldn't save", variant: "destructive" });
+      setDraft(title);
     }
   };
 
@@ -578,91 +564,104 @@ export default function AreaDetailPage() {
         )}
       </section>
 
-      {/* INBOX — below goals. Unassigned tasks live here. */}
-      <section
-        aria-labelledby="inbox-heading"
-        className="rounded-2xl bg-card border border-card-border p-4 space-y-3"
-      >
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-muted-foreground" aria-hidden />
-          <h2 id="inbox-heading" className="text-sm font-medium text-foreground">
-            Inbox
-          </h2>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Drop anything here. Sort it later, or don't.
-        </p>
-        <Textarea
-          ref={textareaRef}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              void handleSubmitDraft();
-            }
-          }}
-          placeholder={"Dump it. One per line."}
-          rows={Math.max(3, Math.min(8, draftLines.length + 1))}
-          className="resize-y min-h-[88px]"
-          aria-describedby="inbox-hint"
-        />
-        <div className="flex items-center justify-between gap-3">
-          <p id="inbox-hint" className="text-xs text-muted-foreground">
-            {draftLines.length === 0
-              ? "Tip: Cmd/Ctrl+Enter to add."
-              : `Adds ${draftLines.length} ${draftLines.length === 1 ? "task" : "tasks"}.`}
-          </p>
-          <Button
-            size="sm"
-            onClick={() => void handleSubmitDraft()}
-            disabled={draftLines.length === 0 || createTask.isPending}
-            className="rounded-full"
+      {/* Quick-add — small inline affordance for tacking a task onto
+          this project without opening the global inbox. Collapsed by
+          default so it doesn't compete with goals for attention. */}
+      <section aria-label="Add a task to this project">
+        {!quickAddOpen ? (
+          <button
+            type="button"
+            onClick={() => {
+              setQuickAddOpen(true);
+              requestAnimationFrame(() => textareaRef.current?.focus());
+            }}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-lg"
           >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            {createTask.isPending
-              ? "Adding…"
-              : draftLines.length > 1
-                ? `Add ${draftLines.length}`
-                : "Add"}
-          </Button>
-        </div>
-      </section>
-
-      {/* Unassigned — tasks not in a goal yet. */}
-      <section aria-labelledby="unassigned-heading" className="space-y-2">
-        <h2
-          id="unassigned-heading"
-          className="font-serif text-sm font-medium text-muted-foreground uppercase tracking-wide"
-        >
-          Unassigned ({looseTasks.length})
-        </h2>
-        <p className="text-xs text-muted-foreground">Tasks not in a goal yet.</p>
-        {tasksQuery.isLoading ? (
-          <Skeleton className="h-20 w-full rounded-2xl" />
-        ) : looseTasks.length === 0 ? (
-          <div className="rounded-2xl bg-card border border-card-border p-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              {tasks.length === 0
-                ? "Nothing here yet. Start dumping."
-                : "All grouped. Nice."}
-            </p>
-          </div>
+            <Plus className="h-3.5 w-3.5" />
+            Add task to this project
+          </button>
         ) : (
-          <ul className="space-y-2">
-            <AnimatePresence initial={false}>
-              {looseTasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  onToggle={() => handleToggleDone(task)}
-                  pending={updateTask.isPending}
-                />
-              ))}
-            </AnimatePresence>
-          </ul>
+          <div className="rounded-2xl border border-card-border bg-card p-3 flex items-center gap-2">
+            <input
+              ref={textareaRef}
+              type="text"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void handleSubmitDraft();
+                } else if (e.key === "Escape") {
+                  setDraft("");
+                  setQuickAddOpen(false);
+                }
+              }}
+              placeholder="What's the task?"
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              aria-label="New task title"
+            />
+            <Button
+              size="sm"
+              onClick={() => void handleSubmitDraft()}
+              disabled={!draftTitle || createTask.isPending}
+              className="rounded-full"
+            >
+              {createTask.isPending ? "Adding…" : "Add"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setDraft("");
+                setQuickAddOpen(false);
+              }}
+              className="rounded-full text-muted-foreground"
+            >
+              Cancel
+            </Button>
+          </div>
         )}
       </section>
+
+      {/* Loose tasks — tasks attached to this project but not yet inside
+          a goal. Hidden when there are none AND there's other activity
+          in the project, so the page stays calm. Shown with an empty
+          state only when the project is brand-new (no tasks at all). */}
+      {(looseTasks.length > 0 || (tasks.length === 0 && !tasksQuery.isLoading)) && (
+        <section aria-labelledby="loose-heading" className="space-y-2">
+          <h2
+            id="loose-heading"
+            className="font-serif text-sm font-medium text-muted-foreground uppercase tracking-wide"
+          >
+            Loose tasks{looseTasks.length > 0 ? ` (${looseTasks.length})` : ""}
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Tasks here aren't part of a goal yet.
+          </p>
+          {tasksQuery.isLoading ? (
+            <Skeleton className="h-20 w-full rounded-2xl" />
+          ) : looseTasks.length === 0 ? (
+            <div className="rounded-2xl bg-card border border-card-border p-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                Nothing here yet. Add a goal above, or tack on a task.
+              </p>
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              <AnimatePresence initial={false}>
+                {looseTasks.map((task) => (
+                  <TaskRow
+                    key={task.id}
+                    task={task}
+                    onToggle={() => handleToggleDone(task)}
+                    pending={updateTask.isPending}
+                  />
+                ))}
+              </AnimatePresence>
+            </ul>
+          )}
+        </section>
+      )}
 
       {/* Recently closed */}
       {recentlyClosed.length > 0 && (
