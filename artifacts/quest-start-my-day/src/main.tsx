@@ -1,17 +1,57 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryCache, MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import "./index.css";
+
+// ---------------------------------------------------------------------------
+// Global 401 redirect.
+//
+// When any API call comes back 401, the cookie is gone or invalid. Push
+// the user to /sign-in?next=<current path> so they can re-auth and land
+// back where they were. We do this at the cache layer so every query and
+// mutation gets the behavior for free — no per-call wiring.
+// ---------------------------------------------------------------------------
+function isUnauthorized(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "status" in err &&
+    (err as { status: unknown }).status === 401
+  );
+}
+
+function redirectToSignIn() {
+  if (typeof window === "undefined") return;
+  if (window.location.pathname === "/sign-in") return;
+  const next = window.location.pathname + window.location.search;
+  const qs = next && next !== "/" ? `?next=${encodeURIComponent(next)}` : "";
+  window.location.assign(`/sign-in${qs}`);
+}
 
 // Tuned defaults: fail faster so the UI can show an error state
 // instead of an indefinite skeleton when the API is down.
 // Default React Query is 3 retries with exponential backoff (~30s).
 // 2 retries with capped 4s backoff = ~5s before isError flips true.
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (err) => {
+      if (isUnauthorized(err)) redirectToSignIn();
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (err) => {
+      if (isUnauthorized(err)) redirectToSignIn();
+    },
+  }),
   defaultOptions: {
     queries: {
-      retry: 2,
+      // Don't retry 401s — redirect happens immediately and retrying
+      // just delays the inevitable + spams the server.
+      retry: (failureCount, err) => {
+        if (isUnauthorized(err)) return false;
+        return failureCount < 2;
+      },
       retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 4000),
       refetchOnWindowFocus: false,
     },

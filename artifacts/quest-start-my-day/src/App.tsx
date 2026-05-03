@@ -8,6 +8,7 @@ import { FocusTimerProvider } from "@/hooks/use-focus-timer";
 
 const TodayPage = lazy(() => import("@/pages/today"));
 const InboxPage = lazy(() => import("@/pages/inbox"));
+const SignInPage = lazy(() => import("@/pages/sign-in"));
 const CalendarPage = lazy(() => import("@/pages/calendar"));
 const HomeModulePage = lazy(() => import("@/pages/home-module"));
 const AreasPage = lazy(() => import("@/pages/areas"));
@@ -35,6 +36,17 @@ function Redirect({ to }: { to: string }) {
 }
 
 function Router() {
+  const [location] = useLocation();
+  // The sign-in page renders bare (no top nav, no bottom tabs, no
+  // floating Inbox pill) so the form is the only thing on screen.
+  // Wouter doesn't have nested layouts, so we branch here.
+  if (location === "/sign-in") {
+    return (
+      <Suspense fallback={<RouteFallback />}>
+        <SignInPage />
+      </Suspense>
+    );
+  }
   return (
     <Layout>
       <Suspense fallback={<RouteFallback />}>
