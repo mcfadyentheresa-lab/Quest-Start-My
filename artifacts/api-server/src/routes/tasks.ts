@@ -188,11 +188,21 @@ router.get("/tasks/suggestions", asyncHandler(async (req, res): Promise<void> =>
     if (coveredAreaIds.has(area.id)) continue;
 
     const candidateMilestones = milestonesByArea.get(area.id) ?? [];
-    const milestone = candidateMilestones.find(m => m.nextAction && m.nextAction.trim());
+    // Prefer a milestone with a concrete next action; otherwise fall back to the
+    // first planned milestone and use its title as the task title. This keeps
+    // suggestions useful even when the user hasn't filled in nextAction yet.
+    const milestone =
+      candidateMilestones.find(m => m.nextAction && m.nextAction.trim()) ??
+      candidateMilestones[0];
     if (!milestone) continue;
 
+    const title =
+      milestone.nextAction && milestone.nextAction.trim()
+        ? milestone.nextAction.trim()
+        : milestone.title;
+
     suggestions.push({
-      title: milestone.nextAction!.trim(),
+      title,
       areaId: area.id,
       areaName: area.name,
       areaColor: area.color ?? null,

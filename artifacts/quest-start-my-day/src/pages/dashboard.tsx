@@ -25,6 +25,7 @@ import { TaskCard } from "@/components/task-card";
 import { ProgressSummary } from "@/components/progress-summary";
 import { PriorityBadge } from "@/components/priority-badge";
 import { AddTaskDialog } from "@/components/add-task-dialog";
+import { SuggestionsCard } from "@/components/suggestions-card";
 import { FocusTimerWidget } from "@/components/focus-timer-widget";
 import { FocusNudgeDialog } from "@/components/focus-nudge-dialog";
 import { useFocusTimer, clampDuration, MIN_DURATION_MINUTES, MAX_DURATION_MINUTES } from "@/hooks/use-focus-timer";
@@ -791,6 +792,9 @@ export default function Dashboard() {
             {!isViewingHistory && (
               <>
                 <p className="text-xs text-muted-foreground mt-1 mb-4">Add up to 3 tasks to get started</p>
+                <div className="mb-4">
+                  <SuggestionsCard date={viewDate} />
+                </div>
                 <AddTaskDialog date={viewDate} />
                 <p className="mt-4 text-xs text-muted-foreground">
                   Need a 5-min reset?{" "}
