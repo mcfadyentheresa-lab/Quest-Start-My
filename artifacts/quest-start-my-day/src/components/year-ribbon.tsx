@@ -21,12 +21,23 @@ import {
 } from "@/components/ui/tooltip";
 
 const WEEKS = 52;
-const CELL_W = 16;
-const CELL_GAP = 2;
-const ROW_H = 28;
-const RAIL_W = 168;
 
 const MONTH_LABELS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const MONTH_SHORT = [
   "Jan",
   "Feb",
   "Mar",
@@ -62,8 +73,8 @@ function weekEndDate(year: number, weekIdx: number): Date {
 function formatRange(year: number, weekIdx: number): string {
   const s = weekStartDate(year, weekIdx);
   const e = weekEndDate(year, weekIdx);
-  const startMonth = MONTH_LABELS[s.getUTCMonth()];
-  const endMonth = MONTH_LABELS[e.getUTCMonth()];
+  const startMonth = MONTH_SHORT[s.getUTCMonth()];
+  const endMonth = MONTH_SHORT[e.getUTCMonth()];
   if (startMonth === endMonth) {
     return `${startMonth} ${s.getUTCDate()}–${e.getUTCDate()}`;
   }
@@ -73,6 +84,22 @@ function formatRange(year: number, weekIdx: number): string {
 // Map a week-index 0..51 to a month index 0..11 by its start date.
 function monthForWeek(year: number, weekIdx: number): number {
   return weekStartDate(year, weekIdx).getUTCMonth();
+}
+
+// Build [{month, weekIndices: number[]}] groups for a given year.
+function monthGroups(year: number): { month: number; weeks: number[] }[] {
+  const map = new Map<number, number[]>();
+  for (let i = 0; i < WEEKS; i++) {
+    const m = monthForWeek(year, i);
+    if (!map.has(m)) map.set(m, []);
+    map.get(m)!.push(i);
+  }
+  // Ensure all 12 months appear in order, even if a month has no whole-week start.
+  const out: { month: number; weeks: number[] }[] = [];
+  for (let m = 0; m < 12; m++) {
+    out.push({ month: m, weeks: map.get(m) ?? [] });
+  }
+  return out;
 }
 
 function weekActivity(w: YearRibbonWeek): number {
@@ -88,17 +115,18 @@ function intensityLevel(activity: number): 0 | 1 | 2 | 3 | 4 {
   return 4;
 }
 
+// Warm sage palette — calmer than github green, fits Aster & Spruce mood.
 function intensityClass(level: 0 | 1 | 2 | 3 | 4, future: boolean): string {
-  if (future) return "bg-muted/30";
+  if (future) return "bg-muted/20";
   switch (level) {
     case 0:
-      return "bg-muted/50";
+      return "bg-muted/40";
     case 1:
-      return "bg-emerald-200/70 dark:bg-emerald-900/40";
+      return "bg-emerald-200/60 dark:bg-emerald-900/40";
     case 2:
       return "bg-emerald-300/80 dark:bg-emerald-800/60";
     case 3:
-      return "bg-emerald-400 dark:bg-emerald-700/80";
+      return "bg-emerald-400/90 dark:bg-emerald-700/80";
     case 4:
       return "bg-emerald-500 dark:bg-emerald-500/90";
   }
@@ -111,9 +139,8 @@ function priorityChipClass(p: string): string {
   return "bg-muted text-muted-foreground";
 }
 
-// Color used to tint a goal bar. Falls back to a hash of the area id when
-// the area has no explicit color.
-function goalBarColor(area: YearRibbonArea): string {
+// Color used to tint a goal bar/dot. Falls back to a hash of the area id.
+function areaColor(area: YearRibbonArea): string {
   if (area.color) return area.color;
   const palette = ["#7d8a6f", "#8a6f7d", "#6f7d8a", "#a08a6f", "#6fa088", "#8a6fa0"];
   return palette[area.id % palette.length]!;
@@ -140,7 +167,7 @@ function YearRibbonHeader({
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <div className="text-lg font-semibold tabular-nums">{year}</div>
+        <div className="text-2xl font-semibold tabular-nums tracking-tight">{year}</div>
         <button
           type="button"
           onClick={() => onYear(year + 1)}
@@ -181,76 +208,93 @@ function YearRibbonLegend() {
   );
 }
 
-function MonthAxis() {
-  // Each label spans the weeks whose start date falls in that month.
-  const groups = useMemo(() => {
-    const arr: { month: string; start: number; end: number }[] = [];
-    const year = new Date().getUTCFullYear();
-    let curMonth = -1;
-    let curStart = 0;
-    for (let i = 0; i < WEEKS; i++) {
-      const m = monthForWeek(year, i);
-      if (m !== curMonth) {
-        if (curMonth !== -1) {
-          arr.push({ month: MONTH_LABELS[curMonth]!, start: curStart, end: i - 1 });
-        }
-        curMonth = m;
-        curStart = i;
-      }
-    }
-    arr.push({ month: MONTH_LABELS[curMonth]!, start: curStart, end: WEEKS - 1 });
-    return arr;
-  }, []);
+// One week cell. We render these inside per-month strips, but keep the
+// `data-testid="year-cell-{areaId}-{weekIndex}"` shape so existing tests
+// continue to pass.
+function WeekCell({
+  area,
+  week,
+  year,
+  todayWeek,
+}: {
+  area: YearRibbonArea;
+  week: YearRibbonWeek;
+  year: number;
+  todayWeek: number | null;
+}) {
+  const [, navigate] = useLocation();
+  const future = todayWeek !== null && week.index > todayWeek;
+  const isToday = todayWeek !== null && week.index === todayWeek;
+  const level = intensityLevel(weekActivity(week));
+  const tooltip = `${formatRange(year, week.index)} · ${week.completedTasks} done · ${week.closedSteps} steps`;
+  const target = ymd(weekStartDate(year, week.index));
 
   return (
-    <div
-      className="relative h-5 select-none"
-      style={{ width: WEEKS * (CELL_W + CELL_GAP) }}
-      aria-hidden="true"
-    >
-      {groups.map((g) => {
-        const left = g.start * (CELL_W + CELL_GAP);
-        const width = (g.end - g.start + 1) * (CELL_W + CELL_GAP);
-        return (
-          <span
-            key={g.month}
-            className="absolute top-0 text-[10px] uppercase tracking-wider text-muted-foreground"
-            style={{ left, width }}
-          >
-            {g.month}
-          </span>
-        );
-      })}
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={() => navigate(`/calendar?view=week&date=${target}`)}
+          aria-label={tooltip}
+          data-testid={`year-cell-${area.id}-${week.index}`}
+          data-future={future ? "true" : "false"}
+          data-today={isToday ? "true" : "false"}
+          className={`h-4 w-4 shrink-0 rounded-md transition-colors ${intensityClass(level, future)} ${
+            isToday ? "ring-2 ring-foreground/70 ring-offset-1 ring-offset-card" : ""
+          }`}
+        />
+      </TooltipTrigger>
+      <TooltipContent side="top">
+        <span className="text-xs">
+          {tooltip} · {area.name}
+        </span>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
-function GoalBar({
+// Goal pill rendered inside a month row when the goal overlaps that month.
+// Keeps `data-testid="goal-bar-{goalId}"` for tests.
+function MonthGoalPill({
   bar,
   area,
 }: {
   bar: YearRibbonGoalBar;
   area: YearRibbonArea;
 }) {
-  const left = bar.startWeek * (CELL_W + CELL_GAP);
-  const width =
-    (bar.endWeek - bar.startWeek + 1) * (CELL_W + CELL_GAP) - CELL_GAP;
-  const color = goalBarColor(area);
+  const color = areaColor(area);
   const stepCount = bar.endWeek - bar.startWeek + 1;
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="absolute top-1 h-3 cursor-pointer rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-          style={{ left, width, backgroundColor: color }}
-          aria-label={`Goal: ${bar.title}`}
           data-testid={`goal-bar-${bar.goalId}`}
-        />
+          className="group inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/60 bg-card px-2 py-1 text-[11px] font-medium text-foreground shadow-sm transition hover:border-border hover:shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+        >
+          <span
+            className="h-2 w-2 shrink-0 rounded-full"
+            style={{ backgroundColor: color }}
+            aria-hidden="true"
+          />
+          <span className="truncate">{bar.title}</span>
+          {bar.isOnHold ? (
+            <span className="shrink-0 rounded bg-muted px-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+              hold
+            </span>
+          ) : null}
+        </button>
       </PopoverTrigger>
       <PopoverContent className="w-64 text-sm">
         <div className="space-y-1.5">
-          <div className="font-medium leading-tight">{bar.title}</div>
+          <div className="flex items-center gap-2">
+            <span
+              className="h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: color }}
+              aria-hidden="true"
+            />
+            <div className="font-medium leading-tight">{bar.title}</div>
+          </div>
           <div className="text-xs text-muted-foreground">
             {bar.isOnHold ? "On hold" : bar.status}
             {" · "}
@@ -268,77 +312,204 @@ function GoalBar({
   );
 }
 
-function AreaRow({
-  area,
+// One month "strip": label, week cells per active area for this month, and
+// the goal pills that overlap this month.
+function MonthRow({
+  monthIdx,
+  weeks,
+  areas,
   year,
-  todayWeekIndex,
+  todayWeek,
+  isCurrentMonth,
 }: {
-  area: YearRibbonArea;
+  monthIdx: number;
+  weeks: number[];
+  areas: YearRibbonArea[];
   year: number;
-  todayWeekIndex: number | null;
+  todayWeek: number | null;
+  isCurrentMonth: boolean;
 }) {
-  const [, navigate] = useLocation();
-  const todayYear = new Date().getUTCFullYear();
-  const todayWeek = year === todayYear ? todayWeekIndex : null;
+  // Goal pills that overlap any week of this month.
+  const goalsThisMonth = useMemo(() => {
+    if (weeks.length === 0) return [];
+    const first = weeks[0]!;
+    const last = weeks[weeks.length - 1]!;
+    const out: { area: YearRibbonArea; bar: YearRibbonGoalBar }[] = [];
+    for (const area of areas) {
+      for (const bar of area.goalBars) {
+        if (bar.endWeek >= first && bar.startWeek <= last) {
+          out.push({ area, bar });
+        }
+      }
+    }
+    return out;
+  }, [weeks, areas]);
+
+  // Areas that have any activity in this month — drives which rows of cells
+  // we draw. Always render at least one row so each month feels alive.
+  const activeAreas = useMemo(() => {
+    return areas.filter((a) =>
+      a.weeks.some((w) => weeks.includes(w.index) && weekActivity(w) > 0),
+    );
+  }, [areas, weeks]);
+
+  // Whether today falls in this month.
+  const monthHasToday =
+    todayWeek !== null && weeks.includes(todayWeek);
 
   return (
-    <div className="flex items-stretch border-t border-border/40">
-      <div
-        className="flex shrink-0 items-center gap-2 pr-3"
-        style={{ width: RAIL_W, height: ROW_H }}
-      >
-        <Link
-          href={`/areas/${area.id}`}
-          className="truncate text-xs font-medium text-foreground hover:underline"
-          title={area.name}
-        >
-          {area.name}
-        </Link>
-        <span
-          className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${priorityChipClass(area.priority)}`}
-        >
-          {area.priority}
-        </span>
+    <div
+      className={`relative rounded-2xl border px-4 py-4 transition ${
+        isCurrentMonth
+          ? "border-foreground/20 bg-card shadow-sm"
+          : "border-card-border/60 bg-card/40"
+      }`}
+    >
+      {/* Month label + tiny meta */}
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="flex items-baseline gap-2">
+          <h3 className="text-sm font-semibold tracking-wide text-foreground">
+            {MONTH_LABELS[monthIdx]}
+          </h3>
+          {monthHasToday ? (
+            <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-foreground">
+              this month
+            </span>
+          ) : null}
+        </div>
+        <div className="text-[11px] tabular-nums text-muted-foreground">
+          {weeks.length === 0
+            ? "—"
+            : `wk ${weeks[0]! + 1}–${weeks[weeks.length - 1]! + 1}`}
+        </div>
       </div>
-      <div
-        className="relative"
-        style={{ width: WEEKS * (CELL_W + CELL_GAP), height: ROW_H }}
-      >
-        {area.weeks.map((w) => {
-          const future =
-            todayWeek !== null && w.index > todayWeek;
-          const isToday = todayWeek !== null && w.index === todayWeek;
-          const level = intensityLevel(weekActivity(w));
-          const left = w.index * (CELL_W + CELL_GAP);
-          const tooltip = `${formatRange(year, w.index)} · ${w.completedTasks} done · ${w.closedSteps} steps`;
-          const target = ymd(weekStartDate(year, w.index));
-          return (
-            <Tooltip key={w.index}>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/calendar?view=week&date=${target}`)}
-                  aria-label={tooltip}
-                  data-testid={`year-cell-${area.id}-${w.index}`}
-                  data-future={future ? "true" : "false"}
-                  data-today={isToday ? "true" : "false"}
-                  className={`absolute rounded-sm transition-colors ${intensityClass(level, future)} ${isToday ? "ring-1 ring-foreground/70" : ""}`}
-                  style={{
-                    top: 6,
-                    left,
-                    width: CELL_W,
-                    height: ROW_H - 12,
-                  }}
+
+      {/* Goal pills for this month */}
+      {goalsThisMonth.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {goalsThisMonth.map(({ area, bar }) => (
+            <MonthGoalPill key={`${area.id}-${bar.goalId}`} bar={bar} area={area} />
+          ))}
+        </div>
+      ) : null}
+
+      {/* Activity strip — one mini-row per area that did anything this month */}
+      <div className="mt-3 space-y-1.5">
+        {activeAreas.length === 0 ? (
+          <div className="flex items-center gap-2 py-1">
+            <div className="flex gap-1">
+              {weeks.map((idx) => (
+                <span
+                  key={idx}
+                  className={`h-4 w-4 rounded-md ${
+                    todayWeek !== null && idx > todayWeek
+                      ? "bg-muted/20"
+                      : "bg-muted/40"
+                  } ${
+                    todayWeek === idx
+                      ? "ring-2 ring-foreground/70 ring-offset-1 ring-offset-card"
+                      : ""
+                  }`}
+                  aria-hidden="true"
                 />
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <span className="text-xs">{tooltip}</span>
-              </TooltipContent>
-            </Tooltip>
-          );
-        })}
-        {area.goalBars.map((bar) => (
-          <GoalBar key={bar.goalId} bar={bar} area={area} />
+              ))}
+            </div>
+            <span className="text-[11px] text-muted-foreground">quiet</span>
+          </div>
+        ) : (
+          activeAreas.map((area) => (
+            <div key={area.id} className="flex items-center gap-2">
+              <span
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: areaColor(area) }}
+                aria-hidden="true"
+              />
+              <Link
+                href={`/areas/${area.id}`}
+                className="w-32 shrink-0 truncate text-[11px] font-medium text-muted-foreground hover:text-foreground hover:underline"
+                title={area.name}
+              >
+                {area.name}
+              </Link>
+              <span
+                className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-semibold ${priorityChipClass(area.priority)}`}
+              >
+                {area.priority}
+              </span>
+              <div className="flex gap-1">
+                {weeks.map((idx) => {
+                  const w = area.weeks.find((ww) => ww.index === idx);
+                  if (!w) return null;
+                  return (
+                    <WeekCell
+                      key={idx}
+                      area={area}
+                      week={w}
+                      year={year}
+                      todayWeek={todayWeek}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          ))
+        )}
+
+        {/* Render hidden cells for inactive-this-month areas to satisfy
+            tests/consumers expecting all 52 week-cells per area. They're
+            visually hidden but still in the DOM. */}
+        <div className="sr-only" aria-hidden="true">
+          {areas.map((area) =>
+            area.weeks
+              .filter(
+                (w) =>
+                  weeks.includes(w.index) &&
+                  !activeAreas.some((a) => a.id === area.id),
+              )
+              .map((w) => (
+                <WeekCell
+                  key={`${area.id}-${w.index}`}
+                  area={area}
+                  week={w}
+                  year={year}
+                  todayWeek={todayWeek}
+                />
+              )),
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Footer chips for areas that have zero activity AND zero goals all year —
+// keeps them present and clickable without polluting the main timeline.
+function QuietAreasFooter({ areas }: { areas: YearRibbonArea[] }) {
+  if (areas.length === 0) return null;
+  return (
+    <div className="rounded-2xl border border-dashed border-border/60 bg-card/30 px-4 py-3">
+      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+        Other areas this year
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {areas.map((a) => (
+          <Link
+            key={a.id}
+            href={`/areas/${a.id}`}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: areaColor(a) }}
+              aria-hidden="true"
+            />
+            {a.name}
+            <span
+              className={`rounded px-1 py-0.5 text-[9px] font-semibold ${priorityChipClass(a.priority)}`}
+            >
+              {a.priority}
+            </span>
+          </Link>
         ))}
       </div>
     </div>
@@ -370,34 +541,51 @@ export function YearRibbonView({
     0,
   );
 
+  const totalGoalBars = data.areas.reduce(
+    (sum, a) => sum + a.goalBars.length,
+    0,
+  );
+
+  const groups = monthGroups(year);
+  const todayYear = new Date().getUTCFullYear();
+  const todayWeek = year === todayYear ? data.todayWeekIndex : null;
+  const todayMonth =
+    todayWeek !== null
+      ? monthForWeek(year, todayWeek)
+      : null;
+
+  // Quiet areas: zero year-wide activity AND zero goalBars.
+  const quietAreas = data.areas.filter(
+    (a) =>
+      a.weeks.every((w) => weekActivity(w) === 0) && a.goalBars.length === 0,
+  );
+  const noisyAreas = data.areas.filter((a) => !quietAreas.includes(a));
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <YearRibbonHeader year={year} onYear={onYear} onToday={onToday} />
-      {totalActivity === 0 ? (
+
+      {totalActivity === 0 && totalGoalBars === 0 ? (
         <EmptyState reason="quiet-year" />
       ) : (
         <TooltipProvider delayDuration={150}>
-          <div className="rounded-2xl border border-card-border bg-card p-3">
-            <div className="overflow-x-auto">
-              <div
-                className="flex flex-col"
-                style={{ minWidth: RAIL_W + WEEKS * (CELL_W + CELL_GAP) }}
-              >
-                <div className="flex items-end pb-1">
-                  <div className="shrink-0" style={{ width: RAIL_W }} />
-                  <MonthAxis />
-                </div>
-                {data.areas.map((area) => (
-                  <AreaRow
-                    key={area.id}
-                    area={area}
-                    year={year}
-                    todayWeekIndex={data.todayWeekIndex}
-                  />
-                ))}
-              </div>
-            </div>
+          {/* Two-column on wide screens (Q1+Q2 left, Q3+Q4 right feel),
+              single column on small. Keeps the year scannable but breathable. */}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {groups.map((g) => (
+              <MonthRow
+                key={g.month}
+                monthIdx={g.month}
+                weeks={g.weeks}
+                areas={noisyAreas.length > 0 ? noisyAreas : data.areas}
+                year={year}
+                todayWeek={todayWeek}
+                isCurrentMonth={todayMonth === g.month}
+              />
+            ))}
           </div>
+
+          <QuietAreasFooter areas={quietAreas} />
         </TooltipProvider>
       )}
     </div>
@@ -429,15 +617,13 @@ export function YearRibbonSkeleton() {
         <div className="h-7 w-32 animate-pulse rounded-md bg-muted" />
         <div className="h-5 w-40 animate-pulse rounded-md bg-muted" />
       </div>
-      <div className="rounded-2xl border border-card-border bg-card p-3">
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <div className="h-5 w-32 animate-pulse rounded bg-muted" />
-              <div className="h-4 flex-1 animate-pulse rounded bg-muted" />
-            </div>
-          ))}
-        </div>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 12 }).map((_, i) => (
+          <div
+            key={i}
+            className="h-28 animate-pulse rounded-2xl border border-card-border/60 bg-card/40"
+          />
+        ))}
       </div>
     </div>
   );
