@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useTheme } from "next-themes";
-import { Sun, Moon, CalendarDays, Settings, User, Inbox } from "lucide-react";
+import { Sun, Moon, CalendarDays, Settings, User, Inbox, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FocusTimerHeaderPill } from "@/components/focus-timer-header-pill";
 import {
@@ -66,6 +66,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </SheetHeader>
                 <div className="mt-4">
                   <FocusPrefsPanel />
+                </div>
+                <div className="mt-8 pt-4 border-t border-border">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        await fetch("/api/auth/sign-out", { method: "POST" });
+                      } catch {
+                        // Even if the request fails, send the user to /sign-in.
+                        // The cookie is HttpOnly so the client can't clear it,
+                        // but /sign-in will overwrite it on next sign-in.
+                      }
+                      window.location.assign("/sign-in");
+                    }}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <LogOut className="h-3.5 w-3.5 mr-2" aria-hidden />
+                    Sign out
+                  </Button>
                 </div>
               </SheetContent>
             </Sheet>
