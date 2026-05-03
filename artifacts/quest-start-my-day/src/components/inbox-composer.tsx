@@ -8,6 +8,7 @@ import {
   getGetDashboardSummaryQueryKey,
   getGetReentryTaskQueryKey,
   getListAreaTasksQueryKey,
+  getGetTaskInboxQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -39,16 +40,13 @@ function weekStartIso(): string {
   return d.toISOString().slice(0, 10);
 }
 
-function laterIso(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 30);
-  return d.toISOString().slice(0, 10);
-}
-
-function dateForWhen(when: WhenChoice): string {
+function dateForWhen(when: WhenChoice): string | null {
   if (when === "today") return todayIso();
   if (when === "week") return weekStartIso();
-  return laterIso();
+  // "later" parks the task in the inbox (no date) so the user can
+  // triage it later from /inbox. Previously we picked today+30, which
+  // hid the task on a faraway day and made it feel lost.
+  return null;
 }
 
 export function InboxComposer() {
@@ -112,6 +110,7 @@ export function InboxComposer() {
     queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date: todayIso() }) });
     queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
     queryClient.invalidateQueries({ queryKey: getGetReentryTaskQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getGetTaskInboxQueryKey() });
     if (areaId) {
       queryClient.invalidateQueries({ queryKey: getListAreaTasksQueryKey(areaId) });
     }

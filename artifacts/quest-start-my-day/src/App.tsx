@@ -7,6 +7,7 @@ import Layout from "@/components/layout";
 import { FocusTimerProvider } from "@/hooks/use-focus-timer";
 
 const TodayPage = lazy(() => import("@/pages/today"));
+const InboxPage = lazy(() => import("@/pages/inbox"));
 const CalendarPage = lazy(() => import("@/pages/calendar"));
 const HomeModulePage = lazy(() => import("@/pages/home-module"));
 const AreasPage = lazy(() => import("@/pages/areas"));
@@ -39,6 +40,7 @@ function Router() {
       <Suspense fallback={<RouteFallback />}>
         <Switch>
           <Route path="/today" component={TodayPage} />
+          <Route path="/inbox" component={InboxPage} />
           <Route path="/calendar" component={CalendarPage} />
           <Route path="/areas" component={AreasPage} />
           {/* Per-area brain-dump page (Phase 2). Mounted after /areas so

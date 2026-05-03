@@ -51,7 +51,7 @@ const TIME_OPTIONS: { minutes: number; label: string }[] = [
 ];
 
 interface HomeTaskCardProps {
-  task: { id: number; title: string; status: string; whyItMatters?: string | null; doneLooksLike?: string | null; suggestedNextStep?: string | null; date: string };
+  task: { id: number; title: string; status: string; whyItMatters?: string | null; doneLooksLike?: string | null; suggestedNextStep?: string | null; date?: string | null };
   date: string;
 }
 

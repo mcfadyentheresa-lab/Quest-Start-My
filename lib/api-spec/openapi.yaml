@@ -98,6 +98,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Area"
+    delete:
+      operationId: deleteArea
+      tags: [areas]
+      summary: Delete an area. Goals attached to it are removed; loose tasks are unlinked (areaId set to null).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Area not found
 
   /areas/{id}/tasks:
     get:
@@ -413,6 +428,21 @@ paths:
       responses:
         "204":
           description: Deleted
+
+  /tasks/inbox:
+    get:
+      operationId: getTaskInbox
+      tags: [tasks]
+      summary: List undated tasks (inbox) — brain-dumped items not yet scheduled.
+      responses:
+        "200":
+          description: List of inbox tasks (date IS NULL), newest-first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
 
   /tasks/suggestions:
     get:
@@ -1268,6 +1298,8 @@ components:
           nullable: true
         date:
           type: string
+          nullable: true
+          description: Scheduled date (YYYY-MM-DD). Null = inbox (unscheduled).
         createdAt:
           type: string
         parentTaskId:
@@ -1298,7 +1330,6 @@ components:
         - title
         - category
         - status
-        - date
         - createdAt
         - stepBackDepth
         - sortOrder
@@ -1335,10 +1366,11 @@ components:
           description: Source module (e.g. 'home'). Null = regular work task.
         date:
           type: string
+          nullable: true
+          description: Scheduled date (YYYY-MM-DD). Omit or null to park the task in the inbox.
       required:
         - title
         - category
-        - date
 
     UpdateTaskBody:
       type: object
@@ -1380,6 +1412,10 @@ components:
           type: string
           nullable: true
           description: Source module (e.g. 'home'). Null = regular work task.
+        date:
+          type: string
+          nullable: true
+          description: Schedule (YYYY-MM-DD) or null to move back to the inbox.
 
     StepBackTaskResponse:
       type: object

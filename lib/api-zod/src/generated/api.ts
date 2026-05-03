@@ -86,6 +86,14 @@ export const UpdateAreaResponse = zod.object({
 
 
 /**
+ * @summary Delete an area. Goals attached to it are removed; loose tasks are unlinked (areaId set to null).
+ */
+export const DeleteAreaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
  * Brain-dump view: returns every regular task belonging to a given
 area regardless of date, ordered newest-first. Excludes module-
 sourced tasks (e.g. 'home' microtasks). Use this for the per-area
@@ -108,7 +116,7 @@ export const ListAreaTasksResponseItem = zod.object({
   "areaId": zod.number().nullish(),
   "milestoneId": zod.number().nullish(),
   "blockerReason": zod.string().nullish(),
-  "date": zod.string(),
+  "date": zod.string().nullish().describe('Scheduled date (YYYY-MM-DD). Null = inbox (unscheduled).'),
   "createdAt": zod.string(),
   "parentTaskId": zod.number().nullish(),
   "stepBackDepth": zod.number(),
@@ -288,7 +296,7 @@ export const ReorderMilestoneStepsResponseItem = zod.object({
   "areaId": zod.number().nullish(),
   "milestoneId": zod.number().nullish(),
   "blockerReason": zod.string().nullish(),
-  "date": zod.string(),
+  "date": zod.string().nullish().describe('Scheduled date (YYYY-MM-DD). Null = inbox (unscheduled).'),
   "createdAt": zod.string(),
   "parentTaskId": zod.number().nullish(),
   "stepBackDepth": zod.number(),
@@ -320,7 +328,7 @@ export const ListTasksResponseItem = zod.object({
   "areaId": zod.number().nullish(),
   "milestoneId": zod.number().nullish(),
   "blockerReason": zod.string().nullish(),
-  "date": zod.string(),
+  "date": zod.string().nullish().describe('Scheduled date (YYYY-MM-DD). Null = inbox (unscheduled).'),
   "createdAt": zod.string(),
   "parentTaskId": zod.number().nullish(),
   "stepBackDepth": zod.number(),
@@ -346,7 +354,7 @@ export const CreateTaskBody = zod.object({
   "milestoneId": zod.number().nullish(),
   "blockerReason": zod.string().nullish(),
   "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\'). Null = regular work task.'),
-  "date": zod.string()
+  "date": zod.string().nullish().describe('Scheduled date (YYYY-MM-DD). Omit or null to park the task in the inbox.')
 })
 
 
@@ -369,7 +377,8 @@ export const UpdateTaskBody = zod.object({
   "blockerReason": zod.string().nullish(),
   "blockerType": zod.enum(['waiting_on_person', 'waiting_on_approval', 'missing_asset', 'access_issue', 'dependency']).nullish(),
   "adjustmentReason": zod.string().nullish(),
-  "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\'). Null = regular work task.')
+  "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\'). Null = regular work task.'),
+  "date": zod.string().nullish().describe('Schedule (YYYY-MM-DD) or null to move back to the inbox.')
 })
 
 export const UpdateTaskResponse = zod.object({
@@ -383,7 +392,7 @@ export const UpdateTaskResponse = zod.object({
   "areaId": zod.number().nullish(),
   "milestoneId": zod.number().nullish(),
   "blockerReason": zod.string().nullish(),
-  "date": zod.string(),
+  "date": zod.string().nullish().describe('Scheduled date (YYYY-MM-DD). Null = inbox (unscheduled).'),
   "createdAt": zod.string(),
   "parentTaskId": zod.number().nullish(),
   "stepBackDepth": zod.number(),
@@ -401,6 +410,33 @@ export const UpdateTaskResponse = zod.object({
 export const DeleteTaskParams = zod.object({
   "id": zod.coerce.number()
 })
+
+
+/**
+ * @summary List undated tasks (inbox) — brain-dumped items not yet scheduled.
+ */
+export const GetTaskInboxResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "category": zod.enum(['business', 'creative', 'wellness']),
+  "whyItMatters": zod.string().nullish(),
+  "doneLooksLike": zod.string().nullish(),
+  "suggestedNextStep": zod.string().nullish(),
+  "status": zod.enum(['pending', 'done', 'pushed', 'passed', 'blocked', 'stepped_back']),
+  "areaId": zod.number().nullish(),
+  "milestoneId": zod.number().nullish(),
+  "blockerReason": zod.string().nullish(),
+  "date": zod.string().nullish().describe('Scheduled date (YYYY-MM-DD). Null = inbox (unscheduled).'),
+  "createdAt": zod.string(),
+  "parentTaskId": zod.number().nullish(),
+  "stepBackDepth": zod.number(),
+  "blockerType": zod.enum(['waiting_on_person', 'waiting_on_approval', 'missing_asset', 'access_issue', 'dependency']).nullish(),
+  "adjustmentType": zod.enum(['step_back', 'push']).nullish(),
+  "adjustmentReason": zod.string().nullish(),
+  "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.'),
+  "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.')
+})
+export const GetTaskInboxResponse = zod.array(GetTaskInboxResponseItem)
 
 
 /**

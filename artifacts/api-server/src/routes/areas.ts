@@ -129,4 +129,30 @@ router.get("/areas/:id/tasks", asyncHandler(async (req, res): Promise<void> => {
   res.json(tasks.map((t) => ({ ...t, createdAt: t.createdAt.toISOString() })));
 }));
 
+/**
+ * Delete an area. Goals attached to it are removed (FK cascade), and any
+ * loose tasks pointing at the area have their areaId nulled out (FK set
+ * null) — tasks survive as loose items so the user doesn't lose work.
+ */
+router.delete("/areas/:id", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: "Invalid area id" });
+    return;
+  }
+
+  const [area] = await db
+    .delete(areasTable)
+    .where(and(eq(areasTable.id, id), eq(areasTable.userId, userId)))
+    .returning();
+
+  if (!area) {
+    res.status(404).json({ error: "Area not found" });
+    return;
+  }
+
+  res.sendStatus(204);
+}));
+
 export default router;

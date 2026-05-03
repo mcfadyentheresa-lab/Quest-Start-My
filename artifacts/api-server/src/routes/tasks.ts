@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, desc } from "drizzle-orm";
 import { db, tasksTable, progressLogsTable, areasTable, milestonesTable } from "@workspace/db";
 import { getUserId } from "../lib/auth";
 import {
@@ -113,11 +113,31 @@ router.post("/tasks", asyncHandler(async (req, res): Promise<void> => {
     milestoneId: parsed.data.milestoneId ?? null,
     blockerReason: parsed.data.blockerReason ?? null,
     taskSource: parsed.data.taskSource ?? null,
-    date: parsed.data.date,
+    // null date → inbox (brain-dumped, unscheduled)
+    date: parsed.data.date ?? null,
     status: "pending",
   }).returning();
 
   res.status(201).json(serializeTask(task));
+}));
+
+/**
+ * Inbox: tasks with no scheduled date. These are the brain-dumped items
+ * the user hasn't yet scheduled to a day. Newest-first so fresh thoughts
+ * sit at the top.
+ */
+router.get("/tasks/inbox", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
+  const tasks = await db
+    .select()
+    .from(tasksTable)
+    .where(and(
+      eq(tasksTable.userId, userId),
+      isNull(tasksTable.date),
+      isNull(tasksTable.taskSource),
+    ))
+    .orderBy(desc(tasksTable.createdAt));
+  res.json(tasks.map(serializeTask));
 }));
 
 router.get("/tasks/suggestions", asyncHandler(async (req, res): Promise<void> => {
@@ -242,6 +262,9 @@ router.patch("/tasks/:id", asyncHandler(async (req, res): Promise<void> => {
   if (parsed.data.blockerType !== undefined) updates.blockerType = parsed.data.blockerType;
   if (parsed.data.adjustmentReason !== undefined) updates.adjustmentReason = parsed.data.adjustmentReason;
   if (parsed.data.taskSource !== undefined) updates.taskSource = parsed.data.taskSource;
+  // Allow scheduling an inbox task (date = '2026-05-03') or moving a
+  // scheduled task back to the inbox (date = null).
+  if (parsed.data.date !== undefined) updates.date = parsed.data.date;
 
   const [task] = await db
     .update(tasksTable)
@@ -261,7 +284,9 @@ router.patch("/tasks/:id", asyncHandler(async (req, res): Promise<void> => {
       taskTitle: task.title,
       category: task.category,
       status: task.status,
-      date: task.date,
+      // Inbox tasks have no date; log today so the progress feed still
+      // gets a row.
+      date: task.date ?? new Date().toISOString().slice(0, 10),
     });
   }
 
@@ -329,7 +354,7 @@ router.post("/tasks/:id/step-back", asyncHandler(async (req, res): Promise<void>
     taskTitle: original.title,
     category: original.category,
     status: "stepped_back",
-    date: original.date,
+    date: original.date ?? new Date().toISOString().slice(0, 10),
   });
 
   res.status(201).json({

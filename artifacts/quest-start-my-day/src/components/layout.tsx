@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useTheme } from "next-themes";
-import { Sun, Moon, CalendarDays, Settings, User } from "lucide-react";
+import { Sun, Moon, CalendarDays, Settings, User, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FocusTimerHeaderPill } from "@/components/focus-timer-header-pill";
 import {
@@ -16,6 +16,7 @@ import { InboxComposer } from "@/components/inbox-composer";
 
 const navItems = [
   { href: "/today", label: "Today", icon: Sun },
+  { href: "/inbox", label: "Inbox", icon: Inbox },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/areas", label: "Areas", icon: Settings },
 ];

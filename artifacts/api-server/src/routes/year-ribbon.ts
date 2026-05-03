@@ -177,6 +177,7 @@ router.get("/year-ribbon", asyncHandler(async (req, res): Promise<void> => {
   for (const t of tasks) {
     if (t.areaId === null || t.areaId === undefined) continue;
     if (!areasById.has(t.areaId)) continue;
+    if (t.date == null) continue;
     const idx = weekIndex(t.date, year);
     if (idx === null) continue;
     const arr = ensureBuckets(t.areaId);
@@ -219,6 +220,7 @@ router.get("/year-ribbon", asyncHandler(async (req, res): Promise<void> => {
   }
   for (const t of tasks) {
     if (t.milestoneId === null || t.milestoneId === undefined) continue;
+    if (t.date == null) continue;
     const idx = weekIndex(t.date, year);
     if (idx === null) continue;
     recordSpan(t.milestoneId, idx);
