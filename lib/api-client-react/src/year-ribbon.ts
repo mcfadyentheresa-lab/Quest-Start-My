@@ -22,6 +22,10 @@ export type YearRibbonGoalBar = {
   endWeek: number;
   status: string;
   isOnHold: boolean;
+  /** ISO date (YYYY-MM-DD) of the goal's target date, if set. */
+  targetDate: string | null;
+  /** Which week (0..51) the targetDate lands in, when set within this year. */
+  targetWeek: number | null;
 };
 
 export type YearRibbonArea = {

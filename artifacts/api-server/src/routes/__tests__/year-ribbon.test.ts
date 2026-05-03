@@ -38,6 +38,7 @@ type Milestone = {
   createdAt: Date;
   updatedAt: Date;
   sortOrder: number;
+  targetDate: string | null;
 };
 type ProgressLog = {
   id: number;
@@ -249,6 +250,7 @@ describe("GET /api/year-ribbon", () => {
         createdAt: new Date("2026-01-01"), updatedAt: new Date("2026-01-01"),
         userId: "owner",
         sortOrder: 0,
+        targetDate: null,
       },
     ];
     fixtures.tasks = [
@@ -284,6 +286,83 @@ describe("GET /api/year-ribbon", () => {
     const bar = payload.areas[0]!.goalBars[0]!;
     expect(bar.goalId).toBe(11);
     expect(bar.startWeek).toBeLessThan(bar.endWeek);
+    // No targetDate set: the bar carries null for both targetDate fields.
+    const barWithTarget = bar as typeof bar & { targetDate: string | null; targetWeek: number | null };
+    expect(barWithTarget.targetDate).toBeNull();
+    expect(barWithTarget.targetWeek).toBeNull();
+  });
+
+  it("emits a goal bar for milestones with only a targetDate (no tasks)", async () => {
+    fixtures.areas = [makeArea(4)];
+    fixtures.milestones = [
+      {
+        id: 21, areaId: 4, title: "Plan retreat", status: "active",
+        holdUntilMilestoneId: null, completedAt: null,
+        createdAt: new Date("2026-01-01"), updatedAt: new Date("2026-01-01"),
+        userId: "owner",
+        sortOrder: 0,
+        // March 15, 2026 is day-of-year 73 → week 10.
+        targetDate: "2026-03-15",
+      },
+    ];
+    const app = buildApp();
+    const { body } = await getJson(app, "/api/year-ribbon?year=2026");
+    const payload = body as {
+      areas: {
+        goalBars: {
+          goalId: number;
+          startWeek: number;
+          endWeek: number;
+          targetDate: string | null;
+          targetWeek: number | null;
+        }[];
+      }[];
+    };
+    expect(payload.areas[0]!.goalBars).toHaveLength(1);
+    const bar = payload.areas[0]!.goalBars[0]!;
+    expect(bar.goalId).toBe(21);
+    expect(bar.targetDate).toBe("2026-03-15");
+    expect(bar.targetWeek).toBe(10);
+    // With no tasks, the pill collapses to a single week at the targetDate.
+    expect(bar.startWeek).toBe(10);
+    expect(bar.endWeek).toBe(10);
+  });
+
+  it("places the goal bar at the targetDate's week even when tasks span elsewhere", async () => {
+    fixtures.areas = [makeArea(5)];
+    fixtures.milestones = [
+      {
+        id: 31, areaId: 5, title: "Launch v2", status: "active",
+        holdUntilMilestoneId: null, completedAt: null,
+        createdAt: new Date("2026-01-01"), updatedAt: new Date("2026-01-01"),
+        userId: "owner",
+        sortOrder: 0,
+        // November 15, 2026 → day 318 → week 45.
+        targetDate: "2026-11-15",
+      },
+    ];
+    fixtures.tasks = [
+      {
+        id: 200, title: "task in feb", category: "business", status: "pending",
+        areaId: 5, milestoneId: 31, date: "2026-02-10",
+        createdAt: new Date("2026-02-10"), taskSource: null,
+      },
+      {
+        id: 201, title: "task in mar", category: "business", status: "pending",
+        areaId: 5, milestoneId: 31, date: "2026-03-10",
+        createdAt: new Date("2026-03-10"), taskSource: null,
+      },
+    ];
+    const app = buildApp();
+    const { body } = await getJson(app, "/api/year-ribbon?year=2026");
+    const payload = body as {
+      areas: { goalBars: { goalId: number; startWeek: number; endWeek: number; targetWeek: number | null }[] }[];
+    };
+    const bar = payload.areas[0]!.goalBars[0]!;
+    // targetDate wins — both startWeek and endWeek snap to the targetWeek.
+    expect(bar.targetWeek).toBe(45);
+    expect(bar.startWeek).toBe(45);
+    expect(bar.endWeek).toBe(45);
   });
 
   it("rejects an invalid year", async () => {

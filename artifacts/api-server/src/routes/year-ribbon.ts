@@ -23,6 +23,13 @@ type GoalBar = {
   endWeek: number;
   status: string;
   isOnHold: boolean;
+  /** ISO date (YYYY-MM-DD) of the goal's target_date, if set. Drives the
+   *  pill's anchor month in the year view; the year view falls back to
+   *  task-derived span when null. */
+  targetDate: string | null;
+  /** Which week (0..51) the targetDate lands in. Null when targetDate is
+   *  null or falls outside the requested year. */
+  targetWeek: number | null;
 };
 
 type AreaPayload = {
@@ -64,6 +71,16 @@ function setCache(key: string, payload: YearRibbonPayload): void {
 
 export function clearYearRibbonCache(): void {
   cache.clear();
+}
+
+/** Invalidate all cached year payloads for one user. Call this whenever a
+ *  mutation could move or hide a goal pill (e.g. milestone targetDate /
+ *  status change, milestone delete, task close/move that shifts a span). */
+export function invalidateYearRibbonForUser(userId: string): void {
+  const prefix = `year:${userId}:`;
+  for (const key of cache.keys()) {
+    if (key.startsWith(prefix)) cache.delete(key);
+  }
 }
 
 // Day-of-year (0-based) for a YYYY-MM-DD ISO date. Returns null if the
@@ -205,8 +222,10 @@ router.get("/year-ribbon", asyncHandler(async (req, res): Promise<void> => {
     }
   }
 
-  // Goal bars: for each milestone, find the range of weeks in which any
-  // of its tasks were created or closed. Empty milestones are skipped.
+  // Goal bars: for each milestone with either (a) a targetDate in this
+  // year, or (b) at least one task/closure in this year, render a pill.
+  // The pill's start/end week is the targetDate's week when set; otherwise
+  // it spans where its tasks live. Goals with neither are skipped.
   const milestoneSpans = new Map<number, { min: number; max: number }>();
   function recordSpan(milestoneId: number | null, idx: number) {
     if (milestoneId === null) return;
@@ -234,18 +253,47 @@ router.get("/year-ribbon", asyncHandler(async (req, res): Promise<void> => {
     recordSpan(milestoneId, idx);
   }
 
+  // Build the union of milestones that should appear: any with a span,
+  // OR any whose targetDate falls in this year.
+  const goalIdsToShow = new Set<number>(milestoneSpans.keys());
+  for (const m of milestones) {
+    if (!m.targetDate) continue;
+    const tw = weekIndex(m.targetDate, year);
+    if (tw !== null) goalIdsToShow.add(m.id);
+  }
+
   const goalBarsByArea = new Map<number, GoalBar[]>();
-  for (const [milestoneId, span] of milestoneSpans) {
+  for (const milestoneId of goalIdsToShow) {
     const milestone = milestonesById.get(milestoneId);
     if (!milestone) continue;
     if (!areasById.has(milestone.areaId)) continue;
+    const span = milestoneSpans.get(milestoneId) ?? null;
+    const targetWeek = milestone.targetDate ? weekIndex(milestone.targetDate, year) : null;
+
+    // Position rule: targetDate wins when present in this year. Otherwise
+    // span the task activity. (One of the two is guaranteed by the
+    // goalIdsToShow construction above.)
+    let startWeek: number;
+    let endWeek: number;
+    if (targetWeek !== null) {
+      startWeek = targetWeek;
+      endWeek = targetWeek;
+    } else if (span !== null) {
+      startWeek = span.min;
+      endWeek = span.max;
+    } else {
+      continue;
+    }
+
     const bar: GoalBar = {
       goalId: milestone.id,
       title: milestone.title,
-      startWeek: span.min,
-      endWeek: span.max,
+      startWeek,
+      endWeek,
       status: milestone.status,
       isOnHold: milestone.holdUntilMilestoneId !== null && milestone.holdUntilMilestoneId !== undefined,
+      targetDate: milestone.targetDate ?? null,
+      targetWeek,
     };
     let arr = goalBarsByArea.get(milestone.areaId);
     if (!arr) {

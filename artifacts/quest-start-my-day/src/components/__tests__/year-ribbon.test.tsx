@@ -79,7 +79,16 @@ describe("YearRibbonView", () => {
             i >= 8 && i <= 16 ? { ...w, completedTasks: 2, closedSteps: 1 } : w,
           ),
           goalBars: [
-            { goalId: 12, title: "Site rebuild", startWeek: 8, endWeek: 16, status: "active", isOnHold: false },
+            {
+              goalId: 12,
+              title: "Site rebuild",
+              startWeek: 8,
+              endWeek: 16,
+              status: "active",
+              isOnHold: false,
+              targetDate: null,
+              targetWeek: null,
+            },
           ],
         },
       ],
