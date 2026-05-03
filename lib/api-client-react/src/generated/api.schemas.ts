@@ -402,7 +402,8 @@ export interface Task {
   areaId?: number | null;
   milestoneId?: number | null;
   blockerReason?: string | null;
-  date: string;
+  /** Scheduled date (YYYY-MM-DD). Null = inbox (unscheduled). */
+  date?: string | null;
   createdAt: string;
   parentTaskId?: number | null;
   stepBackDepth: number;
@@ -435,7 +436,8 @@ export interface CreateTaskBody {
   blockerReason?: string | null;
   /** Source module (e.g. 'home'). Null = regular work task. */
   taskSource?: string | null;
-  date: string;
+  /** Scheduled date (YYYY-MM-DD). Omit or null to park the task in the inbox. */
+  date?: string | null;
 }
 
 export type UpdateTaskBodyCategory = typeof UpdateTaskBodyCategory[keyof typeof UpdateTaskBodyCategory];
@@ -484,6 +486,8 @@ export interface UpdateTaskBody {
   adjustmentReason?: string | null;
   /** Source module (e.g. 'home'). Null = regular work task. */
   taskSource?: string | null;
+  /** Schedule (YYYY-MM-DD) or null to move back to the inbox. */
+  date?: string | null;
 }
 
 export interface StepBackTaskResponse {

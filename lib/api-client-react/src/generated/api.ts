@@ -375,6 +375,76 @@ export const useUpdateArea = <TError = ErrorType<unknown>,
     }
 
 /**
+ * @summary Delete an area. Goals attached to it are removed; loose tasks are unlinked (areaId set to null).
+ */
+export const getDeleteAreaUrl = (id: number,) => {
+
+
+
+
+  return `/api/areas/${id}`
+}
+
+export const deleteArea = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteAreaUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteAreaMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteArea>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteArea>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteArea'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteArea>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteArea(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAreaMutationResult = NonNullable<Awaited<ReturnType<typeof deleteArea>>>
+
+    export type DeleteAreaMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete an area. Goals attached to it are removed; loose tasks are unlinked (areaId set to null).
+ */
+export const useDeleteArea = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteArea>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteArea>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteAreaMutationOptions(options));
+    }
+
+/**
  * Brain-dump view: returns every regular task belonging to a given
 area regardless of date, ordered newest-first. Excludes module-
 sourced tasks (e.g. 'home' microtasks). Use this for the per-area
@@ -1349,6 +1419,83 @@ export const useDeleteTask = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getDeleteTaskMutationOptions(options));
     }
+
+/**
+ * @summary List undated tasks (inbox) — brain-dumped items not yet scheduled.
+ */
+export const getGetTaskInboxUrl = () => {
+
+
+
+
+  return `/api/tasks/inbox`
+}
+
+export const getTaskInbox = async ( options?: RequestInit): Promise<Task[]> => {
+
+  return customFetch<Task[]>(getGetTaskInboxUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTaskInboxQueryKey = () => {
+    return [
+    `/api/tasks/inbox`
+    ] as const;
+    }
+
+
+export const getGetTaskInboxQueryOptions = <TData = Awaited<ReturnType<typeof getTaskInbox>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTaskInbox>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTaskInboxQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTaskInbox>>> = ({ signal }) => getTaskInbox({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTaskInbox>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTaskInboxQueryResult = NonNullable<Awaited<ReturnType<typeof getTaskInbox>>>
+export type GetTaskInboxQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List undated tasks (inbox) — brain-dumped items not yet scheduled.
+ */
+
+export function useGetTaskInbox<TData = Awaited<ReturnType<typeof getTaskInbox>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTaskInbox>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTaskInboxQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 /**
  * @summary Get suggested tasks for a given date based on active areas and milestones

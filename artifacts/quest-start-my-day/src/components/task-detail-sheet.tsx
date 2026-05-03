@@ -33,7 +33,8 @@ interface Task {
   suggestedNextStep?: string | null;
   blockerReason?: string | null;
   status: string;
-  date: string;
+  // null = inbox / unscheduled.
+  date?: string | null;
   areaId?: number | null;
   milestoneId?: number | null;
 }
@@ -109,7 +110,9 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
   }, [open, task, reset]);
 
   const invalidateAll = () => {
-    queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date: task.date }) });
+    if (task.date) {
+      queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ date: task.date }) });
+    }
     queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
     queryClient.invalidateQueries({ queryKey: getGetReentryTaskQueryKey() });
   };

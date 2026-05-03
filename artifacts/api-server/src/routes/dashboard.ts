@@ -479,6 +479,7 @@ router.get("/dashboard/area-completion-history", asyncHandler(async (req, res): 
       const weekEnd = getWeekEnd(weekStart);
       const areaTasks = allTasks.filter(t =>
         t.areaId === area.id &&
+        t.date != null &&
         t.date >= weekStart &&
         t.date <= weekEnd &&
         t.status !== "pending"

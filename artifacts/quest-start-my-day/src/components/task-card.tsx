@@ -29,7 +29,9 @@ interface Task {
   suggestedNextStep?: string | null;
   blockerReason?: string | null;
   status: string;
-  date: string;
+  // null = inbox / unscheduled. The card itself doesn't render the date,
+  // so we accept either shape and let the parent decide how to group.
+  date?: string | null;
   areaId?: number | null;
   milestoneId?: number | null;
   parentTaskId?: number | null;

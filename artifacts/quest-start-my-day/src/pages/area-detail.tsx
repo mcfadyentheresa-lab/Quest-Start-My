@@ -19,7 +19,7 @@
  * no app name in user-facing copy.
  */
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Link, useRoute } from "wouter";
+import { Link, useRoute, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   useListAreas,
@@ -32,6 +32,7 @@ import {
   useCreateMilestone,
   useUpdateMilestone,
   useDeleteMilestone,
+  useDeleteArea,
   useBreakdownMilestone,
   useReorderMilestoneSteps,
   useBulkCreateMilestoneSteps,
@@ -166,6 +167,8 @@ export default function AreaDetailPage() {
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
   const updateArea = useUpdateArea();
+  const deleteArea = useDeleteArea();
+  const [, setLocation] = useLocation();
   const createMilestone = useCreateMilestone();
   const updateMilestone = useUpdateMilestone();
   const deleteMilestone = useDeleteMilestone();
@@ -342,6 +345,31 @@ export default function AreaDetailPage() {
             />
             <PriorityHelp />
           </div>
+          <button
+            type="button"
+            onClick={async () => {
+              const goalsCount = sortedGoals.length;
+              const msg = goalsCount > 0
+                ? `Delete “${area.name}”? Its ${goalsCount} goal${goalsCount === 1 ? "" : "s"} will also be deleted. Tasks attached to those goals become loose tasks.`
+                : `Delete “${area.name}”? Tasks attached to it become loose tasks.`;
+              if (!window.confirm(msg)) return;
+              try {
+                await deleteArea.mutateAsync({ id: area.id });
+                queryClient.invalidateQueries({ queryKey: getListAreasQueryKey() });
+                queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+                toast({ title: "Project deleted." });
+                setLocation("/areas");
+              } catch {
+                toast({ title: "Couldn't delete project.", variant: "destructive" });
+              }
+            }}
+            disabled={deleteArea.isPending}
+            aria-label="Delete this project"
+            className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1 px-2 py-1 rounded-lg"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span>Delete project</span>
+          </button>
         </div>
         <InlineDescription
           value={area.description ?? ""}

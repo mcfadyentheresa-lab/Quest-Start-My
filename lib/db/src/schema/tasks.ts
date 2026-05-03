@@ -12,10 +12,13 @@ export const tasksTable = pgTable("tasks", {
   doneLooksLike: text("done_looks_like"),
   suggestedNextStep: text("suggested_next_step"),
   status: text("status").notNull().default("pending"),
+  // FK to areas with ON DELETE SET NULL (added in migration 0006). Tasks
+  // survive when their area is deleted; they just become loose tasks.
   areaId: integer("area_id"),
   milestoneId: integer("milestone_id").references(() => milestonesTable.id, { onDelete: "set null" }),
   blockerReason: text("blocker_reason"),
-  date: text("date").notNull(),
+  // Nullable: NULL = inbox (brain-dumped, not yet scheduled).
+  date: text("date"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   parentTaskId: integer("parent_task_id"),
   stepBackDepth: integer("step_back_depth").notNull().default(0),

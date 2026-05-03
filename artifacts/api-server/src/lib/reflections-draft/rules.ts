@@ -50,8 +50,14 @@ function buildStuck(input: ReflectionDraftInput, areaMap: Map<number, Area>): st
     lines.push(`- Blocked: ${sample}${blocked.length > 3 ? ` (+${blocked.length - 3} more)` : ""}.`);
   }
 
+  // Inbox tasks (date null) are excluded from staleness — they're parked,
+  // not scheduled and missed.
   const stale = input.openTasks
-    .filter((t) => t.status === "pending" && daysSince(t.date, input.now) >= STUCK_DAYS)
+    .filter((t): t is typeof t & { date: string } =>
+      t.status === "pending" &&
+      typeof t.date === "string" &&
+      daysSince(t.date, input.now) >= STUCK_DAYS,
+    )
     .sort((a, b) => daysSince(b.date, input.now) - daysSince(a.date, input.now));
   if (stale.length > 0) {
     const sample = stale.slice(0, 3).map((t) => `"${t.title}" (${daysSince(t.date, input.now)}d)`).join(", ");
