@@ -20,6 +20,7 @@ import {
 import { asyncHandler } from "../lib/async-handler";
 import { buildBreakdownSteps, fallbackSteps } from "../lib/breakdown/ai";
 import { logger } from "../lib/logger";
+import { readOpenAiApiKey } from "../lib/openai-key";
 import { getUserId } from "../lib/auth";
 
 const router: IRouter = Router();
@@ -322,8 +323,8 @@ router.patch("/milestones/:id", asyncHandler(async (req, res): Promise<void> => 
 
 // Phase 3: AI breakdown of a goal into 5–8 ordered steps.
 // Refuses if the goal already has tasks (409). Falls back to a deterministic
-// generic plan if OPENAI_API_KEY is unset or the LLM call fails — UI never
-// sees a hard error.
+// generic plan if no OpenAI key is configured (see lib/openai-key.ts) or
+// the LLM call fails — UI never sees a hard error.
 router.post("/milestones/:id/breakdown", asyncHandler(async (req, res): Promise<void> => {
   const userId = getUserId(req);
   const params = BreakdownMilestoneParams.safeParse(req.params);
@@ -394,8 +395,8 @@ router.post("/milestones/:id/breakdown", asyncHandler(async (req, res): Promise<
   const todayIso = new Date().toISOString().slice(0, 10);
 
   let steps: string[];
-  const apiKey = process.env["OPENAI_API_KEY"];
-  if (apiKey && apiKey.trim().length > 0) {
+  const apiKey = readOpenAiApiKey();
+  if (apiKey) {
     try {
       steps = await buildBreakdownSteps(
         {

@@ -12,6 +12,7 @@ import { buildRulesBriefing } from "./rules";
 import { buildAiBriefing } from "./ai";
 import type { BriefingInput, BriefingResponse } from "./types";
 import { logger } from "../logger";
+import { readOpenAiApiKey } from "../openai-key";
 import { shouldServeFromCache } from "./cache";
 import { computeHeldMilestoneIds } from "./holds";
 
@@ -209,11 +210,11 @@ export async function generateBriefing(deps: BriefingDeps = {}): Promise<Briefin
     return cached.briefing;
   }
 
-  const apiKey = process.env["OPENAI_API_KEY"];
+  const apiKey = readOpenAiApiKey();
   let briefing: BriefingResponse;
-  if (apiKey && apiKey.trim().length > 0) {
+  if (apiKey) {
     try {
-      briefing = await buildAiBriefing(input, { apiKey: apiKey.trim() });
+      briefing = await buildAiBriefing(input, { apiKey });
     } catch (err) {
       logger.warn({ err: String(err) }, "AI briefing failed, falling back to rules");
       briefing = { ...buildRulesBriefing(input), source: "fallback" };
