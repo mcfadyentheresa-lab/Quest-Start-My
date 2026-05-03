@@ -183,7 +183,7 @@ function MilestoneForm({
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2 max-h-[65vh] overflow-y-auto pr-1">
       <div className="space-y-1.5">
-        <Label htmlFor={`${uid}-title`}>Milestone title</Label>
+        <Label htmlFor={`${uid}-title`}>Goal title</Label>
         <Input id={`${uid}-title`} {...register("title", { required: true })} placeholder="e.g. Launch beta to first 10 users" className="rounded-xl" />
       </div>
 
@@ -226,7 +226,7 @@ function MilestoneForm({
 
       <div className="space-y-1.5">
         <Label htmlFor={`${uid}-description`}>Description</Label>
-        <Textarea id={`${uid}-description`} {...register("description")} placeholder="What does reaching this milestone mean?" className="rounded-xl resize-none" rows={2} />
+        <Textarea id={`${uid}-description`} {...register("description")} placeholder="What does reaching this goal mean?" className="rounded-xl resize-none" rows={2} />
       </div>
 
       <div className="space-y-1.5">
@@ -392,14 +392,14 @@ function SortableMilestoneRow({
         <div className="flex items-center gap-1 flex-shrink-0">
           <Dialog open={editId === m.id} onOpenChange={open => setEditId(open ? m.id : null)}>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" aria-label={`Edit milestone: ${m.title}`}>
+              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" aria-label={`Edit goal: ${m.title}`}>
                 <Pencil className="h-3 w-3" />
               </Button>
             </DialogTrigger>
             <DialogContent className="rounded-2xl max-w-sm mx-4">
               <DialogHeader>
-                <DialogTitle className="font-serif text-lg">Edit milestone</DialogTitle>
-                <DialogDescription className="sr-only">Update the details for this milestone.</DialogDescription>
+                <DialogTitle className="font-serif text-lg">Edit goal</DialogTitle>
+                <DialogDescription className="sr-only">Update the details for this goal.</DialogDescription>
               </DialogHeader>
               <MilestoneForm
                 defaultValues={{
@@ -422,7 +422,7 @@ function SortableMilestoneRow({
             className="h-7 w-7 rounded-lg text-muted-foreground hover:text-rose-600"
             onClick={() => handleDelete(m.id)}
             disabled={deleteMilestone.isPending}
-            aria-label={`Delete milestone: ${m.title}`}
+            aria-label={`Delete goal: ${m.title}`}
           >
             <Trash2 className="h-3 w-3" />
           </Button>
@@ -495,8 +495,8 @@ function MilestonesSection({ areaId }: { areaId: number }) {
         },
       },
       {
-        onSuccess: () => { invalidate(); setAddOpen(false); toast({ title: "Milestone added" }); },
-        onError: () => toast({ title: "Failed to add milestone", variant: "destructive" }),
+        onSuccess: () => { invalidate(); setAddOpen(false); toast({ title: "Goal added" }); },
+        onError: () => toast({ title: "Failed to add goal", variant: "destructive" }),
       }
     );
   };
@@ -513,9 +513,9 @@ function MilestonesSection({ areaId }: { areaId: number }) {
           invalidate();
           setBulkOpen(false);
           setBulkText("");
-          toast({ title: `${created.length} milestone${created.length !== 1 ? "s" : ""} added` });
+          toast({ title: `${created.length} goal${created.length !== 1 ? "s" : ""} added` });
         },
-        onError: () => toast({ title: "Failed to add milestones", variant: "destructive" }),
+        onError: () => toast({ title: "Failed to add goals", variant: "destructive" }),
       }
     );
   };
@@ -534,8 +534,8 @@ function MilestonesSection({ areaId }: { areaId: number }) {
         },
       },
       {
-        onSuccess: () => { invalidate(); setEditId(null); toast({ title: "Milestone updated" }); },
-        onError: () => toast({ title: "Failed to update milestone", variant: "destructive" }),
+        onSuccess: () => { invalidate(); setEditId(null); toast({ title: "Goal updated" }); },
+        onError: () => toast({ title: "Failed to update goal", variant: "destructive" }),
       }
     );
   };
@@ -544,8 +544,8 @@ function MilestonesSection({ areaId }: { areaId: number }) {
     deleteMilestone.mutate(
       { id },
       {
-        onSuccess: () => { invalidate(); toast({ title: "Milestone removed" }); },
-        onError: () => toast({ title: "Failed to delete milestone", variant: "destructive" }),
+        onSuccess: () => { invalidate(); toast({ title: "Goal removed" }); },
+        onError: () => toast({ title: "Failed to delete goal", variant: "destructive" }),
       }
     );
   };
@@ -579,9 +579,9 @@ function MilestonesSection({ areaId }: { areaId: number }) {
             </DialogTrigger>
             <DialogContent className="rounded-2xl max-w-sm mx-4">
               <DialogHeader>
-                <DialogTitle className="font-serif text-lg">Bulk add milestones</DialogTitle>
+                <DialogTitle className="font-serif text-lg">Bulk add goals</DialogTitle>
                 <DialogDescription className="text-sm text-muted-foreground">
-                  Type one milestone title per line. They'll all be added as planned milestones — you can fill in details after.
+                  Type one goal title per line. They'll all be added as planned goals — you can fill in details after.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 pt-1">
@@ -601,7 +601,7 @@ function MilestonesSection({ areaId }: { areaId: number }) {
                 {(() => {
                   const count = parseList(bulkText, { stripBullets: false }).length;
                   return count > 0 ? (
-                    <p className="text-xs text-muted-foreground">{count} milestone{count !== 1 ? "s" : ""} will be added</p>
+                    <p className="text-xs text-muted-foreground">{count} goal{count !== 1 ? "s" : ""} will be added</p>
                   ) : null;
                 })()}
                 <Button
@@ -611,7 +611,7 @@ function MilestonesSection({ areaId }: { areaId: number }) {
                 >
                   {bulkCreateMilestones.isPending ? "Adding..." : (() => {
                     const count = parseList(bulkText, { stripBullets: false }).length;
-                    return count > 0 ? `Add ${count} milestone${count !== 1 ? "s" : ""}` : "Add milestones";
+                    return count > 0 ? `Add ${count} goal${count !== 1 ? "s" : ""}` : "Add goals";
                   })()}
                 </Button>
               </div>
@@ -627,13 +627,13 @@ function MilestonesSection({ areaId }: { areaId: number }) {
             </DialogTrigger>
             <DialogContent className="rounded-2xl max-w-sm mx-4">
               <DialogHeader>
-                <DialogTitle className="font-serif text-lg">New milestone</DialogTitle>
-                <DialogDescription className="sr-only">Add a new milestone to track progress for this area.</DialogDescription>
+                <DialogTitle className="font-serif text-lg">New goal</DialogTitle>
+                <DialogDescription className="sr-only">Add a new goal to track progress for this area.</DialogDescription>
               </DialogHeader>
               <MilestoneForm
                 onSubmit={handleCreate}
                 loading={createMilestone.isPending}
-                submitLabel="Create milestone"
+                submitLabel="Create goal"
               />
             </DialogContent>
           </Dialog>
@@ -654,7 +654,7 @@ function MilestonesSection({ areaId }: { areaId: number }) {
       )}
 
       {(!orderedMilestones || orderedMilestones.length === 0) ? (
-        <p className="text-xs text-muted-foreground/60 italic py-1">No milestones yet. Add one to track progress.</p>
+        <p className="text-xs text-muted-foreground/60 italic py-1">No goals yet. Add one to track progress.</p>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={orderedMilestones.map(m => m.id)} strategy={verticalListSortingStrategy}>

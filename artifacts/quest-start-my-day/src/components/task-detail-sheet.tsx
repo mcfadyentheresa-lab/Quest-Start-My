@@ -168,7 +168,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
         <SheetHeader className="mb-4">
           <SheetTitle className="font-serif text-xl text-left">Edit task</SheetTitle>
           <SheetDescription className="sr-only">
-            Edit the details of this task, including its title, category, area, milestone, and other fields.
+            Edit the details of this task, including its title, category, area, goal, and other fields.
           </SheetDescription>
         </SheetHeader>
 
@@ -225,17 +225,17 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
 
           {selectedAreaNumericId && (
             <div className="space-y-1.5">
-              <Label>Milestone</Label>
+              <Label>Goal</Label>
               <Select
                 value={milestoneId}
                 onValueChange={(v) => setValue("milestoneId", v)}
                 disabled={!milestones || milestones.length === 0}
               >
                 <SelectTrigger className="rounded-xl">
-                  <SelectValue placeholder="No milestone" />
+                  <SelectValue placeholder="No goal" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No milestone</SelectItem>
+                  <SelectItem value="none">No goal</SelectItem>
                   {milestones?.map(m => (
                     <SelectItem key={m.id} value={String(m.id)}>
                       {m.title}

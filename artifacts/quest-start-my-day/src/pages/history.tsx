@@ -71,7 +71,7 @@ const portfolioStatusColors: Record<string, string> = {
 const frictionTypeConfig: Record<string, { icon: React.ElementType; label: string; iconClass: string; timeWindow: string }> = {
   repeated_pass: { icon: Repeat2, label: "Repeated pass", iconClass: "text-amber-500", timeWindow: "All time" },
   repeated_block: { icon: Ban, label: "Repeated block", iconClass: "text-rose-500", timeWindow: "All time" },
-  stalled_milestone: { icon: Timer, label: "Stalled milestone", iconClass: "text-sky-500", timeWindow: "14 days before week end" },
+  stalled_milestone: { icon: Timer, label: "Stalled goal", iconClass: "text-sky-500", timeWindow: "14 days before week end" },
   low_completion_ratio: { icon: MinusCircle, label: "Low completion", iconClass: "text-violet-500", timeWindow: "Calendar month of selected week" },
 };
 
@@ -703,13 +703,13 @@ export default function HistoryPage() {
                 <p className="text-2xl font-serif font-medium text-emerald-600 dark:text-emerald-400">
                   {outcomes.milestonesCompletedThisWeek}
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">Milestones done this week</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Goals done this week</p>
               </div>
               <div className="rounded-2xl bg-card border border-card-border p-4">
                 <p className="text-2xl font-serif font-medium text-primary">
                   {outcomes.milestonesCompletedThisMonth}
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">Milestones done this month</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Goals done this month</p>
               </div>
               {outcomes.averageActiveMilestoneDays != null && (
                 <div className="rounded-2xl bg-card border border-card-border p-4 col-span-2">
@@ -717,7 +717,7 @@ export default function HistoryPage() {
                     {Math.round(outcomes.averageActiveMilestoneDays)}
                     <span className="text-base font-sans font-normal text-muted-foreground ml-1">days avg</span>
                   </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Average time active milestones stay open</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Average time active goals stay open</p>
                 </div>
               )}
             </div>

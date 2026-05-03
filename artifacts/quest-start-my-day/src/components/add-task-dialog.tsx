@@ -157,16 +157,16 @@ export function AddTaskDialog({ date, children, open: controlledOpen, onOpenChan
             </div>
           )}
 
-          {/* Milestone selector — only shown when a area is selected and it has milestones */}
+          {/* Goal selector — only shown when an area is selected and it has goals */}
           {selectedAreaNumericId && activeMilestones.length > 0 && (
             <div className="space-y-1.5">
-              <Label>Milestone</Label>
+              <Label>Goal</Label>
               <Select value={milestoneId} onValueChange={(v) => setValue("milestoneId", v)}>
                 <SelectTrigger className="rounded-xl">
-                  <SelectValue placeholder="No milestone" />
+                  <SelectValue placeholder="No goal" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No milestone</SelectItem>
+                  <SelectItem value="none">No goal</SelectItem>
                   {activeMilestones.map(m => (
                     <SelectItem key={m.id} value={String(m.id)}>
                       {m.title}
