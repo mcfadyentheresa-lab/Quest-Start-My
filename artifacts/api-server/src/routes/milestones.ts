@@ -22,6 +22,7 @@ import { buildBreakdownSteps, fallbackSteps } from "../lib/breakdown/ai";
 import { logger } from "../lib/logger";
 import { readOpenAiApiKey } from "../lib/openai-key";
 import { getUserId } from "../lib/auth";
+import { invalidateYearRibbonForUser } from "./year-ribbon";
 
 const router: IRouter = Router();
 
@@ -317,6 +318,12 @@ router.patch("/milestones/:id", asyncHandler(async (req, res): Promise<void> => 
     res.status(404).json({ error: "Milestone not found" });
     return;
   }
+
+  // A milestone update can move (targetDate), recolor (status), or otherwise
+  // change how the goal pill renders in the year view. The year-ribbon
+  // route caches per (year,userId) for 5 minutes, so flush that user's
+  // cached years now.
+  invalidateYearRibbonForUser(userId);
 
   res.json(UpdateMilestoneResponse.parse(await serializeMilestoneWithHold(milestone)));
 }));

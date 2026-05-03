@@ -1,8 +1,20 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetYearRibbon,
+  useUpdateMilestone,
+  getYearRibbonQueryKey,
   type YearRibbonResponse,
   type YearRibbonArea,
   type YearRibbonGoalBar,
@@ -19,6 +31,18 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ToastAction } from "@/components/ui/toast";
+import { useToast } from "@/hooks/use-toast";
 
 const WEEKS = 52;
 
@@ -139,6 +163,35 @@ function priorityChipClass(p: string): string {
   return "bg-muted text-muted-foreground";
 }
 
+// Shift a YYYY-MM-DD ISO date by a whole number of months, preserving the
+// day-of-month. Days that don't exist in the target month (e.g. Jan 31 →
+// Feb) clamp to that month's last day. UTC throughout to avoid TZ drift.
+function shiftMonthIso(iso: string, deltaMonths: number): string {
+  const y = Number(iso.slice(0, 4));
+  const m = Number(iso.slice(5, 7));
+  const d = Number(iso.slice(8, 10));
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) {
+    return iso;
+  }
+  const target = new Date(Date.UTC(y, m - 1 + deltaMonths, 1));
+  const lastDay = new Date(
+    Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  const day = Math.min(d, lastDay);
+  const ty = target.getUTCFullYear();
+  const tm = String(target.getUTCMonth() + 1).padStart(2, "0");
+  const td = String(day).padStart(2, "0");
+  return `${ty}-${tm}-${td}`;
+}
+
+// When a goal has no targetDate yet but the user drags it into a month,
+// anchor it at day 15 of that month so the pill clearly reads as "in this
+// month" without sitting on the boundary.
+function defaultIsoForMonth(year: number, monthIdx: number): string {
+  const m = String(monthIdx + 1).padStart(2, "0");
+  return `${year}-${m}-15`;
+}
+
 // Color used to tint a goal bar/dot. Falls back to a hash of the area id.
 function areaColor(area: YearRibbonArea): string {
   if (area.color) return area.color;
@@ -254,8 +307,97 @@ function WeekCell({
 }
 
 // Goal pill rendered inside a month row when the goal overlaps that month.
-// Keeps `data-testid="goal-bar-{goalId}"` for tests.
+// Keeps `data-testid="goal-bar-{goalId}"` for tests. When `draggable` is
+// true, the pill is wired up as a dnd-kit draggable: short click → popover;
+// press-and-drag (>5px) → move to another month. When false (e.g. SSR
+// snapshot tests, no DndContext), it renders as a plain button. Each
+// instance gets a unique dnd id (`goal-{id}@{monthIdx}`) so the same goal
+// appearing in multiple months stays stable.
 function MonthGoalPill({
+  bar,
+  area,
+  monthIdx,
+  draggable,
+}: {
+  bar: YearRibbonGoalBar;
+  area: YearRibbonArea;
+  monthIdx: number;
+  draggable: boolean;
+}) {
+  if (draggable) {
+    return <DraggableGoalPill bar={bar} area={area} monthIdx={monthIdx} />;
+  }
+  return <StaticGoalPill bar={bar} area={area} />;
+}
+
+function DraggableGoalPill({
+  bar,
+  area,
+  monthIdx,
+}: {
+  bar: YearRibbonGoalBar;
+  area: YearRibbonArea;
+  monthIdx: number;
+}) {
+  const color = areaColor(area);
+  const stepCount = bar.endWeek - bar.startWeek + 1;
+
+  const dragId = `goal-${bar.goalId}@${monthIdx}`;
+  const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({
+    id: dragId,
+    data: {
+      type: "goal",
+      goalId: bar.goalId,
+      title: bar.title,
+      sourceMonthIdx: monthIdx,
+      targetDate: bar.targetDate,
+    },
+  });
+
+  const dragStyle = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+    : undefined;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          ref={setNodeRef}
+          data-testid={`goal-bar-${bar.goalId}`}
+          data-dragging={isDragging ? "true" : "false"}
+          style={dragStyle}
+          {...attributes}
+          {...listeners}
+          className={`group inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/60 bg-card px-2 py-1 text-[11px] font-medium text-foreground shadow-sm transition hover:border-border hover:shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring cursor-grab active:cursor-grabbing ${
+            isDragging ? "z-10 opacity-70 shadow-lg" : ""
+          }`}
+        >
+          <GripVertical
+            className="h-3 w-3 shrink-0 text-muted-foreground/60"
+            aria-hidden="true"
+          />
+          <span
+            className="h-2 w-2 shrink-0 rounded-full"
+            style={{ backgroundColor: color }}
+            aria-hidden="true"
+          />
+          <span className="truncate">{bar.title}</span>
+          {bar.isOnHold ? (
+            <span className="shrink-0 rounded bg-muted px-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+              hold
+            </span>
+          ) : null}
+        </button>
+      </PopoverTrigger>
+      {renderGoalPopoverBody({ bar, area, color, stepCount })}
+    </Popover>
+  );
+}
+
+// Original non-draggable rendering, used for SSR/test paths and any caller
+// that opts out of drag. Identical visual to before this change.
+function StaticGoalPill({
   bar,
   area,
 }: {
@@ -285,42 +427,106 @@ function MonthGoalPill({
           ) : null}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 text-sm">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: color }}
-              aria-hidden="true"
-            />
-            <div className="font-medium leading-tight">{bar.title}</div>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {bar.isOnHold ? "On hold" : bar.status}
-            {" · "}
-            {stepCount} {stepCount === 1 ? "week" : "weeks"} of activity
-          </div>
-          <Link
-            href={`/areas/${area.id}#goal-${bar.goalId}`}
-            className="block pt-1 text-xs font-medium text-primary hover:underline"
-          >
-            Open in {area.name}
-          </Link>
-        </div>
-      </PopoverContent>
+      {renderGoalPopoverBody({ bar, area, color, stepCount })}
     </Popover>
   );
 }
 
+function renderGoalPopoverBody({
+  bar,
+  area,
+  color,
+  stepCount,
+}: {
+  bar: YearRibbonGoalBar;
+  area: YearRibbonArea;
+  color: string;
+  stepCount: number;
+}) {
+  return (
+    <PopoverContent className="w-64 text-sm">
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2">
+          <span
+            className="h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: color }}
+            aria-hidden="true"
+          />
+          <div className="font-medium leading-tight">{bar.title}</div>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {bar.isOnHold ? "On hold" : bar.status}
+          {" · "}
+          {stepCount} {stepCount === 1 ? "week" : "weeks"} of activity
+        </div>
+        <Link
+          href={`/areas/${area.id}#goal-${bar.goalId}`}
+          className="block pt-1 text-xs font-medium text-primary hover:underline"
+        >
+          Open in {area.name}
+        </Link>
+      </div>
+    </PopoverContent>
+  );
+}
+
 // One month "strip": label, week cells per active area for this month, and
-// the goal pills that overlap this month.
-function MonthRow({
+// the goal pills that overlap this month. When `draggable` is true, the
+// whole row registers as a dnd-kit drop target so users can drag a goal
+// pill onto it from another month.
+function MonthRow(props: {
+  monthIdx: number;
+  weeks: number[];
+  areas: YearRibbonArea[];
+  year: number;
+  todayWeek: number | null;
+  isCurrentMonth: boolean;
+  draggable: boolean;
+}) {
+  if (props.draggable) {
+    return <DroppableMonthRow {...props} />;
+  }
+  return <PlainMonthRow {...props} />;
+}
+
+function DroppableMonthRow(props: {
+  monthIdx: number;
+  weeks: number[];
+  areas: YearRibbonArea[];
+  year: number;
+  todayWeek: number | null;
+  isCurrentMonth: boolean;
+  draggable: boolean;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `month-${props.monthIdx}`,
+    data: { type: "month", monthIdx: props.monthIdx },
+  });
+  return <MonthRowBody {...props} dropRef={setNodeRef} isOver={isOver} />;
+}
+
+function PlainMonthRow(props: {
+  monthIdx: number;
+  weeks: number[];
+  areas: YearRibbonArea[];
+  year: number;
+  todayWeek: number | null;
+  isCurrentMonth: boolean;
+  draggable: boolean;
+}) {
+  return <MonthRowBody {...props} dropRef={undefined} isOver={false} />;
+}
+
+function MonthRowBody({
   monthIdx,
   weeks,
   areas,
   year,
   todayWeek,
   isCurrentMonth,
+  draggable,
+  dropRef,
+  isOver,
 }: {
   monthIdx: number;
   weeks: number[];
@@ -328,6 +534,9 @@ function MonthRow({
   year: number;
   todayWeek: number | null;
   isCurrentMonth: boolean;
+  draggable: boolean;
+  dropRef: ((node: HTMLElement | null) => void) | undefined;
+  isOver: boolean;
 }) {
   // Goal pills that overlap any week of this month.
   const goalsThisMonth = useMemo(() => {
@@ -359,11 +568,13 @@ function MonthRow({
 
   return (
     <div
+      ref={dropRef}
+      data-month-idx={monthIdx}
       className={`relative rounded-2xl border px-4 py-4 transition ${
         isCurrentMonth
           ? "border-foreground/20 bg-card shadow-sm"
           : "border-card-border/60 bg-card/40"
-      }`}
+      } ${isOver ? "ring-2 ring-primary/60 ring-offset-1 ring-offset-background" : ""}`}
     >
       {/* Month label + tiny meta */}
       <div className="flex items-baseline justify-between gap-3">
@@ -388,7 +599,13 @@ function MonthRow({
       {goalsThisMonth.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {goalsThisMonth.map(({ area, bar }) => (
-            <MonthGoalPill key={`${area.id}-${bar.goalId}`} bar={bar} area={area} />
+            <MonthGoalPill
+              key={`${area.id}-${bar.goalId}`}
+              bar={bar}
+              area={area}
+              monthIdx={monthIdx}
+              draggable={draggable}
+            />
           ))}
         </div>
       ) : null}
@@ -521,11 +738,17 @@ export function YearRibbonView({
   year,
   onYear,
   onToday,
+  enableDrag = false,
 }: {
   data: YearRibbonResponse;
   year: number;
   onYear: (next: number) => void;
   onToday: () => void;
+  /** When true, wires up dnd-kit so users can drag goal pills between
+   *  months. Off by default to keep the SSR/test path free of React-Query
+   *  and DndContext requirements. The default `YearRibbon` export turns it
+   *  on. */
+  enableDrag?: boolean;
 }) {
   if (data.areas.length === 0) {
     return (
@@ -561,34 +784,214 @@ export function YearRibbonView({
   );
   const noisyAreas = data.areas.filter((a) => !quietAreas.includes(a));
 
+  const grid = (
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+      {groups.map((g) => (
+        <MonthRow
+          key={g.month}
+          monthIdx={g.month}
+          weeks={g.weeks}
+          areas={noisyAreas.length > 0 ? noisyAreas : data.areas}
+          year={year}
+          todayWeek={todayWeek}
+          isCurrentMonth={todayMonth === g.month}
+          draggable={enableDrag}
+        />
+      ))}
+    </div>
+  );
+
+  const body =
+    totalActivity === 0 && totalGoalBars === 0 ? (
+      <EmptyState reason="quiet-year" />
+    ) : (
+      <TooltipProvider delayDuration={150}>
+        {enableDrag ? (
+          <YearRibbonDragLayer year={year} data={data}>
+            {grid}
+          </YearRibbonDragLayer>
+        ) : (
+          grid
+        )}
+        <QuietAreasFooter areas={quietAreas} />
+      </TooltipProvider>
+    );
+
   return (
     <div className="space-y-4">
       <YearRibbonHeader year={year} onYear={onYear} onToday={onToday} />
-
-      {totalActivity === 0 && totalGoalBars === 0 ? (
-        <EmptyState reason="quiet-year" />
-      ) : (
-        <TooltipProvider delayDuration={150}>
-          {/* Two-column on wide screens (Q1+Q2 left, Q3+Q4 right feel),
-              single column on small. Keeps the year scannable but breathable. */}
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {groups.map((g) => (
-              <MonthRow
-                key={g.month}
-                monthIdx={g.month}
-                weeks={g.weeks}
-                areas={noisyAreas.length > 0 ? noisyAreas : data.areas}
-                year={year}
-                todayWeek={todayWeek}
-                isCurrentMonth={todayMonth === g.month}
-              />
-            ))}
-          </div>
-
-          <QuietAreasFooter areas={quietAreas} />
-        </TooltipProvider>
-      )}
+      {body}
     </div>
+  );
+}
+
+// Wraps the month grid in a DndContext, owns the confirmation dialog and
+// the milestone PATCH mutation. Mounts only when drag is enabled, so SSR
+// snapshot tests can render YearRibbonView without a QueryClient.
+function YearRibbonDragLayer({
+  year,
+  data,
+  children,
+}: {
+  year: number;
+  data: YearRibbonResponse;
+  children: ReactNode;
+}) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+  const queryClient = useQueryClient();
+  const updateMilestone = useUpdateMilestone();
+  const { toast } = useToast();
+  const [pending, setPending] = useState<{
+    goalId: number;
+    title: string;
+    fromMonthIdx: number;
+    toMonthIdx: number;
+    fromTargetDate: string | null;
+    toTargetDate: string;
+  } | null>(null);
+
+  // Look up a goal by id across all areas in the current ribbon payload.
+  const findGoal = (goalId: number) => {
+    for (const area of data.areas) {
+      for (const bar of area.goalBars) {
+        if (bar.goalId === goalId) return { area, bar };
+      }
+    }
+    return null;
+  };
+
+  const computeNewTargetDate = (
+    fromTargetDate: string | null,
+    fromMonthIdx: number,
+    toMonthIdx: number,
+  ): string => {
+    // If the goal already had a targetDate, shift by month delta and keep
+    // the day-of-month (clamped to month-end). Otherwise anchor at day 15
+    // of the target month so it sits clearly inside the month.
+    if (fromTargetDate) {
+      return shiftMonthIso(fromTargetDate, toMonthIdx - fromMonthIdx);
+    }
+    return defaultIsoForMonth(year, toMonthIdx);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+    const overData = over.data.current as { type?: string; monthIdx?: number } | undefined;
+    const activeData = active.data.current as
+      | {
+          type?: string;
+          goalId?: number;
+          title?: string;
+          sourceMonthIdx?: number;
+          targetDate?: string | null;
+        }
+      | undefined;
+    if (
+      overData?.type !== "month" ||
+      typeof overData.monthIdx !== "number" ||
+      activeData?.type !== "goal" ||
+      typeof activeData.goalId !== "number" ||
+      typeof activeData.sourceMonthIdx !== "number"
+    ) {
+      return;
+    }
+    const fromMonthIdx = activeData.sourceMonthIdx;
+    const toMonthIdx = overData.monthIdx;
+    if (fromMonthIdx === toMonthIdx) return;
+
+    const fromTargetDate = activeData.targetDate ?? null;
+    const toTargetDate = computeNewTargetDate(fromTargetDate, fromMonthIdx, toMonthIdx);
+    setPending({
+      goalId: activeData.goalId,
+      title: activeData.title ?? "this goal",
+      fromMonthIdx,
+      toMonthIdx,
+      fromTargetDate,
+      toTargetDate,
+    });
+  };
+
+  const closeDialog = () => setPending(null);
+
+  const performUpdate = async (goalId: number, newTargetDate: string | null) => {
+    await updateMilestone.mutateAsync({
+      id: goalId,
+      data: { targetDate: newTargetDate },
+    });
+    queryClient.invalidateQueries({ queryKey: getYearRibbonQueryKey(year) });
+  };
+
+  const handleConfirm = async () => {
+    if (!pending) return;
+    const { goalId, title, fromTargetDate, toTargetDate, toMonthIdx } = pending;
+    closeDialog();
+    try {
+      await performUpdate(goalId, toTargetDate);
+      toast({
+        title: `Moved “${title}” to ${MONTH_LABELS[toMonthIdx]}`,
+        description: "Tasks weren't moved — only the goal's target date.",
+        action: (
+          <ToastAction
+            altText="Undo move"
+            onClick={() => {
+              void performUpdate(goalId, fromTargetDate).catch(() => {
+                toast({ title: "Couldn't undo.", variant: "destructive" });
+              });
+            }}
+          >
+            Undo
+          </ToastAction>
+        ),
+      });
+    } catch {
+      toast({ title: "Couldn't move goal.", variant: "destructive" });
+    }
+  };
+
+  const pendingGoalDetail = pending ? findGoal(pending.goalId) : null;
+
+  return (
+    <>
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        {children}
+      </DndContext>
+      <AlertDialog open={pending !== null} onOpenChange={(o) => !o && closeDialog()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pending
+                ? `Move “${pending.title}” to ${MONTH_LABELS[pending.toMonthIdx]}?`
+                : "Move goal?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pending ? (
+                <>
+                  This updates the goal&apos;s target date to{" "}
+                  <span className="font-medium text-foreground">
+                    {pending.toTargetDate}
+                  </span>
+                  . Existing tasks won&apos;t change dates.
+                  {pendingGoalDetail ? (
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      In {pendingGoalDetail.area.name}
+                    </span>
+                  ) : null}
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeDialog}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleConfirm()}>
+              Move goal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -669,6 +1072,7 @@ export default function YearRibbon() {
       year={year}
       onYear={onYear}
       onToday={onToday}
+      enableDrag
       key={year}
     />
   );
