@@ -419,6 +419,16 @@ export interface Task {
   it materializes the daily plan.
    */
   recurringTaskId?: number | null;
+  /** Verbatim user text when AI cleaned a long brain dump into
+  this task's title/whyItMatters/doneLooksLike. Null for
+  tasks created via any other path.
+   */
+  originalDump?: string | null;
+  /** True when AI generated this task's fields and the user
+  should glance at them. UI surfaces a 'Review draft' chip.
+  False once the user edits or dismisses.
+   */
+  needsReview?: boolean;
 }
 
 export type CreateTaskBodyCategory = typeof CreateTaskBodyCategory[keyof typeof CreateTaskBodyCategory];
@@ -922,6 +932,43 @@ export interface UpdateRecurringTaskBody {
   startDate?: string;
   /** Set to an ISO timestamp to pause; null to resume. */
   pausedAt?: string | null;
+}
+
+/**
+ * "today" puts the task on today's plan. "later" leaves it
+unscheduled (Inbox / Capture).
+
+ */
+export type CaptureBodyWhen = typeof CaptureBodyWhen[keyof typeof CaptureBodyWhen];
+
+
+export const CaptureBodyWhen = {
+  today: 'today',
+  later: 'later',
+} as const;
+
+/**
+ * Body for POST /capture. The user's verbatim text plus optional
+scheduling and area context. Server decides whether to invoke
+AI based on text length.
+
+ */
+export interface CaptureBody {
+  /**
+     * The brain dump.
+     * @minLength 1
+     * @maxLength 8000
+     */
+  text: string;
+  /** "today" puts the task on today's plan. "later" leaves it
+  unscheduled (Inbox / Capture).
+   */
+  when?: CaptureBodyWhen;
+  /**
+     * Optional area to attach the task to.
+     * @minimum 1
+     */
+  areaId?: number | null;
 }
 
 export type ListMilestonesParams = {

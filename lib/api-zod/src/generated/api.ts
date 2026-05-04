@@ -125,7 +125,9 @@ export const ListAreaTasksResponseItem = zod.object({
   "adjustmentReason": zod.string().nullish(),
   "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.'),
   "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.'),
-  "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n')
+  "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n'),
+  "originalDump": zod.string().nullish().describe('Verbatim user text when AI cleaned a long brain dump into\nthis task\'s title\/whyItMatters\/doneLooksLike. Null for\ntasks created via any other path.\n'),
+  "needsReview": zod.boolean().optional().describe('True when AI generated this task\'s fields and the user\nshould glance at them. UI surfaces a \'Review draft\' chip.\nFalse once the user edits or dismisses.\n')
 })
 export const ListAreaTasksResponse = zod.array(ListAreaTasksResponseItem)
 
@@ -306,7 +308,9 @@ export const ReorderMilestoneStepsResponseItem = zod.object({
   "adjustmentReason": zod.string().nullish(),
   "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.'),
   "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.'),
-  "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n')
+  "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n'),
+  "originalDump": zod.string().nullish().describe('Verbatim user text when AI cleaned a long brain dump into\nthis task\'s title\/whyItMatters\/doneLooksLike. Null for\ntasks created via any other path.\n'),
+  "needsReview": zod.boolean().optional().describe('True when AI generated this task\'s fields and the user\nshould glance at them. UI surfaces a \'Review draft\' chip.\nFalse once the user edits or dismisses.\n')
 })
 export const ReorderMilestoneStepsResponse = zod.array(ReorderMilestoneStepsResponseItem)
 
@@ -339,7 +343,9 @@ export const ListTasksResponseItem = zod.object({
   "adjustmentReason": zod.string().nullish(),
   "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.'),
   "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.'),
-  "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n')
+  "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n'),
+  "originalDump": zod.string().nullish().describe('Verbatim user text when AI cleaned a long brain dump into\nthis task\'s title\/whyItMatters\/doneLooksLike. Null for\ntasks created via any other path.\n'),
+  "needsReview": zod.boolean().optional().describe('True when AI generated this task\'s fields and the user\nshould glance at them. UI surfaces a \'Review draft\' chip.\nFalse once the user edits or dismisses.\n')
 })
 export const ListTasksResponse = zod.array(ListTasksResponseItem)
 
@@ -404,7 +410,9 @@ export const UpdateTaskResponse = zod.object({
   "adjustmentReason": zod.string().nullish(),
   "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.'),
   "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.'),
-  "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n')
+  "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n'),
+  "originalDump": zod.string().nullish().describe('Verbatim user text when AI cleaned a long brain dump into\nthis task\'s title\/whyItMatters\/doneLooksLike. Null for\ntasks created via any other path.\n'),
+  "needsReview": zod.boolean().optional().describe('True when AI generated this task\'s fields and the user\nshould glance at them. UI surfaces a \'Review draft\' chip.\nFalse once the user edits or dismisses.\n')
 })
 
 
@@ -439,7 +447,9 @@ export const GetTaskInboxResponseItem = zod.object({
   "adjustmentReason": zod.string().nullish(),
   "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.'),
   "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.'),
-  "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n')
+  "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n'),
+  "originalDump": zod.string().nullish().describe('Verbatim user text when AI cleaned a long brain dump into\nthis task\'s title\/whyItMatters\/doneLooksLike. Null for\ntasks created via any other path.\n'),
+  "needsReview": zod.boolean().optional().describe('True when AI generated this task\'s fields and the user\nshould glance at them. UI surfaces a \'Review draft\' chip.\nFalse once the user edits or dismisses.\n')
 })
 export const GetTaskInboxResponse = zod.array(GetTaskInboxResponseItem)
 
@@ -579,6 +589,26 @@ export const UpdateRecurringTaskResponse = zod.object({
 export const DeleteRecurringTaskParams = zod.object({
   "id": zod.coerce.number()
 })
+
+
+/**
+ * One write path for any captured idea. Short text is stored
+verbatim. Longer text is cleaned by AI into a crisp title plus
+whyItMatters / doneLooksLike, and the original text is preserved
+on the task as `originalDump` with `needsReview = true`.
+
+ * @summary Universal capture entry point
+ */
+export const createCaptureBodyTextMax = 8000;
+
+export const createCaptureBodyWhenDefault = `later`;
+
+
+export const CreateCaptureBody = zod.object({
+  "text": zod.string().min(1).max(createCaptureBodyTextMax).describe('The brain dump.'),
+  "when": zod.enum(['today', 'later']).default(createCaptureBodyWhenDefault).describe('\"today\" puts the task on today\'s plan. \"later\" leaves it\nunscheduled (Inbox \/ Capture).\n'),
+  "areaId": zod.number().min(1).nullish().describe('Optional area to attach the task to.')
+}).describe('Body for POST \/capture. The user\'s verbatim text plus optional\nscheduling and area context. Server decides whether to invoke\nAI based on text length.\n')
 
 
 /**

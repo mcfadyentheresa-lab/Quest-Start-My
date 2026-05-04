@@ -52,6 +52,8 @@ function task(
     adjustmentType: null,
     adjustmentReason: null,
     taskSource: null,
+    originalDump: null,
+    needsReview: false,
     ...overrides,
   };
 }

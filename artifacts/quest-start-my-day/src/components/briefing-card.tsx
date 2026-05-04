@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Check, RotateCcw, Plus, MoreHorizontal, Timer, AlertTriangle } from "lucide-react";
+import { Check, RotateCcw, MoreHorizontal, Timer, AlertTriangle } from "lucide-react";
 import type { BriefingResponse, BriefingItem } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { PriorityBadge } from "@/components/priority-badge";
@@ -148,16 +148,6 @@ export function BriefingCard({
           >
             <RotateCcw className={`h-3.5 w-3.5 ${isReshuffling ? "animate-spin" : ""}`} />
             Reshuffle
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="rounded-xl gap-1.5"
-            onClick={onAddOwn}
-            data-testid="briefing-add-own"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add my own
           </Button>
         </div>
       )}

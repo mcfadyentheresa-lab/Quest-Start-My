@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { milestonesTable } from "./milestones";
@@ -35,6 +35,12 @@ export const tasksTable = pgTable("tasks", {
   // SET NULL is configured in the migration so deleting a template leaves
   // already-materialized history intact.
   recurringTaskId: integer("recurring_task_id"),
+  // Universal Capture (PR3): when AI cleans a long brain dump into a
+  // crisp title, originalDump preserves the verbatim user text and
+  // needsReview flags the row for a quick user glance. Both default to
+  // null/false for tasks created through any other path.
+  originalDump: text("original_dump"),
+  needsReview: boolean("needs_review").notNull().default(false),
 }, (t) => ({
   userIdIdx: index("tasks_user_id_idx").on(t.userId),
   userDateIdx: index("tasks_user_date_idx").on(t.userId, t.date),
