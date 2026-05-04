@@ -922,7 +922,16 @@ function AreaNote({ value, onSave }: { value: string; onSave: (v: string) => voi
  * that saves on blur or Cmd/Ctrl+Enter, and discards on Escape. Empty
  * is fine — saves null to clear. Used to hold prompts and longer
  * context that doesn't fit in the goal title.
+ *
+ * Long-note handling: when the saved value is long (>200 chars or
+ * more than 3 newlines), the collapsed preview clamps to 3 lines and
+ * shows a small "Show more / Show less" toggle so a pasted prompt
+ * doesn't blow up the goal card height. Click anywhere else on the
+ * preview still opens the editor.
  */
+const NOTE_LONG_CHARS = 200;
+const NOTE_LONG_LINES = 3;
+
 function GoalNote({
   value,
   onSave,
@@ -933,11 +942,15 @@ function GoalNote({
   testId?: string;
 }) {
   const [editing, setEditing] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [draft, setDraft] = useState(value);
   const ref = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => { setDraft(value); }, [value]);
   useEffect(() => { if (editing) ref.current?.focus(); }, [editing]);
+  // If the underlying value changes (e.g. user just saved a much
+  // shorter note), drop the manual expand back to clamped.
+  useEffect(() => { setExpanded(false); }, [value]);
 
   const commit = () => {
     const cleaned = draft.trim();
@@ -972,18 +985,42 @@ function GoalNote({
     );
   }
 
+  const newlineCount = value.match(/\n/g)?.length ?? 0;
+  const isLong = value.length > NOTE_LONG_CHARS || newlineCount > NOTE_LONG_LINES;
+
   return (
-    <button
-      type="button"
-      onClick={() => setEditing(true)}
-      className="block w-full text-left rounded-xl border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground hover:bg-muted/30 transition-colors whitespace-pre-wrap"
-      aria-label={value ? "Edit notes" : "Add notes"}
+    <div
+      className="rounded-xl border border-dashed border-border/60 bg-muted/20 hover:bg-muted/30 transition-colors"
       data-testid={testId}
     >
-      {value || (
-        <span className="italic opacity-80">Add notes, prompts, or anything worth remembering.</span>
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className={`block w-full text-left px-3 py-2 text-xs text-muted-foreground whitespace-pre-wrap ${
+          isLong && !expanded ? "line-clamp-3" : ""
+        }`}
+        aria-label={value ? "Edit notes" : "Add notes"}
+      >
+        {value || (
+          <span className="italic opacity-80">Add notes, prompts, or anything worth remembering.</span>
+        )}
+      </button>
+      {isLong && (
+        <button
+          type="button"
+          onClick={(e) => {
+            // Don't open the editor; just toggle the preview height.
+            e.stopPropagation();
+            setExpanded((v) => !v);
+          }}
+          className="w-full text-left px-3 pb-2 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+          aria-expanded={expanded}
+          data-testid={testId ? `${testId}-toggle` : undefined}
+        >
+          {expanded ? "Show less" : "Show more"}
+        </button>
       )}
-    </button>
+    </div>
   );
 }
 
