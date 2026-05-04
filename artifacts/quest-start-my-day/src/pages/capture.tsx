@@ -15,7 +15,7 @@
  * doneLooksLike + originalDump. "/" focuses the search box from
  * anywhere on the page.
  *
- * Filters are simple chips (area, status). Energy lands in PR5.
+ * Filters are simple chips (energy, area).
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
@@ -104,6 +104,9 @@ export default function CapturePage() {
   const [bucket, setBucket] = useState<Bucket>("unprocessed");
   const [rawQuery, setRawQuery] = useState("");
   const [areaFilter, setAreaFilter] = useState<number | null>(null);
+  const [energyFilter, setEnergyFilter] = useState<
+    "quick" | "medium" | "deep" | null
+  >(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -115,8 +118,9 @@ export default function CapturePage() {
       bucket,
       ...(debouncedQuery.trim() ? { q: debouncedQuery.trim() } : {}),
       ...(areaFilter != null ? { areaId: areaFilter } : {}),
+      ...(energyFilter != null ? { energy: energyFilter } : {}),
     }),
-    [bucket, debouncedQuery, areaFilter],
+    [bucket, debouncedQuery, areaFilter, energyFilter],
   );
   const { data: tasks, isLoading, isError, refetch } = useSearchTasks(params);
 
@@ -203,6 +207,43 @@ export default function CapturePage() {
             data-testid="capture-search-clear"
           >
             <XIcon className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+
+      {/* Energy filter chips */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-muted-foreground">Energy:</span>
+        {([
+          { value: "quick", label: "Quick" },
+          { value: "medium", label: "Medium" },
+          { value: "deep", label: "Deep" },
+        ] as const).map(({ value, label }) => {
+          const active = energyFilter === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setEnergyFilter(active ? null : value)}
+              className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                active
+                  ? "border-foreground/40 bg-foreground/5 text-foreground"
+                  : "border-border bg-background text-muted-foreground hover:text-foreground"
+              }`}
+              data-testid={`capture-energy-chip-${value}`}
+            >
+              {label}
+            </button>
+          );
+        })}
+        {energyFilter != null && (
+          <button
+            type="button"
+            onClick={() => setEnergyFilter(null)}
+            className="text-xs text-muted-foreground hover:text-foreground px-2 py-1"
+            data-testid="capture-energy-chip-clear"
+          >
+            Clear
           </button>
         )}
       </div>

@@ -37,6 +37,7 @@ interface Task {
   date?: string | null;
   areaId?: number | null;
   milestoneId?: number | null;
+  energy?: "quick" | "medium" | "deep" | null;
 }
 
 interface TaskDetailSheetProps {
@@ -54,6 +55,8 @@ interface TaskEditFormData {
   doneLooksLike: string;
   suggestedNextStep: string;
   blockerReason: string;
+  // "none" sentinel = clear the energy band.
+  energy: "none" | "quick" | "medium" | "deep";
 }
 
 export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetProps) {
@@ -73,6 +76,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
       doneLooksLike: task.doneLooksLike ?? "",
       suggestedNextStep: task.suggestedNextStep ?? "",
       blockerReason: task.blockerReason ?? "",
+      energy: task.energy ?? "none",
     },
   });
 
@@ -105,6 +109,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
         doneLooksLike: task.doneLooksLike ?? "",
         suggestedNextStep: task.suggestedNextStep ?? "",
         blockerReason: task.blockerReason ?? "",
+        energy: task.energy ?? "none",
       });
     }
   }, [open, task, reset]);
@@ -130,6 +135,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
           doneLooksLike: data.doneLooksLike.trim() || null,
           suggestedNextStep: data.suggestedNextStep.trim() || null,
           blockerReason: task.status === "blocked" ? (data.blockerReason.trim() || null) : undefined,
+          energy: data.energy === "none" ? null : data.energy,
         },
       },
       {
@@ -276,6 +282,52 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
               placeholder="Optional first action"
               className="rounded-xl"
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Energy</Label>
+            <div
+              className="flex flex-wrap items-center gap-1.5"
+              role="radiogroup"
+              aria-label="Energy needed"
+              data-testid="task-detail-energy"
+            >
+              {([
+                { value: "quick", label: "Quick" },
+                { value: "medium", label: "Medium" },
+                { value: "deep", label: "Deep" },
+              ] as const).map((opt) => {
+                const energyValue = watch("energy");
+                const selected = energyValue === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setValue("energy", selected ? "none" : opt.value, { shouldDirty: true })}
+                    data-testid={`task-detail-energy-${opt.value}`}
+                    className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                      selected
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-background text-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+              {watch("energy") !== "none" && (
+                <button
+                  type="button"
+                  onClick={() => setValue("energy", "none", { shouldDirty: true })}
+                  className="rounded-full px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+                  data-testid="task-detail-energy-clear"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
 
           {task.status === "blocked" && (

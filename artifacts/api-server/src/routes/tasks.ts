@@ -259,7 +259,7 @@ router.get("/tasks/search", asyncHandler(async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { bucket = "all", q, areaId, status, limit = 100 } = parsed.data;
+  const { bucket = "all", q, areaId, status, energy, limit = 100 } = parsed.data;
 
   const filters: SQL[] = [eq(tasksTable.userId, userId)];
 
@@ -287,6 +287,7 @@ router.get("/tasks/search", asyncHandler(async (req, res): Promise<void> => {
 
   if (status) filters.push(eq(tasksTable.status, status));
   if (areaId != null) filters.push(eq(tasksTable.areaId, areaId));
+  if (energy) filters.push(eq(tasksTable.energy, energy));
 
   if (q && q.trim().length > 0) {
     const needle = `%${q.trim()}%`;
@@ -339,6 +340,7 @@ router.patch("/tasks/:id", asyncHandler(async (req, res): Promise<void> => {
   // Allow scheduling an inbox task (date = '2026-05-03') or moving a
   // scheduled task back to the inbox (date = null).
   if (parsed.data.date !== undefined) updates.date = parsed.data.date;
+  if (parsed.data.energy !== undefined) updates.energy = parsed.data.energy;
 
   const [task] = await db
     .update(tasksTable)

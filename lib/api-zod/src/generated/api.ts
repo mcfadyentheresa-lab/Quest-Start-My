@@ -127,7 +127,8 @@ export const ListAreaTasksResponseItem = zod.object({
   "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.'),
   "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n'),
   "originalDump": zod.string().nullish().describe('Verbatim user text when AI cleaned a long brain dump into\nthis task\'s title\/whyItMatters\/doneLooksLike. Null for\ntasks created via any other path.\n'),
-  "needsReview": zod.boolean().optional().describe('True when AI generated this task\'s fields and the user\nshould glance at them. UI surfaces a \'Review draft\' chip.\nFalse once the user edits or dismisses.\n')
+  "needsReview": zod.boolean().optional().describe('True when AI generated this task\'s fields and the user\nshould glance at them. UI surfaces a \'Review draft\' chip.\nFalse once the user edits or dismisses.\n'),
+  "energy": zod.enum(['quick', 'medium', 'deep']).nullish().describe('Optional energy band. \"quick\" ≈ ≤5 min, \"medium\" ≈ deep\nsingle-sitting, \"deep\" ≈ multi-hour focus. Null when the\nuser hasn\'t tagged the task. Powers the \"Right now\" filter\nand the \"Feeling scattered? See 3 quick wins.\" pill.\n')
 })
 export const ListAreaTasksResponse = zod.array(ListAreaTasksResponseItem)
 
@@ -310,7 +311,8 @@ export const ReorderMilestoneStepsResponseItem = zod.object({
   "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.'),
   "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n'),
   "originalDump": zod.string().nullish().describe('Verbatim user text when AI cleaned a long brain dump into\nthis task\'s title\/whyItMatters\/doneLooksLike. Null for\ntasks created via any other path.\n'),
-  "needsReview": zod.boolean().optional().describe('True when AI generated this task\'s fields and the user\nshould glance at them. UI surfaces a \'Review draft\' chip.\nFalse once the user edits or dismisses.\n')
+  "needsReview": zod.boolean().optional().describe('True when AI generated this task\'s fields and the user\nshould glance at them. UI surfaces a \'Review draft\' chip.\nFalse once the user edits or dismisses.\n'),
+  "energy": zod.enum(['quick', 'medium', 'deep']).nullish().describe('Optional energy band. \"quick\" ≈ ≤5 min, \"medium\" ≈ deep\nsingle-sitting, \"deep\" ≈ multi-hour focus. Null when the\nuser hasn\'t tagged the task. Powers the \"Right now\" filter\nand the \"Feeling scattered? See 3 quick wins.\" pill.\n')
 })
 export const ReorderMilestoneStepsResponse = zod.array(ReorderMilestoneStepsResponseItem)
 
@@ -345,7 +347,8 @@ export const ListTasksResponseItem = zod.object({
   "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.'),
   "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n'),
   "originalDump": zod.string().nullish().describe('Verbatim user text when AI cleaned a long brain dump into\nthis task\'s title\/whyItMatters\/doneLooksLike. Null for\ntasks created via any other path.\n'),
-  "needsReview": zod.boolean().optional().describe('True when AI generated this task\'s fields and the user\nshould glance at them. UI surfaces a \'Review draft\' chip.\nFalse once the user edits or dismisses.\n')
+  "needsReview": zod.boolean().optional().describe('True when AI generated this task\'s fields and the user\nshould glance at them. UI surfaces a \'Review draft\' chip.\nFalse once the user edits or dismisses.\n'),
+  "energy": zod.enum(['quick', 'medium', 'deep']).nullish().describe('Optional energy band. \"quick\" ≈ ≤5 min, \"medium\" ≈ deep\nsingle-sitting, \"deep\" ≈ multi-hour focus. Null when the\nuser hasn\'t tagged the task. Powers the \"Right now\" filter\nand the \"Feeling scattered? See 3 quick wins.\" pill.\n')
 })
 export const ListTasksResponse = zod.array(ListTasksResponseItem)
 
@@ -387,7 +390,8 @@ export const UpdateTaskBody = zod.object({
   "blockerType": zod.enum(['waiting_on_person', 'waiting_on_approval', 'missing_asset', 'access_issue', 'dependency']).nullish(),
   "adjustmentReason": zod.string().nullish(),
   "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\'). Null = regular work task.'),
-  "date": zod.string().nullish().describe('Schedule (YYYY-MM-DD) or null to move back to the inbox.')
+  "date": zod.string().nullish().describe('Schedule (YYYY-MM-DD) or null to move back to the inbox.'),
+  "energy": zod.enum(['quick', 'medium', 'deep']).nullish().describe('Update the energy band, or set null to clear it.\n')
 })
 
 export const UpdateTaskResponse = zod.object({
@@ -412,7 +416,8 @@ export const UpdateTaskResponse = zod.object({
   "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.'),
   "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n'),
   "originalDump": zod.string().nullish().describe('Verbatim user text when AI cleaned a long brain dump into\nthis task\'s title\/whyItMatters\/doneLooksLike. Null for\ntasks created via any other path.\n'),
-  "needsReview": zod.boolean().optional().describe('True when AI generated this task\'s fields and the user\nshould glance at them. UI surfaces a \'Review draft\' chip.\nFalse once the user edits or dismisses.\n')
+  "needsReview": zod.boolean().optional().describe('True when AI generated this task\'s fields and the user\nshould glance at them. UI surfaces a \'Review draft\' chip.\nFalse once the user edits or dismisses.\n'),
+  "energy": zod.enum(['quick', 'medium', 'deep']).nullish().describe('Optional energy band. \"quick\" ≈ ≤5 min, \"medium\" ≈ deep\nsingle-sitting, \"deep\" ≈ multi-hour focus. Null when the\nuser hasn\'t tagged the task. Powers the \"Right now\" filter\nand the \"Feeling scattered? See 3 quick wins.\" pill.\n')
 })
 
 
@@ -449,7 +454,8 @@ export const GetTaskInboxResponseItem = zod.object({
   "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.'),
   "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n'),
   "originalDump": zod.string().nullish().describe('Verbatim user text when AI cleaned a long brain dump into\nthis task\'s title\/whyItMatters\/doneLooksLike. Null for\ntasks created via any other path.\n'),
-  "needsReview": zod.boolean().optional().describe('True when AI generated this task\'s fields and the user\nshould glance at them. UI surfaces a \'Review draft\' chip.\nFalse once the user edits or dismisses.\n')
+  "needsReview": zod.boolean().optional().describe('True when AI generated this task\'s fields and the user\nshould glance at them. UI surfaces a \'Review draft\' chip.\nFalse once the user edits or dismisses.\n'),
+  "energy": zod.enum(['quick', 'medium', 'deep']).nullish().describe('Optional energy band. \"quick\" ≈ ≤5 min, \"medium\" ≈ deep\nsingle-sitting, \"deep\" ≈ multi-hour focus. Null when the\nuser hasn\'t tagged the task. Powers the \"Right now\" filter\nand the \"Feeling scattered? See 3 quick wins.\" pill.\n')
 })
 export const GetTaskInboxResponse = zod.array(GetTaskInboxResponseItem)
 
@@ -470,6 +476,7 @@ export const SearchTasksQueryParams = zod.object({
   "q": zod.coerce.string().optional().describe('Case-insensitive substring match on title, whyItMatters, doneLooksLike, originalDump.'),
   "areaId": zod.coerce.number().min(1).optional(),
   "status": zod.enum(['pending', 'done', 'pushed', 'passed', 'blocked', 'stepped_back']).optional(),
+  "energy": zod.enum(['quick', 'medium', 'deep']).optional().describe('Filter to a single energy band.'),
   "limit": zod.coerce.number().min(1).max(searchTasksQueryLimitMax).optional().describe('Max rows (default 100, hard cap 500).')
 })
 
@@ -495,7 +502,8 @@ export const SearchTasksResponseItem = zod.object({
   "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.'),
   "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n'),
   "originalDump": zod.string().nullish().describe('Verbatim user text when AI cleaned a long brain dump into\nthis task\'s title\/whyItMatters\/doneLooksLike. Null for\ntasks created via any other path.\n'),
-  "needsReview": zod.boolean().optional().describe('True when AI generated this task\'s fields and the user\nshould glance at them. UI surfaces a \'Review draft\' chip.\nFalse once the user edits or dismisses.\n')
+  "needsReview": zod.boolean().optional().describe('True when AI generated this task\'s fields and the user\nshould glance at them. UI surfaces a \'Review draft\' chip.\nFalse once the user edits or dismisses.\n'),
+  "energy": zod.enum(['quick', 'medium', 'deep']).nullish().describe('Optional energy band. \"quick\" ≈ ≤5 min, \"medium\" ≈ deep\nsingle-sitting, \"deep\" ≈ multi-hour focus. Null when the\nuser hasn\'t tagged the task. Powers the \"Right now\" filter\nand the \"Feeling scattered? See 3 quick wins.\" pill.\n')
 })
 export const SearchTasksResponse = zod.array(SearchTasksResponseItem)
 
@@ -653,7 +661,8 @@ export const createCaptureBodyWhenDefault = `later`;
 export const CreateCaptureBody = zod.object({
   "text": zod.string().min(1).max(createCaptureBodyTextMax).describe('The brain dump.'),
   "when": zod.enum(['today', 'later']).default(createCaptureBodyWhenDefault).describe('\"today\" puts the task on today\'s plan. \"later\" leaves it\nunscheduled (Inbox \/ Capture).\n'),
-  "areaId": zod.number().min(1).nullish().describe('Optional area to attach the task to.')
+  "areaId": zod.number().min(1).nullish().describe('Optional area to attach the task to.'),
+  "energy": zod.enum(['quick', 'medium', 'deep']).nullish().describe('Optional energy band the user picked while capturing.\nPersisted on the resulting task as `energy`.\n')
 }).describe('Body for POST \/capture. The user\'s verbatim text plus optional\nscheduling and area context. Server decides whether to invoke\nAI based on text length.\n')
 
 

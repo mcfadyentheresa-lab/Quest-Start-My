@@ -122,6 +122,7 @@ router.post(
         taskSource: "capture",
         originalDump,
         needsReview,
+        energy: body.energy ?? null,
       })
       .returning();
 
