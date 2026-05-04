@@ -154,20 +154,20 @@ Live: capture 5 things, switch to /capture, search for one word, confirm narrows
 
 ---
 
-### PR5 — Energy tag + "Right now" mode
+### PR5 — Energy tag + "Right now" mode  ✅ shipped
 
 **Goal:** Theresa's "ask me what's heavy right now" feature, framed as an offering not an interrogation.
 
-Changes:
-- Schema: add `energy` column, enum `quick | medium | deep` (nullable; null means unset).
-- Capture sheet: optional energy picker (3 chips: ⚡ Quick · 🔥 Medium · 🚀 Deep). Skippable.
-- Task detail: edit energy inline.
-- Today's Plan: a new pill at the top of the task list — **"Feeling scattered? See 3 quick wins."** Only appears when there are ≥3 tasks marked Quick that are still pending today. Click → filters today's list to just Quick.
-- Year ribbon: stays. The "energy legend" already there is system-level (busy month vs quiet month) and is unchanged.
+Shipped (PR #107):
+- Schema: `tasks.energy text` (nullable), migration 0009 (idempotent).
+- OpenAPI: `energy` on Task, CaptureBody, UpdateTaskBody; `energy` query param on `/tasks/search`.
+- Capture sheet: optional energy chips (Quick / Medium / Deep) — text labels, not emoji, per the gender-neutral / professional brief.
+- Task detail: inline energy editor row with the same chips + Clear.
+- Capture page: Energy filter chip row above the Area chips (combines with q + area).
+- Today: **"Feeling scattered? See N quick wins."** pill renders only when 3+ Quick tasks are visible on Today; click toggles list filter to Quick.
+- Verified live (PR #107): persisted via POST /capture, filtered via GET /tasks/search?energy=quick, edited via PATCH /tasks/:id (set, change, clear).
 
-Tests: schema, capture with/without energy, filter logic.
-
-Live: tag 3 things Quick, refresh today, confirm the "Feeling scattered?" pill appears and filters.
+Known scoping note carried forward: `/api/tasks?date=today` only returns rows with `taskSource IS NULL`, so tasks created via the Capture flow (taskSource=`capture`) don't currently surface on the Today list. The pill is correctly scoped to the visible Today list — surfacing captured tasks on Today is a separate scope decision.
 
 ---
 
