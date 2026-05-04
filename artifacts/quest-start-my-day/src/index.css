@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,300;1,9..144,400&family=DM+Sans:wght@300;400;500;600&display=swap');
+/* Inter Variable comes from /index.html (Google Fonts). No Fraunces or
+   DM Sans — Slate & Sand uses a single family across the product. */
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -61,7 +62,7 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* LIGHT MODE — cool focus palette: indigo + teal */
+/* LIGHT MODE — Slate & Sand: warm off-white surface, slate-blue accent. */
 :root {
   --button-outline: rgba(0,0,0, .08);
   --badge-outline: rgba(0,0,0, .05);
@@ -69,53 +70,53 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .07);
 
-  --background: 220 22% 97%;
-  --foreground: 222 38% 13%;
-  --border: 220 18% 87%;
-  --input: 220 18% 84%;
-  --ring: 238 62% 58%;
+  --background: 40 37% 97%;       /* #FAF8F4 warm off-white */
+  --foreground: 218 17% 13%;      /* #1B1F26 deep ink */
+  --border: 40 22% 87%;           /* #E5E0D6 hairline */
+  --input: 40 22% 87%;
+  --ring: 209 32% 36%;            /* #3F5D7A slate-blue */
 
-  --card: 220 25% 99%;
-  --card-foreground: 222 38% 13%;
-  --card-border: 220 16% 90%;
+  --card: 0 0% 100%;              /* #FFFFFF surface */
+  --card-foreground: 218 17% 13%;
+  --card-border: 40 22% 87%;
 
-  --popover: 220 25% 99%;
-  --popover-foreground: 222 38% 13%;
-  --popover-border: 220 16% 88%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 218 17% 13%;
+  --popover-border: 40 22% 87%;
 
-  --primary: 238 62% 58%;
+  --primary: 209 32% 36%;         /* #3F5D7A slate-blue accent */
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 220 18% 92%;
-  --secondary-foreground: 222 25% 24%;
+  --secondary: 38 30% 93%;        /* #F2EEE7 surface-2 */
+  --secondary-foreground: 218 17% 13%;
 
-  --muted: 220 18% 93%;
-  --muted-foreground: 220 12% 50%;
+  --muted: 38 30% 93%;            /* #F2EEE7 */
+  --muted-foreground: 220 12% 34%;/* #4B5260 ink-2 */
 
-  --accent: 174 52% 42%;
-  --accent-foreground: 0 0% 100%;
+  --accent: 210 37% 93%;          /* #E5ECF3 accent-soft */
+  --accent-foreground: 209 32% 36%;
 
-  --destructive: 0 72% 51%;
+  --destructive: 0 45% 42%;       /* #9B3B3B restrained red */
   --destructive-foreground: 0 0% 100%;
 
-  --sidebar: 220 22% 95%;
-  --sidebar-foreground: 222 38% 13%;
-  --sidebar-border: 220 16% 88%;
-  --sidebar-primary: 238 62% 58%;
+  --sidebar: 38 30% 93%;
+  --sidebar-foreground: 218 17% 13%;
+  --sidebar-border: 40 22% 87%;
+  --sidebar-primary: 209 32% 36%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 174 52% 42%;
-  --sidebar-accent-foreground: 0 0% 100%;
-  --sidebar-ring: 238 62% 58%;
+  --sidebar-accent: 210 37% 93%;
+  --sidebar-accent-foreground: 209 32% 36%;
+  --sidebar-ring: 209 32% 36%;
 
-  --chart-1: 238 62% 58%;
-  --chart-2: 174 52% 42%;
-  --chart-3: 210 70% 55%;
-  --chart-4: 280 45% 58%;
-  --chart-5: 45 85% 52%;
+  --chart-1: 209 32% 36%;         /* slate-blue */
+  --chart-2: 157 28% 34%;         /* quiet green */
+  --chart-3: 34 59% 38%;          /* earthy amber */
+  --chart-4: 220 12% 34%;         /* ink-2 */
+  --chart-5: 0 45% 42%;           /* restrained red */
 
-  --app-font-sans: 'DM Sans', system-ui, sans-serif;
-  --app-font-serif: 'Fraunces', Georgia, serif;
-  --app-font-mono: Menlo, monospace;
+  --app-font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --app-font-serif: 'Inter', system-ui, sans-serif;
+  --app-font-mono: ui-monospace, Menlo, monospace;
   --radius: 0.75rem;
 
   --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
@@ -127,7 +128,7 @@
   --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
-/* DARK MODE — deep navy focus */
+/* DARK MODE — Slate & Sand: deep blue-grey ground, lighter slate accent. */
 .dark {
   --button-outline: rgba(255,255,255, .10);
   --badge-outline: rgba(255,255,255, .05);
@@ -135,49 +136,49 @@
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  --background: 222 38% 8%;
-  --foreground: 220 28% 92%;
-  --border: 222 22% 20%;
-  --input: 222 22% 23%;
-  --ring: 238 65% 65%;
+  --background: 218 22% 7%;       /* #0E1116 */
+  --foreground: 216 12% 92%;      /* #E8EAED */
+  --border: 214 14% 19%;          /* #2A3038 */
+  --input: 214 14% 19%;
+  --ring: 210 41% 63%;            /* #7AA0C7 */
 
-  --card: 222 35% 11%;
-  --card-foreground: 220 28% 92%;
-  --card-border: 222 22% 18%;
+  --card: 215 21% 11%;            /* #161B22 */
+  --card-foreground: 216 12% 92%;
+  --card-border: 214 14% 19%;
 
-  --popover: 222 35% 11%;
-  --popover-foreground: 220 28% 92%;
-  --popover-border: 222 22% 18%;
+  --popover: 215 21% 11%;
+  --popover-foreground: 216 12% 92%;
+  --popover-border: 214 14% 19%;
 
-  --primary: 238 65% 65%;
+  --primary: 210 41% 63%;         /* #7AA0C7 */
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 222 22% 18%;
-  --secondary-foreground: 220 22% 78%;
+  --secondary: 214 19% 15%;       /* #1E242C */
+  --secondary-foreground: 216 12% 92%;
 
-  --muted: 222 22% 16%;
-  --muted-foreground: 220 14% 56%;
+  --muted: 214 19% 15%;
+  --muted-foreground: 217 11% 68%;/* #A4ABB6 */
 
-  --accent: 174 50% 46%;
-  --accent-foreground: 0 0% 100%;
+  --accent: 211 27% 17%;          /* #1F2A36 accent-soft */
+  --accent-foreground: 210 41% 63%;
 
-  --destructive: 0 62% 50%;
+  --destructive: 0 51% 64%;       /* #D27474 */
   --destructive-foreground: 0 0% 100%;
 
-  --sidebar: 222 38% 10%;
-  --sidebar-foreground: 220 28% 92%;
-  --sidebar-border: 222 22% 18%;
-  --sidebar-primary: 238 65% 65%;
+  --sidebar: 214 19% 15%;
+  --sidebar-foreground: 216 12% 92%;
+  --sidebar-border: 214 14% 19%;
+  --sidebar-primary: 210 41% 63%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 174 50% 46%;
-  --sidebar-accent-foreground: 0 0% 100%;
-  --sidebar-ring: 238 65% 65%;
+  --sidebar-accent: 211 27% 17%;
+  --sidebar-accent-foreground: 210 41% 63%;
+  --sidebar-ring: 210 41% 63%;
 
-  --chart-1: 238 65% 65%;
-  --chart-2: 174 50% 46%;
-  --chart-3: 210 65% 60%;
-  --chart-4: 280 42% 62%;
-  --chart-5: 45 80% 55%;
+  --chart-1: 210 41% 63%;
+  --chart-2: 156 29% 59%;
+  --chart-3: 34 59% 59%;
+  --chart-4: 217 11% 68%;
+  --chart-5: 0 51% 64%;
 
   --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
   --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
@@ -194,9 +195,14 @@
   }
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    /* Inter stylistic refinements: tabular-friendly digits + open 4. */
+    font-feature-settings: "cv11", "ss01";
   }
+  /* Slate & Sand: single family. Headings use Inter at heavier weight
+     and tighter tracking instead of switching to a serif. */
   h1, h2, h3 {
-    font-family: var(--app-font-serif);
+    font-family: var(--app-font-sans);
+    letter-spacing: -0.015em;
   }
 }
 
@@ -217,33 +223,33 @@
     --elevate-1: rgba(255,255,255, .04);
     --elevate-2: rgba(255,255,255, .09);
 
-    --background: 222 38% 8%;
-    --foreground: 220 28% 92%;
-    --border: 222 22% 20%;
-    --input: 222 22% 23%;
-    --ring: 238 65% 65%;
+    --background: 218 22% 7%;
+    --foreground: 216 12% 92%;
+    --border: 214 14% 19%;
+    --input: 214 14% 19%;
+    --ring: 210 41% 63%;
 
-    --card: 222 35% 11%;
-    --card-foreground: 220 28% 92%;
-    --card-border: 222 22% 18%;
+    --card: 215 21% 11%;
+    --card-foreground: 216 12% 92%;
+    --card-border: 214 14% 19%;
 
-    --popover: 222 35% 11%;
-    --popover-foreground: 220 28% 92%;
-    --popover-border: 222 22% 18%;
+    --popover: 215 21% 11%;
+    --popover-foreground: 216 12% 92%;
+    --popover-border: 214 14% 19%;
 
-    --primary: 238 65% 65%;
+    --primary: 210 41% 63%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 222 22% 18%;
-    --secondary-foreground: 220 22% 78%;
+    --secondary: 214 19% 15%;
+    --secondary-foreground: 216 12% 92%;
 
-    --muted: 222 22% 16%;
-    --muted-foreground: 220 14% 56%;
+    --muted: 214 19% 15%;
+    --muted-foreground: 217 11% 68%;
 
-    --accent: 174 50% 46%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 211 27% 17%;
+    --accent-foreground: 210 41% 63%;
 
-    --destructive: 0 62% 50%;
+    --destructive: 0 51% 64%;
     --destructive-foreground: 0 0% 100%;
   }
 }
