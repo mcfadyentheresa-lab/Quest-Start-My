@@ -69,6 +69,7 @@ describe("GoalCard — held state", () => {
         onDeleteGoal={asyncNoop}
         onSetCompleted={asyncNoop}
         onSetHoldUntil={asyncNoop}
+        onUpdateNotes={asyncNoop}
       />,
     );
 
@@ -101,6 +102,7 @@ describe("GoalCard — held state", () => {
         onDeleteGoal={asyncNoop}
         onSetCompleted={asyncNoop}
         onSetHoldUntil={asyncNoop}
+        onUpdateNotes={asyncNoop}
       />,
     );
     expect(html).not.toMatch(/opacity-60/);

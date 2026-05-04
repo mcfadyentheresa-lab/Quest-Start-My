@@ -187,11 +187,16 @@ export default function AreaDetailPage() {
   const draftTitle = draft.trim();
 
   // ---- New goal form state ----
+  // Title is required; notes are optional and persist as the milestone
+  // `description` field. A common use is pasting prompts or longer
+  // context that wouldn't fit in the title.
   const [newGoalTitle, setNewGoalTitle] = useState("");
+  const [newGoalNotes, setNewGoalNotes] = useState("");
 
   const handleCreateGoal = async () => {
     const title = newGoalTitle.trim();
     if (!validId || !title) return;
+    const notes = newGoalNotes.trim();
     try {
       await createMilestone.mutateAsync({
         data: {
@@ -199,9 +204,14 @@ export default function AreaDetailPage() {
           title,
           status: "planned",
           mode: "ordered",
+          // Only send a description when the user typed something.
+          // Empty string is treated as null on the server, so collapse
+          // it here for a cleaner payload.
+          ...(notes ? { description: notes } : {}),
         },
       });
       setNewGoalTitle("");
+      setNewGoalNotes("");
       invalidateAreaData();
       toast({ title: "Goal added", description: title });
     } catch {
@@ -388,29 +398,49 @@ export default function AreaDetailPage() {
           </h2>
         </div>
 
-        {/* New goal input */}
-        <div className="flex gap-2">
-          <Input
-            value={newGoalTitle}
-            onChange={(e) => setNewGoalTitle(e.target.value)}
+        {/* New goal input — title row + optional notes textarea below.
+            Pressing Enter in the title submits; in the notes box Enter
+            inserts a newline and Cmd/Ctrl+Enter submits. */}
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Input
+              value={newGoalTitle}
+              onChange={(e) => setNewGoalTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void handleCreateGoal();
+                }
+              }}
+              placeholder="Name a big job. (e.g., Launch the new site)"
+              className="text-sm"
+              data-testid="new-goal-title"
+            />
+            <Button
+              size="sm"
+              onClick={() => void handleCreateGoal()}
+              disabled={!newGoalTitle.trim() || createMilestone.isPending}
+              className="rounded-full"
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Add goal
+            </Button>
+          </div>
+          <Textarea
+            value={newGoalNotes}
+            onChange={(e) => setNewGoalNotes(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 void handleCreateGoal();
               }
             }}
-            placeholder="Name a big job. (e.g., Launch the new site)"
-            className="text-sm"
+            placeholder="Notes, prompts, or anything worth remembering. (optional)"
+            rows={3}
+            className="text-sm rounded-xl resize-y bg-muted/20 border-dashed"
+            data-testid="new-goal-notes"
+            aria-label="Goal notes (optional)"
           />
-          <Button
-            size="sm"
-            onClick={() => void handleCreateGoal()}
-            disabled={!newGoalTitle.trim() || createMilestone.isPending}
-            className="rounded-full"
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            Add goal
-          </Button>
         </div>
 
         {milestonesQuery.isLoading ? (
@@ -554,6 +584,20 @@ export default function AreaDetailPage() {
                       title: completedAt
                         ? "Couldn't mark complete."
                         : "Couldn't reopen.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+                onUpdateNotes={async (notes) => {
+                  try {
+                    await updateMilestone.mutateAsync({
+                      id: goal.id,
+                      data: { description: notes },
+                    });
+                    invalidateAreaData();
+                  } catch {
+                    toast({
+                      title: "Couldn't save notes.",
                       variant: "destructive",
                     });
                   }
@@ -872,6 +916,77 @@ function AreaNote({ value, onSave }: { value: string; onSave: (v: string) => voi
   );
 }
 
+/**
+ * Inline notes editor for a single goal. Mirrors the AreaNote pattern:
+ * collapsed shows muted preview text; click to expand into a Textarea
+ * that saves on blur or Cmd/Ctrl+Enter, and discards on Escape. Empty
+ * is fine — saves null to clear. Used to hold prompts and longer
+ * context that doesn't fit in the goal title.
+ */
+function GoalNote({
+  value,
+  onSave,
+  testId,
+}: {
+  value: string;
+  onSave: (v: string | null) => void;
+  testId?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => { setDraft(value); }, [value]);
+  useEffect(() => { if (editing) ref.current?.focus(); }, [editing]);
+
+  const commit = () => {
+    const cleaned = draft.trim();
+    const prev = value.trim();
+    if (cleaned !== prev) onSave(cleaned ? cleaned : null);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <Textarea
+        ref={ref}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            commit();
+          }
+          if (e.key === "Escape") {
+            setDraft(value);
+            setEditing(false);
+          }
+        }}
+        placeholder="Notes, prompts, or anything worth remembering."
+        rows={3}
+        className="text-sm rounded-xl resize-y bg-muted/20 border-dashed"
+        aria-label="Goal notes"
+        data-testid={testId ? `${testId}-edit` : undefined}
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      className="block w-full text-left rounded-xl border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground hover:bg-muted/30 transition-colors whitespace-pre-wrap"
+      aria-label={value ? "Edit notes" : "Add notes"}
+      data-testid={testId}
+    >
+      {value || (
+        <span className="italic opacity-80">Add notes, prompts, or anything worth remembering.</span>
+      )}
+    </button>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Goal card — collapsible, with steps, breakdown, mode toggle.
 // ─────────────────────────────────────────────────────────────────────────
@@ -893,6 +1008,8 @@ interface GoalCardProps {
   onDeleteGoal: () => Promise<void>;
   onSetCompleted: (completedAt: string | null) => Promise<void>;
   onSetHoldUntil: (holdUntilMilestoneId: number | null) => Promise<void>;
+  /** Persist the goal's notes (description). Pass null to clear. */
+  onUpdateNotes: (notes: string | null) => Promise<void>;
 }
 
 export function GoalCard({
@@ -911,6 +1028,7 @@ export function GoalCard({
   onDeleteGoal,
   onSetCompleted,
   onSetHoldUntil,
+  onUpdateNotes,
 }: GoalCardProps) {
   const isComplete = !!goal.completedAt;
   const isOnHold = !!goal.isOnHold;
@@ -1195,6 +1313,15 @@ export function GoalCard({
 
       {open && (
         <div className="px-3 pb-3 space-y-3 border-t border-card-border/60 pt-3">
+          {/* Notes — free-form, persisted as the milestone description.
+              Sits at the top of the expanded body so prompts and context
+              are visible before steps. */}
+          <GoalNote
+            value={goal.description ?? ""}
+            onSave={(v) => void onUpdateNotes(v)}
+            testId={`goal-notes-${goal.id}`}
+          />
+
           {/* Mode toggle + breakdown */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <button
