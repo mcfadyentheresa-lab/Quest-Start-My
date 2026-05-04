@@ -49,6 +49,8 @@ interface Task {
   adjustmentType?: string | null;
   adjustmentReason?: string | null;
   recurringTaskId?: number | null;
+  originalDump?: string | null;
+  needsReview?: boolean;
 }
 
 interface TaskCardProps {
@@ -116,6 +118,7 @@ export function TaskCard({ task, date, areaMap, goalMap, areaPriorities, reasoni
   const [showBlockerInput, setShowBlockerInput] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
+  const [dumpOpen, setDumpOpen] = useState(false);
   const reasoning = reasoningByTaskId?.get(task.id);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -285,6 +288,20 @@ export function TaskCard({ task, date, areaMap, goalMap, areaPriorities, reasoni
                 Recurring
               </span>
             )}
+            {task.needsReview === true && (
+              <button
+                type="button"
+                data-testid={`task-review-draft-${task.id}`}
+                title={dumpOpen ? "Hide original brain dump" : "AI cleaned this up — tap to see your original words"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDumpOpen((v) => !v);
+                }}
+                className="text-xs font-medium px-2 py-0.5 rounded-full border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/40"
+              >
+                Review draft
+              </button>
+            )}
           </div>
           <button
             className="text-left w-full group"
@@ -295,6 +312,28 @@ export function TaskCard({ task, date, areaMap, goalMap, areaPriorities, reasoni
               {task.title}
             </h3>
           </button>
+          <AnimatePresence initial={false}>
+            {dumpOpen && task.originalDump && (
+              <motion.div
+                key="dump"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.18 }}
+                className="mt-2 overflow-hidden"
+                data-testid={`task-original-dump-${task.id}`}
+              >
+                <div className="rounded-lg border border-amber-200 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-900/10 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-widest text-amber-800/80 dark:text-amber-300/80 font-semibold mb-1">
+                    Your original words
+                  </p>
+                  <p className="text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">
+                    {task.originalDump}
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
           {reasoning && (
             <div className="mt-1.5">
               <button

@@ -15,6 +15,7 @@ import recapRouter from "./recap";
 import reflectionsRouter from "./reflections";
 import yearRibbonRouter from "./year-ribbon";
 import recurringTasksRouter from "./recurring-tasks";
+import captureRouter from "./capture";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(recapRouter);
 router.use(reflectionsRouter);
 router.use(yearRibbonRouter);
 router.use(recurringTasksRouter);
+router.use(captureRouter);
 
 export default router;

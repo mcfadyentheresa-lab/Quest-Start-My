@@ -26,6 +26,7 @@ import type {
   Briefing,
   BulkCreateMilestoneStepsBody,
   BulkCreateMilestonesBody,
+  CaptureBody,
   CreateAreaBody,
   CreateDailyPlanBody,
   CreateMilestoneBody,
@@ -1942,6 +1943,82 @@ export const useDeleteRecurringTask = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteRecurringTaskMutationOptions(options));
+    }
+
+/**
+ * One write path for any captured idea. Short text is stored
+verbatim. Longer text is cleaned by AI into a crisp title plus
+whyItMatters / doneLooksLike, and the original text is preserved
+on the task as `originalDump` with `needsReview = true`.
+
+ * @summary Universal capture entry point
+ */
+export const getCreateCaptureUrl = () => {
+
+
+
+
+  return `/api/capture`
+}
+
+export const createCapture = async (captureBody: CaptureBody, options?: RequestInit): Promise<Task> => {
+
+  return customFetch<Task>(getCreateCaptureUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      captureBody,)
+  }
+);}
+
+
+
+
+export const getCreateCaptureMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCapture>>, TError,{data: BodyType<CaptureBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCapture>>, TError,{data: BodyType<CaptureBody>}, TContext> => {
+
+const mutationKey = ['createCapture'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCapture>>, {data: BodyType<CaptureBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCapture(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCaptureMutationResult = NonNullable<Awaited<ReturnType<typeof createCapture>>>
+    export type CreateCaptureMutationBody = BodyType<CaptureBody>
+    export type CreateCaptureMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Universal capture entry point
+ */
+export const useCreateCapture = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCapture>>, TError,{data: BodyType<CaptureBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCapture>>,
+        TError,
+        {data: BodyType<CaptureBody>},
+        TContext
+      > => {
+      return useMutation(getCreateCaptureMutationOptions(options));
     }
 
 /**

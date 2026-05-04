@@ -697,14 +697,6 @@ export default function Dashboard() {
           <h2 className="font-serif text-base font-medium text-foreground">
             {isViewingHistory ? `Tasks from ${formatShortDate(viewDate)}` : "Today's tasks"}
           </h2>
-          {!isViewingHistory && (
-            <AddTaskDialog date={viewDate}>
-              <Button variant="outline" size="sm" className="rounded-xl gap-1.5 text-xs">
-                <Plus className="h-3.5 w-3.5" />
-                Add task
-              </Button>
-            </AddTaskDialog>
-          )}
         </div>
 
         {!isViewingHistory && !timer.isRunning && !timer.isNudging && pendingTasksToday.length > 0 && (

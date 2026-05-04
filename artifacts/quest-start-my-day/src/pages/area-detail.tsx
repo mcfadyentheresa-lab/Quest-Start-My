@@ -1812,6 +1812,7 @@ interface TaskRowProps {
 
 function TaskRow({ task, onToggle, pending }: TaskRowProps) {
   const [expanded, setExpanded] = useState(false);
+  const [dumpOpen, setDumpOpen] = useState(false);
   const hasDetail = !!(task.whyItMatters || task.doneLooksLike || task.suggestedNextStep);
 
   return (
@@ -1851,6 +1852,33 @@ function TaskRow({ task, onToggle, pending }: TaskRowProps) {
               <Repeat className="h-2.5 w-2.5" aria-hidden="true" />
               Recurring
             </span>
+          )}
+          {task.needsReview === true && (
+            <button
+              type="button"
+              data-testid={`task-review-draft-${task.id}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setDumpOpen((v) => !v);
+              }}
+              title={dumpOpen ? "Hide original brain dump" : "AI cleaned this up — tap to see your original words"}
+              className="mt-1 ml-1 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/40"
+            >
+              Review draft
+            </button>
+          )}
+          {dumpOpen && task.originalDump && (
+            <div
+              data-testid={`task-original-dump-${task.id}`}
+              className="mt-2 rounded-lg border border-amber-200 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-900/10 px-3 py-2"
+            >
+              <p className="text-[10px] uppercase tracking-widest text-amber-800/80 dark:text-amber-300/80 font-semibold mb-1">
+                Your original words
+              </p>
+              <p className="text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">
+                {task.originalDump}
+              </p>
+            </div>
           )}
           {hasDetail && expanded && (
             <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
