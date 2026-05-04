@@ -990,6 +990,52 @@ date?: string;
 source?: string;
 };
 
+export type SearchTasksParams = {
+/**
+ * unprocessed = no date OR needsReview=true and not done.
+all = every task ever (default).
+completed = status=done only.
+
+ */
+bucket?: SearchTasksBucket;
+/**
+ * Case-insensitive substring match on title, whyItMatters, doneLooksLike, originalDump.
+ */
+q?: string;
+/**
+ * @minimum 1
+ */
+areaId?: number;
+status?: SearchTasksStatus;
+/**
+ * Max rows (default 100, hard cap 500).
+ * @minimum 1
+ * @maximum 500
+ */
+limit?: number;
+};
+
+export type SearchTasksBucket = typeof SearchTasksBucket[keyof typeof SearchTasksBucket];
+
+
+export const SearchTasksBucket = {
+  unprocessed: 'unprocessed',
+  all: 'all',
+  completed: 'completed',
+} as const;
+
+export type SearchTasksStatus = typeof SearchTasksStatus[keyof typeof SearchTasksStatus];
+
+
+export const SearchTasksStatus = {
+  pending: 'pending',
+  done: 'done',
+  pushed: 'pushed',
+  passed: 'passed',
+  blocked: 'blocked',
+  stepped_back: 'stepped_back',
+} as const;
+
 export type GetTaskSuggestionsParams = {
 /**
  * Date in YYYY-MM-DD format, defaults to today

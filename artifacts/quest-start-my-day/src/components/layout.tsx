@@ -16,7 +16,7 @@ import { UniversalCapture } from "@/components/universal-capture";
 
 const navItems = [
   { href: "/today", label: "Today", icon: Sun },
-  { href: "/inbox", label: "Inbox", icon: Inbox },
+  { href: "/capture", label: "Capture", icon: Inbox },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/areas", label: "Areas", icon: Settings },
 ];

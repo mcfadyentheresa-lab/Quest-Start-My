@@ -55,6 +55,7 @@ import type {
   ReentryInfo,
   ReflectionDraft,
   ReorderMilestoneStepsBody,
+  SearchTasksParams,
   StepBackTaskResponse,
   Task,
   TaskSuggestion,
@@ -1489,6 +1490,96 @@ export function useGetTaskInbox<TData = Awaited<ReturnType<typeof getTaskInbox>>
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetTaskInboxQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Flat task search for the Capture page. One endpoint serves all
+three sub-tabs (Unprocessed, All tasks, Completed) plus free-text
+search and filter chips.
+
+ */
+export const getSearchTasksUrl = (params?: SearchTasksParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/tasks/search?${stringifiedParams}` : `/api/tasks/search`
+}
+
+export const searchTasks = async (params?: SearchTasksParams, options?: RequestInit): Promise<Task[]> => {
+
+  return customFetch<Task[]>(getSearchTasksUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchTasksQueryKey = (params?: SearchTasksParams,) => {
+    return [
+    `/api/tasks/search`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchTasksQueryOptions = <TData = Awaited<ReturnType<typeof searchTasks>>, TError = ErrorType<unknown>>(params?: SearchTasksParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchTasks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchTasksQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchTasks>>> = ({ signal }) => searchTasks(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchTasks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type SearchTasksQueryResult = NonNullable<Awaited<ReturnType<typeof searchTasks>>>
+export type SearchTasksQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Flat task search for the Capture page. One endpoint serves all
+three sub-tabs (Unprocessed, All tasks, Completed) plus free-text
+search and filter chips.
+
+ */
+
+export function useSearchTasks<TData = Awaited<ReturnType<typeof searchTasks>>, TError = ErrorType<unknown>>(
+ params?: SearchTasksParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchTasks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getSearchTasksQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
