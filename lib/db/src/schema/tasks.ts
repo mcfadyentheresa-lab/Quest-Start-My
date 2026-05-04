@@ -41,6 +41,10 @@ export const tasksTable = pgTable("tasks", {
   // null/false for tasks created through any other path.
   originalDump: text("original_dump"),
   needsReview: boolean("needs_review").notNull().default(false),
+  // Optional energy band (PR5): "quick" | "medium" | "deep" or null when
+  // unset. Stored as plain text so we can extend later without an
+  // ALTER TYPE; validated at the application layer.
+  energy: text("energy"),
 }, (t) => ({
   userIdIdx: index("tasks_user_id_idx").on(t.userId),
   userDateIdx: index("tasks_user_date_idx").on(t.userId, t.date),

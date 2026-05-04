@@ -87,6 +87,11 @@ export default function Dashboard() {
   const [customDurationInput, setCustomDurationInput] = useState<string>("");
   const [showWizard, setShowWizard] = useState<boolean>(() => !isOnboardingComplete());
   const [emptyAddTaskOpen, setEmptyAddTaskOpen] = useState<boolean>(false);
+  // Energy filter for the Today tasks list. Null = show all.
+  // Powers the "Feeling scattered? See 3 quick wins." pill.
+  const [energyFilter, setEnergyFilter] = useState<
+    "quick" | "medium" | "deep" | null
+  >(null);
   // Phase 3: "This week" focus panel collapses by default. The dashboard
   // is mostly today — weekly context is one tap away when the user wants
   // to zoom out. Persisted to localStorage so the user's last choice
@@ -212,8 +217,18 @@ export default function Dashboard() {
     },
   });
 
-  const pendingTasks = tasks?.filter((t) => t.status === "pending") ?? [];
+  const allPendingTasks = tasks?.filter((t) => t.status === "pending") ?? [];
+  const pendingTasks = energyFilter
+    ? allPendingTasks.filter((t) => t.energy === energyFilter)
+    : allPendingTasks;
   const completedTasks = tasks?.filter((t) => t.status !== "pending") ?? [];
+
+  // Count of pending Quick tasks for today (used to decide whether to
+  // show the "Right now" pill). We count from the unfiltered list so
+  // toggling the filter doesn't make the pill flicker.
+  const quickTodayCount = (tasks ?? []).filter(
+    (t) => t.status === "pending" && t.date === today && t.energy === "quick",
+  ).length;
 
   function groupByArea(taskList: typeof pendingTasks) {
     if (!areas || areas.length === 0) return null;
@@ -698,6 +713,34 @@ export default function Dashboard() {
             {isViewingHistory ? `Tasks from ${formatShortDate(viewDate)}` : "Today's tasks"}
           </h2>
         </div>
+
+        {/* Right now — "Feeling scattered? See N quick wins." pill.
+            Surfaces only on today, only when there are 3+ pending Quick
+            tasks. Click toggles the energy filter on the list below. */}
+        {!isViewingHistory && quickTodayCount >= 3 && (
+          <div className="mb-3">
+            <button
+              type="button"
+              onClick={() =>
+                setEnergyFilter((prev) => (prev === "quick" ? null : "quick"))
+              }
+              data-testid="right-now-pill"
+              aria-pressed={energyFilter === "quick"}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                energyFilter === "quick"
+                  ? "border-foreground/40 bg-foreground/5 text-foreground"
+                  : "border-border bg-background text-foreground hover:bg-muted/40"
+              }`}
+            >
+              <span className="font-medium">Feeling scattered?</span>
+              <span className="text-muted-foreground">
+                {energyFilter === "quick"
+                  ? "Showing quick wins \u2014 tap to clear."
+                  : `See ${quickTodayCount} quick wins.`}
+              </span>
+            </button>
+          </div>
+        )}
 
         {!isViewingHistory && !timer.isRunning && !timer.isNudging && pendingTasksToday.length > 0 && (
           <motion.div

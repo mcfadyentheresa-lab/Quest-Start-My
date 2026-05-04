@@ -483,6 +483,13 @@ paths:
           schema:
             type: string
             enum: [pending, done, pushed, passed, blocked, stepped_back]
+        - name: energy
+          in: query
+          required: false
+          description: Filter to a single energy band.
+          schema:
+            type: string
+            enum: [quick, medium, deep]
         - name: limit
           in: query
           required: false
@@ -1500,6 +1507,15 @@ components:
             True when AI generated this task's fields and the user
             should glance at them. UI surfaces a 'Review draft' chip.
             False once the user edits or dismisses.
+        energy:
+          type: string
+          enum: [quick, medium, deep]
+          nullable: true
+          description: |
+            Optional energy band. "quick" ≈ ≤5 min, "medium" ≈ deep
+            single-sitting, "deep" ≈ multi-hour focus. Null when the
+            user hasn't tagged the task. Powers the "Right now" filter
+            and the "Feeling scattered? See 3 quick wins." pill.
       required:
         - id
         - title
@@ -1591,6 +1607,12 @@ components:
           type: string
           nullable: true
           description: Schedule (YYYY-MM-DD) or null to move back to the inbox.
+        energy:
+          type: string
+          enum: [quick, medium, deep]
+          nullable: true
+          description: |
+            Update the energy band, or set null to clear it.
 
     StepBackTaskResponse:
       type: object
@@ -2399,5 +2421,12 @@ components:
           minimum: 1
           nullable: true
           description: Optional area to attach the task to.
+        energy:
+          type: string
+          enum: [quick, medium, deep]
+          nullable: true
+          description: |
+            Optional energy band the user picked while capturing.
+            Persisted on the resulting task as `energy`.
       required:
         - text

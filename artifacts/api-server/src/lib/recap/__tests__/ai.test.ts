@@ -52,6 +52,7 @@ function task(
     taskSource: null,
     originalDump: null,
     needsReview: false,
+    energy: null,
   };
 }
 

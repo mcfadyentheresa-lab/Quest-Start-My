@@ -43,11 +43,18 @@ import {
 } from "@/components/ui/popover";
 
 type WhenChoice = "today" | "later";
+type EnergyChoice = "quick" | "medium" | "deep";
 
 const WHEN_LABEL: Record<WhenChoice, string> = {
   today: "Today",
   later: "Later",
 };
+
+const ENERGY_OPTIONS: { value: EnergyChoice; label: string; hint: string }[] = [
+  { value: "quick", label: "Quick", hint: "\u2264 5 min" },
+  { value: "medium", label: "Medium", hint: "focused sitting" },
+  { value: "deep", label: "Deep", hint: "multi-hour focus" },
+];
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -70,6 +77,7 @@ export function UniversalCapture() {
   const [text, setText] = useState("");
   const [areaId, setAreaId] = useState<number | null>(null);
   const [when, setWhen] = useState<WhenChoice>("later");
+  const [energy, setEnergy] = useState<EnergyChoice | null>(null);
   const [areaPickerOpen, setAreaPickerOpen] = useState(false);
   const [whenPickerOpen, setWhenPickerOpen] = useState(false);
   const [confirmation, setConfirmation] = useState<string | null>(null);
@@ -103,6 +111,7 @@ export function UniversalCapture() {
     setText("");
     setAreaId(null);
     setWhen("later");
+    setEnergy(null);
   };
 
   const close = () => {
@@ -130,6 +139,7 @@ export function UniversalCapture() {
           text: trimmed,
           when,
           areaId: areaId ?? undefined,
+          energy: energy ?? undefined,
         },
       });
       invalidate();
@@ -307,6 +317,46 @@ export function UniversalCapture() {
                   ))}
                 </PopoverContent>
               </Popover>
+            </div>
+
+            <div
+              className="flex flex-wrap items-center gap-1.5"
+              role="radiogroup"
+              aria-label="Energy needed"
+              data-testid="universal-capture-energy"
+            >
+              <span className="text-xs text-muted-foreground mr-1">Energy:</span>
+              {ENERGY_OPTIONS.map((opt) => {
+                const selected = energy === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setEnergy(selected ? null : opt.value)}
+                    title={opt.hint}
+                    data-testid={`universal-capture-energy-${opt.value}`}
+                    className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                      selected
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-background text-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+              {energy && (
+                <button
+                  type="button"
+                  onClick={() => setEnergy(null)}
+                  className="rounded-full px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+                  data-testid="universal-capture-energy-clear"
+                >
+                  Clear
+                </button>
+              )}
             </div>
 
             <div className="flex items-center justify-between gap-2 pt-1">

@@ -391,6 +391,22 @@ export const TaskAdjustmentType = {
   push: 'push',
 } as const;
 
+/**
+ * Optional energy band. "quick" ≈ ≤5 min, "medium" ≈ deep
+single-sitting, "deep" ≈ multi-hour focus. Null when the
+user hasn't tagged the task. Powers the "Right now" filter
+and the "Feeling scattered? See 3 quick wins." pill.
+
+ */
+export type TaskEnergy = typeof TaskEnergy[keyof typeof TaskEnergy] | null;
+
+
+export const TaskEnergy = {
+  quick: 'quick',
+  medium: 'medium',
+  deep: 'deep',
+} as const;
+
 export interface Task {
   id: number;
   title: string;
@@ -429,6 +445,12 @@ export interface Task {
   False once the user edits or dismisses.
    */
   needsReview?: boolean;
+  /** Optional energy band. "quick" ≈ ≤5 min, "medium" ≈ deep
+  single-sitting, "deep" ≈ multi-hour focus. Null when the
+  user hasn't tagged the task. Powers the "Right now" filter
+  and the "Feeling scattered? See 3 quick wins." pill.
+   */
+  energy?: TaskEnergy;
 }
 
 export type CreateTaskBodyCategory = typeof CreateTaskBodyCategory[keyof typeof CreateTaskBodyCategory];
@@ -487,6 +509,19 @@ export const UpdateTaskBodyBlockerType = {
   dependency: 'dependency',
 } as const;
 
+/**
+ * Update the energy band, or set null to clear it.
+
+ */
+export type UpdateTaskBodyEnergy = typeof UpdateTaskBodyEnergy[keyof typeof UpdateTaskBodyEnergy] | null;
+
+
+export const UpdateTaskBodyEnergy = {
+  quick: 'quick',
+  medium: 'medium',
+  deep: 'deep',
+} as const;
+
 export interface UpdateTaskBody {
   title?: string;
   category?: UpdateTaskBodyCategory;
@@ -503,6 +538,9 @@ export interface UpdateTaskBody {
   taskSource?: string | null;
   /** Schedule (YYYY-MM-DD) or null to move back to the inbox. */
   date?: string | null;
+  /** Update the energy band, or set null to clear it.
+   */
+  energy?: UpdateTaskBodyEnergy;
 }
 
 export interface StepBackTaskResponse {
@@ -948,6 +986,20 @@ export const CaptureBodyWhen = {
 } as const;
 
 /**
+ * Optional energy band the user picked while capturing.
+Persisted on the resulting task as `energy`.
+
+ */
+export type CaptureBodyEnergy = typeof CaptureBodyEnergy[keyof typeof CaptureBodyEnergy] | null;
+
+
+export const CaptureBodyEnergy = {
+  quick: 'quick',
+  medium: 'medium',
+  deep: 'deep',
+} as const;
+
+/**
  * Body for POST /capture. The user's verbatim text plus optional
 scheduling and area context. Server decides whether to invoke
 AI based on text length.
@@ -969,6 +1021,10 @@ export interface CaptureBody {
      * @minimum 1
      */
   areaId?: number | null;
+  /** Optional energy band the user picked while capturing.
+  Persisted on the resulting task as `energy`.
+   */
+  energy?: CaptureBodyEnergy;
 }
 
 export type ListMilestonesParams = {
@@ -1008,6 +1064,10 @@ q?: string;
 areaId?: number;
 status?: SearchTasksStatus;
 /**
+ * Filter to a single energy band.
+ */
+energy?: SearchTasksEnergy;
+/**
  * Max rows (default 100, hard cap 500).
  * @minimum 1
  * @maximum 500
@@ -1034,6 +1094,15 @@ export const SearchTasksStatus = {
   passed: 'passed',
   blocked: 'blocked',
   stepped_back: 'stepped_back',
+} as const;
+
+export type SearchTasksEnergy = typeof SearchTasksEnergy[keyof typeof SearchTasksEnergy];
+
+
+export const SearchTasksEnergy = {
+  quick: 'quick',
+  medium: 'medium',
+  deep: 'deep',
 } as const;
 
 export type GetTaskSuggestionsParams = {
