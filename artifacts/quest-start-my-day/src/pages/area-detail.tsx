@@ -1069,9 +1069,12 @@ export function GoalCard({
 }: GoalCardProps) {
   const isComplete = !!goal.completedAt;
   const isOnHold = !!goal.isOnHold;
-  // Default closed for completed goals — they collapse to a single line.
-  // Held goals also default closed: steps are still expandable on demand.
-  const [open, setOpen] = useState(!isComplete && !isOnHold);
+  // Default closed for ALL goals on this page. With many goals per area
+  // (often 10+), defaulting open creates a wall of empty "No steps yet"
+  // bodies that drown out the goal titles. Users open the goal they
+  // want to work on. Completed and held goals also stay closed (they
+  // were already closed under the old behavior).
+  const [open, setOpen] = useState(false);
   const [stepDraft, setStepDraft] = useState("");
   const [adding, setAdding] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -1093,14 +1096,15 @@ export function GoalCard({
     prevHoldRef.current = isOnHold;
   }, [isOnHold, isComplete]);
 
-  // Auto-collapse when a goal flips to complete (whether by manual toggle
-  // or by the last step being checked). Re-expand when reopened.
+  // Auto-collapse when a goal flips to complete. We do NOT re-open on
+  // un-complete: the new default is closed-everywhere, so reopening would
+  // contradict it. The user can re-expand on demand.
   const prevCompleteRef = useRef(isComplete);
   useEffect(() => {
-    if (prevCompleteRef.current !== isComplete) {
-      setOpen(!isComplete);
-      prevCompleteRef.current = isComplete;
+    if (!prevCompleteRef.current && isComplete) {
+      setOpen(false);
     }
+    prevCompleteRef.current = isComplete;
   }, [isComplete]);
 
   // Steps belonging to this goal: pending first (in their stored order),
