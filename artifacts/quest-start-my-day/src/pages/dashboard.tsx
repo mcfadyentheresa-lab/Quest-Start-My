@@ -6,6 +6,7 @@ import {
   useUpdateTask,
   useCreateTask,
   useListAreas,
+  useListMilestones,
   useListDailyPlans,
   useGetBriefingToday,
   useReshuffleBriefing,
@@ -138,6 +139,7 @@ export default function Dashboard() {
   );
   const { data: tasks, isLoading: tasksLoading, isError: tasksError, refetch: refetchTasks } = tasksQuery;
   const { data: areas } = useListAreas();
+  const { data: milestones } = useListMilestones();
   const updateTask = useUpdateTask();
   const createTask = useCreateTask();
 
@@ -384,6 +386,12 @@ export default function Dashboard() {
   }
 
   const areaMap = new Map(areas?.map((a) => [a.id, a]) ?? []);
+  // goalMap powers the goal source-chip on each task card. Built from the
+  // user-wide milestones list so any task with a milestoneId can show
+  // a clickable chip that jumps to its area page.
+  const goalMap = new Map(
+    milestones?.map((m) => [m.id, { id: m.id, title: m.title, areaId: m.areaId }]) ?? [],
+  );
   const briefing = briefingQuery.data;
   const recap = recapQuery.data;
   const headlineFromBriefing = showEveningRecap
@@ -831,6 +839,7 @@ export default function Dashboard() {
                         task={task}
                         date={viewDate}
                         areaMap={areaMap}
+                        goalMap={goalMap}
                         areaPriorities={summary?.weeklyPlan?.areaPriorities ?? []}
                           reasoningByTaskId={reasoningByTaskId}
                       />
@@ -846,6 +855,7 @@ export default function Dashboard() {
                     task={task}
                     date={viewDate}
                     areaMap={areaMap}
+                    goalMap={goalMap}
                     areaPriorities={summary?.weeklyPlan?.areaPriorities ?? []}
                           reasoningByTaskId={reasoningByTaskId}
                   />
@@ -876,6 +886,7 @@ export default function Dashboard() {
                             task={task}
                             date={viewDate}
                             areaMap={areaMap}
+                            goalMap={goalMap}
                             areaPriorities={summary?.weeklyPlan?.areaPriorities ?? []}
                           reasoningByTaskId={reasoningByTaskId}
                           />
@@ -891,6 +902,7 @@ export default function Dashboard() {
                         task={task}
                         date={viewDate}
                         areaMap={areaMap}
+                        goalMap={goalMap}
                         areaPriorities={summary?.weeklyPlan?.areaPriorities ?? []}
                           reasoningByTaskId={reasoningByTaskId}
                       />
