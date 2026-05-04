@@ -455,6 +455,52 @@ export const GetTaskInboxResponse = zod.array(GetTaskInboxResponseItem)
 
 
 /**
+ * @summary Flat task search for the Capture page. One endpoint serves all
+three sub-tabs (Unprocessed, All tasks, Completed) plus free-text
+search and filter chips.
+
+ */
+
+export const searchTasksQueryLimitMax = 500;
+
+
+
+export const SearchTasksQueryParams = zod.object({
+  "bucket": zod.enum(['unprocessed', 'all', 'completed']).optional().describe('unprocessed = no date OR needsReview=true and not done.\nall = every task ever (default).\ncompleted = status=done only.\n'),
+  "q": zod.coerce.string().optional().describe('Case-insensitive substring match on title, whyItMatters, doneLooksLike, originalDump.'),
+  "areaId": zod.coerce.number().min(1).optional(),
+  "status": zod.enum(['pending', 'done', 'pushed', 'passed', 'blocked', 'stepped_back']).optional(),
+  "limit": zod.coerce.number().min(1).max(searchTasksQueryLimitMax).optional().describe('Max rows (default 100, hard cap 500).')
+})
+
+export const SearchTasksResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "category": zod.enum(['business', 'creative', 'wellness']),
+  "whyItMatters": zod.string().nullish(),
+  "doneLooksLike": zod.string().nullish(),
+  "suggestedNextStep": zod.string().nullish(),
+  "status": zod.enum(['pending', 'done', 'pushed', 'passed', 'blocked', 'stepped_back']),
+  "areaId": zod.number().nullish(),
+  "milestoneId": zod.number().nullish(),
+  "blockerReason": zod.string().nullish(),
+  "date": zod.string().nullish().describe('Scheduled date (YYYY-MM-DD). Null = inbox (unscheduled).'),
+  "createdAt": zod.string(),
+  "parentTaskId": zod.number().nullish(),
+  "stepBackDepth": zod.number(),
+  "blockerType": zod.enum(['waiting_on_person', 'waiting_on_approval', 'missing_asset', 'access_issue', 'dependency']).nullish(),
+  "adjustmentType": zod.enum(['step_back', 'push']).nullish(),
+  "adjustmentReason": zod.string().nullish(),
+  "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.'),
+  "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.'),
+  "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n'),
+  "originalDump": zod.string().nullish().describe('Verbatim user text when AI cleaned a long brain dump into\nthis task\'s title\/whyItMatters\/doneLooksLike. Null for\ntasks created via any other path.\n'),
+  "needsReview": zod.boolean().optional().describe('True when AI generated this task\'s fields and the user\nshould glance at them. UI surfaces a \'Review draft\' chip.\nFalse once the user edits or dismisses.\n')
+})
+export const SearchTasksResponse = zod.array(SearchTasksResponseItem)
+
+
+/**
  * @summary Get suggested tasks for a given date based on active areas and milestones
  */
 export const GetTaskSuggestionsQueryParams = zod.object({

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, isNull, desc } from "drizzle-orm";
+import { eq, and, isNull, or, desc, ilike, type SQL } from "drizzle-orm";
 import { db, tasksTable, progressLogsTable, areasTable, milestonesTable } from "@workspace/db";
 import { getUserId } from "../lib/auth";
 import {
@@ -12,6 +12,7 @@ import {
   UpdateTaskResponse,
   StepBackTaskParams,
   GetTaskSuggestionsQueryParams,
+  SearchTasksQueryParams,
 } from "@workspace/api-zod";
 import { asyncHandler } from "../lib/async-handler";
 import { materializeRecurringTasks } from "../lib/recurring-materialize";
@@ -242,6 +243,70 @@ router.get("/tasks/suggestions", asyncHandler(async (req, res): Promise<void> =>
   }
 
   res.json(suggestions);
+}));
+
+/**
+ * Flat task search across all of the user's tasks. Powers the Capture
+ * page (Unprocessed / All tasks / Completed sub-tabs + free-text + chips).
+ *
+ * Newest-first by createdAt. Hard cap at 500 rows so a search on a huge
+ * library doesn't accidentally return everything.
+ */
+router.get("/tasks/search", asyncHandler(async (req, res): Promise<void> => {
+  const userId = getUserId(req);
+  const parsed = SearchTasksQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { bucket = "all", q, areaId, status, limit = 100 } = parsed.data;
+
+  const filters: SQL[] = [eq(tasksTable.userId, userId)];
+
+  // Source scoping. We surface user-entered work only: tasks with no
+  // source (legacy/manual) plus tasks captured via the new Capture flow.
+  // AI-driven home module check-ins (taskSource = 'home') stay out so
+  // they don't pollute the trust-layer view.
+  const sourceClause = or(
+    isNull(tasksTable.taskSource),
+    eq(tasksTable.taskSource, "capture"),
+  );
+  if (sourceClause) filters.push(sourceClause);
+
+  if (bucket === "unprocessed") {
+    // Things that still need a decision: undated OR flagged for review.
+    // Done tasks are always excluded from this bucket.
+    const unprocessedClause = and(
+      or(isNull(tasksTable.date), eq(tasksTable.needsReview, true)),
+      eq(tasksTable.status, "pending"),
+    );
+    if (unprocessedClause) filters.push(unprocessedClause);
+  } else if (bucket === "completed") {
+    filters.push(eq(tasksTable.status, "done"));
+  }
+
+  if (status) filters.push(eq(tasksTable.status, status));
+  if (areaId != null) filters.push(eq(tasksTable.areaId, areaId));
+
+  if (q && q.trim().length > 0) {
+    const needle = `%${q.trim()}%`;
+    const searchClause = or(
+      ilike(tasksTable.title, needle),
+      ilike(tasksTable.whyItMatters, needle),
+      ilike(tasksTable.doneLooksLike, needle),
+      ilike(tasksTable.originalDump, needle),
+    );
+    if (searchClause) filters.push(searchClause);
+  }
+
+  const rows = await db
+    .select()
+    .from(tasksTable)
+    .where(and(...filters))
+    .orderBy(desc(tasksTable.createdAt))
+    .limit(Math.min(limit, 500));
+
+  res.json(rows.map(serializeTask));
 }));
 
 router.patch("/tasks/:id", asyncHandler(async (req, res): Promise<void> => {

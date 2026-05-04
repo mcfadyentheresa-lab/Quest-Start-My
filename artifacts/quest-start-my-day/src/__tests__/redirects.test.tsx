@@ -20,6 +20,7 @@ function TestRouter() {
   return (
     <Switch>
       <Route path="/today">{() => <span data-testid="today" />}</Route>
+      <Route path="/capture">{() => <span data-testid="capture" />}</Route>
       <Route path="/calendar">{() => <span data-testid="calendar" />}</Route>
       <Route path="/areas">{() => <span data-testid="areas" />}</Route>
       <Route path="/home">{() => <span data-testid="home" />}</Route>
@@ -29,6 +30,7 @@ function TestRouter() {
       <Route path="/review">{() => <Redirect to="/calendar?view=month" />}</Route>
       <Route path="/year">{() => <Redirect to="/calendar?view=year" />}</Route>
       <Route path="/pillars">{() => <Redirect to="/areas" />}</Route>
+      <Route path="/inbox">{() => <Redirect to="/capture" />}</Route>
       <Route>{() => <span data-testid="not-found" />}</Route>
     </Switch>
   );
@@ -42,6 +44,7 @@ describe("legacy route redirects", () => {
     { from: "/review", to: "/calendar?view=month" },
     { from: "/year", to: "/calendar?view=year" },
     { from: "/pillars", to: "/areas" },
+    { from: "/inbox", to: "/capture" },
   ];
 
   it.each(cases)("$from -> $to", async ({ from, to }) => {
