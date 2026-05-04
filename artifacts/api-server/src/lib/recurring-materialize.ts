@@ -17,7 +17,7 @@
 //
 // All operations are scoped to the supplied userId.
 
-import { and, eq, lt, isNotNull, isNull, ne, inArray } from "drizzle-orm";
+import { and, eq, lt, or, isNotNull, isNull, inArray } from "drizzle-orm";
 import { db, recurringTasksTable, tasksTable } from "@workspace/db";
 import { isDueOn } from "./recurring-due";
 
@@ -90,14 +90,21 @@ export async function materializeRecurringTasks(userId: string, todayIso: string
   }
 
   // Step 3: bump lastMaterializedDate on every due template (whether or
-  // not we actually inserted) so we don't keep re-checking.
+  // not we actually inserted) so we don't keep re-checking. We deliberately
+  // do NOT use `ne(col, todayIso)` to skip already-bumped rows, because
+  // when the column is NULL `ne` evaluates to UNKNOWN in SQL and the row
+  // is filtered out. Two acceptable approaches: write the same value back
+  // (a no-op cost) or guard with `OR IS NULL`. We use the explicit guard
+  // so we don't pay an UPDATE cost on rows that are already at today.
   await db
     .update(recurringTasksTable)
     .set({ lastMaterializedDate: todayIso, updatedAt: new Date() })
     .where(and(
       eq(recurringTasksTable.userId, userId),
       inArray(recurringTasksTable.id, dueTemplateIds),
-      // Don't downgrade if some other call already moved it forward.
-      ne(recurringTasksTable.lastMaterializedDate, todayIso),
+      or(
+        isNull(recurringTasksTable.lastMaterializedDate),
+        lt(recurringTasksTable.lastMaterializedDate, todayIso),
+      ),
     ));
 }

@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, SkipForward, Pause, AlertCircle, ChevronDown, ChevronUp,
-  Trash2, Pencil, ChevronsDown, ArrowLeft, Target,
+  Trash2, Pencil, ChevronsDown, ArrowLeft, Target, Repeat,
 } from "lucide-react";
 import { useUpdateTask, useDeleteTask, useStepBackTask } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -48,6 +48,7 @@ interface Task {
   blockerType?: string | null;
   adjustmentType?: string | null;
   adjustmentReason?: string | null;
+  recurringTaskId?: number | null;
 }
 
 interface TaskCardProps {
@@ -272,6 +273,16 @@ export function TaskCard({ task, date, areaMap, goalMap, areaPriorities, reasoni
               <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 flex items-center gap-1">
                 <ArrowLeft className="h-2.5 w-2.5" />
                 Prerequisite
+              </span>
+            )}
+            {task.recurringTaskId != null && (
+              <span
+                data-testid={`task-recurring-badge-${task.id}`}
+                title="Repeats on a schedule"
+                className="text-xs font-medium px-2 py-0.5 rounded-full border border-border/60 bg-muted/40 text-muted-foreground flex items-center gap-1"
+              >
+                <Repeat className="h-2.5 w-2.5" aria-hidden="true" />
+                Recurring
               </span>
             )}
           </div>
