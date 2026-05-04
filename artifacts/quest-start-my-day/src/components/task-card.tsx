@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, SkipForward, Pause, AlertCircle, ChevronDown, ChevronUp,
-  Trash2, Pencil, ChevronsDown, ArrowLeft,
+  Trash2, Pencil, ChevronsDown, ArrowLeft, Target,
 } from "lucide-react";
 import { useUpdateTask, useDeleteTask, useStepBackTask } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -18,6 +19,14 @@ interface Area {
   id: number;
   name: string;
   color?: string | null;
+}
+
+// Minimal subset of a goal/milestone we need to render the source chip.
+// Built by the parent page (e.g. dashboard) and passed in via `goalMap`.
+export interface TaskCardGoal {
+  id: number;
+  title: string;
+  areaId: number;
 }
 
 interface Task {
@@ -45,6 +54,10 @@ interface TaskCardProps {
   task: Task;
   date: string;
   areaMap?: Map<number, Area>;
+  /** Map of milestone (goal) id → minimal goal info. When provided and the
+   *  task has a milestoneId, the card renders a clickable goal chip that
+   *  links to the goal in its area. */
+  goalMap?: Map<number, TaskCardGoal>;
   areaPriorities?: number[];
   reasoningByTaskId?: Map<number, string>;
 }
@@ -95,7 +108,7 @@ const BLOCKER_TYPES = [
   { value: "dependency", label: "Outside dependency" },
 ] as const;
 
-export function TaskCard({ task, date, areaMap, areaPriorities, reasoningByTaskId }: TaskCardProps) {
+export function TaskCard({ task, date, areaMap, goalMap, areaPriorities, reasoningByTaskId }: TaskCardProps) {
   const [expanded, setExpanded] = useState(task.status === "pending" || task.status === "stepped_back");
   const [blockerDraft, setBlockerDraft] = useState("");
   const [selectedBlockerType, setSelectedBlockerType] = useState<string>("");
@@ -112,6 +125,11 @@ export function TaskCard({ task, date, areaMap, areaPriorities, reasoningByTaskI
   const statusInfo = statusConfig[task.status as keyof typeof statusConfig] ?? statusConfig.pending;
   const area = task.areaId && areaMap ? areaMap.get(task.areaId) : undefined;
   const isActiveArea = area && areaPriorities ? areaPriorities.includes(area.id) : false;
+  const goal = task.milestoneId && goalMap ? goalMap.get(task.milestoneId) : undefined;
+  // The goal must belong to the same area we'd link to. If the data is
+  // inconsistent (shouldn't happen, but be defensive), fall back to the
+  // goal's own areaId for the link target.
+  const goalLinkAreaId = goal?.areaId ?? task.areaId ?? null;
   const depth = task.stepBackDepth ?? 0;
   const canStepBack = depth < MAX_STEP_BACK_DEPTH;
   const isPrerequisite = !!task.parentTaskId && task.adjustmentType === "step_back";
@@ -204,9 +222,20 @@ export function TaskCard({ task, date, areaMap, areaPriorities, reasoningByTaskI
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <CategoryBadge category={task.category} />
-            {area && isActiveArea && (
-              <span
-                className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border"
+            {area && (
+              // Source chip: where this task lives. Always shown when we
+              // know the area, not just for "active" areas, so users always
+              // have a visible reference and a one-click jump. We stop
+              // pointer events from bubbling so the chip doesn't also open
+              // the task detail sheet.
+              <Link
+                href={`/areas/${area.id}`}
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`Open ${area.name}`}
+                data-testid={`task-area-chip-${task.id}`}
+                className={`flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border transition-colors hover:underline decoration-dotted underline-offset-2 ${
+                  isActiveArea ? "" : "opacity-80"
+                }`}
                 style={{
                   borderColor: area.color ? `${area.color}55` : undefined,
                   backgroundColor: area.color ? `${area.color}18` : undefined,
@@ -217,7 +246,22 @@ export function TaskCard({ task, date, areaMap, areaPriorities, reasoningByTaskI
                   <span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: area.color }} />
                 )}
                 {area.name}
-              </span>
+              </Link>
+            )}
+            {goal && goalLinkAreaId !== null && (
+              // Goal source chip: which goal under that area drives this
+              // task. Same click-stop pattern as the area chip. Truncates
+              // long titles so the row stays single-height.
+              <Link
+                href={`/areas/${goalLinkAreaId}`}
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`Open goal: ${goal.title}`}
+                data-testid={`task-goal-chip-${task.id}`}
+                className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-border/60 bg-muted/40 text-muted-foreground hover:text-foreground hover:underline decoration-dotted underline-offset-2 max-w-[16rem]"
+              >
+                <Target className="h-2.5 w-2.5 flex-shrink-0" aria-hidden="true" />
+                <span className="truncate">{goal.title}</span>
+              </Link>
             )}
             {task.status !== "pending" && (
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusInfo.badgeClass}`}>
