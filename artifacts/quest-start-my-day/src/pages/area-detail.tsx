@@ -60,6 +60,7 @@ import {
   Wand2,
   Check,
   Lock,
+  Repeat,
 } from "lucide-react";
 import {
   Popover,
@@ -98,6 +99,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { PriorityBadge, PriorityHelp } from "@/components/priority-badge";
+import { RecurringSection } from "@/components/recurring-section";
 import { useToast } from "@/hooks/use-toast";
 import { parseStepsPaste } from "@/lib/parse-list";
 
@@ -706,6 +708,11 @@ export default function AreaDetailPage() {
           )}
         </section>
       )}
+
+      {/* Recurring — templates that auto-add to Today on their cadence.
+          Mounts only when we have a valid area id. Collapsed by default
+          to keep the page calm. */}
+      {validId && <RecurringSection areaId={areaId} />}
 
       {/* Recently closed */}
       {recentlyClosed.length > 0 && (
@@ -1835,6 +1842,16 @@ function TaskRow({ task, onToggle, pending }: TaskRowProps) {
           >
             {task.title}
           </button>
+          {task.recurringTaskId != null && (
+            <span
+              data-testid={`task-recurring-badge-${task.id}`}
+              className="mt-1 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-card-border bg-muted/40 text-muted-foreground"
+              title="Repeats on a schedule"
+            >
+              <Repeat className="h-2.5 w-2.5" aria-hidden="true" />
+              Recurring
+            </span>
+          )}
           {hasDetail && expanded && (
             <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
               {task.whyItMatters && (
