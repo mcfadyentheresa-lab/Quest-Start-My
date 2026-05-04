@@ -441,11 +441,12 @@ export default function Dashboard() {
                 onChooseActiveAreas={() => navigate("/areas")}
                 onAddTask={() => setEmptyAddTaskOpen(true)}
               />
-              {briefing.signoff && briefing.briefing.length > 0 && (
-                <p className="text-sm italic text-muted-foreground px-1 mt-2">
-                  {briefing.signoff}
-                </p>
-              )}
+              {/* AI briefing signoff (e.g. "Keep pushing forward, Theresa!")
+                  is intentionally not rendered: it clashes with the
+                  "quiet chief of staff" voice. The server still produces
+                  it for now — we just don't show it on /today. If we
+                  decide to drop it permanently, also remove it from the
+                  briefing schema and the LLM prompt. */}
             </>
           )}
         </div>
@@ -501,11 +502,9 @@ export default function Dashboard() {
                   saveReflectionMutation.mutate({ reflection: text })
                 }
               />
-              {recap.signoff && (
-                <p className="text-sm italic text-muted-foreground px-1">
-                  {recap.signoff}
-                </p>
-              )}
+              {/* Evening recap signoff is hidden for the same reason as
+                  the morning briefing signoff above — keeps the voice
+                  quiet. Server still produces it. */}
             </>
           )}
         </>
