@@ -61,6 +61,7 @@ import {
   Check,
   Lock,
   Repeat,
+  Pencil,
 } from "lucide-react";
 import {
   Popover,
@@ -604,6 +605,21 @@ export default function AreaDetailPage() {
                     });
                   }
                 }}
+                onUpdateTitle={async (title) => {
+                  try {
+                    await updateMilestone.mutateAsync({
+                      id: goal.id,
+                      data: { title },
+                    });
+                    invalidateAreaData();
+                    toast({ title: "Goal renamed." });
+                  } catch {
+                    toast({
+                      title: "Couldn't save goal name.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
               />
             ))}
           </ul>
@@ -1054,6 +1070,8 @@ interface GoalCardProps {
   onSetHoldUntil: (holdUntilMilestoneId: number | null) => Promise<void>;
   /** Persist the goal's notes (description). Pass null to clear. */
   onUpdateNotes: (notes: string | null) => Promise<void>;
+  /** Persist a new title for this goal. Empty / unchanged is a no-op. */
+  onUpdateTitle: (title: string) => Promise<void>;
 }
 
 export function GoalCard({
@@ -1073,6 +1091,7 @@ export function GoalCard({
   onSetCompleted,
   onSetHoldUntil,
   onUpdateNotes,
+  onUpdateTitle,
 }: GoalCardProps) {
   const isComplete = !!goal.completedAt;
   const isOnHold = !!goal.isOnHold;
@@ -1086,6 +1105,24 @@ export function GoalCard({
   const [adding, setAdding] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [holdPickerOpen, setHoldPickerOpen] = useState(false);
+  // Inline title edit. Pencil flips this on; Enter / blur saves; Esc cancels.
+  // Empty trimmed value is rejected (we never persist a blank goal title);
+  // unchanged value is a no-op so we don't fire pointless PATCHes.
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(goal.title);
+  const titleInputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => { setTitleDraft(goal.title); }, [goal.title]);
+  useEffect(() => { if (editingTitle) titleInputRef.current?.focus(); }, [editingTitle]);
+  const commitTitle = async () => {
+    const cleaned = titleDraft.trim();
+    if (cleaned.length === 0 || cleaned === goal.title) {
+      setTitleDraft(goal.title);
+      setEditingTitle(false);
+      return;
+    }
+    setEditingTitle(false);
+    await onUpdateTitle(cleaned);
+  };
 
   // Held → resolve the prerequisite goal title from siblings for the pill.
   const heldUntil = useMemo(() => {
@@ -1238,34 +1275,82 @@ export function GoalCard({
       )}
       {/* Goal header row */}
       <div className="flex items-start justify-between gap-2 p-3">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="flex items-start gap-2 flex-1 min-w-0 text-left"
-          aria-expanded={open}
-        >
-          {open ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-          )}
-          <div className="flex-1 min-w-0">
-            <p className={`text-sm font-medium truncate ${
-              isComplete ? "text-muted-foreground line-through" : "text-foreground"
-            }`}>
-              {goal.title}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {isOnHold && !open
-                ? `${steps.length} ${steps.length === 1 ? "step" : "steps"} — show`
-                : steps.length === 0
-                  ? "No steps yet."
-                  : `${doneCount} of ${steps.length} done${
-                      goal.mode === "ordered" ? " · step-by-step" : " · any order"
-                    }`}
-            </p>
+        {editingTitle ? (
+          // Edit mode: replace the chevron-button with an input. We don't
+          // nest the input inside a <button> (invalid HTML) — the chevron
+          // becomes an inert icon while editing.
+          <div className="flex items-start gap-2 flex-1 min-w-0">
+            {open ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+            )}
+            <Input
+              ref={titleInputRef}
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={() => { void commitTitle(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void commitTitle();
+                } else if (e.key === "Escape") {
+                  setTitleDraft(goal.title);
+                  setEditingTitle(false);
+                }
+              }}
+              aria-label="Goal title"
+              data-testid={`goal-title-edit-${goal.id}`}
+              className="h-7 text-sm font-medium"
+            />
           </div>
-        </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="flex items-start gap-2 flex-1 min-w-0 text-left"
+            aria-expanded={open}
+          >
+            {open ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-medium truncate ${
+                isComplete ? "text-muted-foreground line-through" : "text-foreground"
+              }`}>
+                {goal.title}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {isOnHold && !open
+                  ? `${steps.length} ${steps.length === 1 ? "step" : "steps"} — show`
+                  : steps.length === 0
+                    ? "No steps yet."
+                    : `${doneCount} of ${steps.length} done${
+                        goal.mode === "ordered" ? " · step-by-step" : " · any order"
+                      }`}
+              </p>
+            </div>
+          </button>
+        )}
+        {/* Pencil — flips title into edit mode. Hidden when complete
+            (rename a reopened goal first) and when already editing. */}
+        {!isComplete && !editingTitle && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              setTitleDraft(goal.title);
+              setEditingTitle(true);
+            }}
+            aria-label={`Rename goal: ${goal.title}`}
+            data-testid={`goal-title-edit-trigger-${goal.id}`}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+        )}
         {/* Hold until — small popover. Hidden when the goal is complete. */}
         {!isComplete && (
           <Popover open={holdPickerOpen} onOpenChange={setHoldPickerOpen}>
