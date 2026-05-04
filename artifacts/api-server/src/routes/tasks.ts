@@ -14,6 +14,7 @@ import {
   GetTaskSuggestionsQueryParams,
 } from "@workspace/api-zod";
 import { asyncHandler } from "../lib/async-handler";
+import { materializeRecurringTasks } from "../lib/recurring-materialize";
 
 const router: IRouter = Router();
 
@@ -82,6 +83,14 @@ router.get("/tasks", asyncHandler(async (req, res): Promise<void> => {
   const today = new Date().toISOString().slice(0, 10);
   const date = query.success && query.data.date ? query.data.date : today;
   const source = query.success ? query.data.source : undefined;
+
+  // Lazy materialization for recurring task templates. Only fires on the
+  // "today" view (the daily plan); historical lookups stay read-only so
+  // browsing a past day never mutates state. Source-filtered fetches
+  // (e.g. ADHD home tasks) also skip — recurrences are regular work tasks.
+  if (date === today && !source) {
+    await materializeRecurringTasks(userId, today);
+  }
 
   const whereClause = source
     ? and(eq(tasksTable.userId, userId), eq(tasksTable.date, date), eq(tasksTable.taskSource, source))

@@ -28,6 +28,8 @@ tags:
     description: Daily planning operations
   - name: reflections
     description: Reflection draft operations
+  - name: recurring-tasks
+    description: Recurring task template operations
 paths:
   /healthz:
     get:
@@ -488,6 +490,80 @@ paths:
           description: Cannot step back (max depth reached or invalid task state)
         "404":
           description: Task not found
+
+  /recurring-tasks:
+    get:
+      operationId: listRecurringTasks
+      tags: [recurring-tasks]
+      summary: List all recurring task templates
+      responses:
+        "200":
+          description: List of recurring task templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RecurringTask"
+    post:
+      operationId: createRecurringTask
+      tags: [recurring-tasks]
+      summary: Create a recurring task template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRecurringTaskBody"
+      responses:
+        "201":
+          description: Created recurring task template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecurringTask"
+
+  /recurring-tasks/{id}:
+    patch:
+      operationId: updateRecurringTask
+      tags: [recurring-tasks]
+      summary: Update a recurring task template
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRecurringTaskBody"
+      responses:
+        "200":
+          description: Updated recurring task template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecurringTask"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteRecurringTask
+      tags: [recurring-tasks]
+      summary: Delete a recurring task template
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
 
   /weekly:
     get:
@@ -1325,6 +1401,13 @@ components:
         sortOrder:
           type: integer
           description: Position within the parent milestone ("goal"). Lowest pending sortOrder is the next step in step-by-step goals.
+        recurringTaskId:
+          type: integer
+          nullable: true
+          description: |
+            Set when this task was materialized from a recurring template.
+            Null for ad-hoc tasks. Read-only — created by the server when
+            it materializes the daily plan.
       required:
         - id
         - title
@@ -2068,3 +2151,134 @@ components:
         - nextFocus
         - source
         - generatedAt
+
+    RecurringTask:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        category:
+          type: string
+          enum: [business, creative, wellness]
+        areaId:
+          type: integer
+          nullable: true
+        milestoneId:
+          type: integer
+          nullable: true
+        frequency:
+          type: string
+          enum: [daily, weekly, monthly]
+        weekdays:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+          nullable: true
+          description: Weekdays this template fires on (0=Sun..6=Sat). Required when frequency is "weekly".
+        dayOfMonth:
+          type: integer
+          minimum: 1
+          maximum: 31
+          nullable: true
+          description: Day of month this template fires on. Required when frequency is "monthly". Clamped to month length when shorter.
+        startDate:
+          type: string
+          description: YYYY-MM-DD. The cadence does not produce instances before this date.
+        lastMaterializedDate:
+          type: string
+          nullable: true
+          description: YYYY-MM-DD. Latest date for which an instance has been considered. Read-only.
+        pausedAt:
+          type: string
+          nullable: true
+          description: ISO timestamp. When set, the template is paused — no new instances are materialized.
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - title
+        - category
+        - frequency
+        - startDate
+        - createdAt
+        - updatedAt
+
+    CreateRecurringTaskBody:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        category:
+          type: string
+          enum: [business, creative, wellness]
+        areaId:
+          type: integer
+          nullable: true
+        milestoneId:
+          type: integer
+          nullable: true
+        frequency:
+          type: string
+          enum: [daily, weekly, monthly]
+        weekdays:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+          nullable: true
+        dayOfMonth:
+          type: integer
+          minimum: 1
+          maximum: 31
+          nullable: true
+        startDate:
+          type: string
+          description: YYYY-MM-DD. Defaults to today on the server when omitted.
+      required:
+        - title
+        - frequency
+
+    UpdateRecurringTaskBody:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        category:
+          type: string
+          enum: [business, creative, wellness]
+        areaId:
+          type: integer
+          nullable: true
+        milestoneId:
+          type: integer
+          nullable: true
+        frequency:
+          type: string
+          enum: [daily, weekly, monthly]
+        weekdays:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+          nullable: true
+        dayOfMonth:
+          type: integer
+          minimum: 1
+          maximum: 31
+          nullable: true
+        startDate:
+          type: string
+        pausedAt:
+          type: string
+          nullable: true
+          description: Set to an ISO timestamp to pause; null to resume.

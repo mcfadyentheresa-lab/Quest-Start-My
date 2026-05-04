@@ -124,7 +124,8 @@ export const ListAreaTasksResponseItem = zod.object({
   "adjustmentType": zod.enum(['step_back', 'push']).nullish(),
   "adjustmentReason": zod.string().nullish(),
   "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.'),
-  "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.')
+  "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.'),
+  "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n')
 })
 export const ListAreaTasksResponse = zod.array(ListAreaTasksResponseItem)
 
@@ -304,7 +305,8 @@ export const ReorderMilestoneStepsResponseItem = zod.object({
   "adjustmentType": zod.enum(['step_back', 'push']).nullish(),
   "adjustmentReason": zod.string().nullish(),
   "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.'),
-  "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.')
+  "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.'),
+  "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n')
 })
 export const ReorderMilestoneStepsResponse = zod.array(ReorderMilestoneStepsResponseItem)
 
@@ -336,7 +338,8 @@ export const ListTasksResponseItem = zod.object({
   "adjustmentType": zod.enum(['step_back', 'push']).nullish(),
   "adjustmentReason": zod.string().nullish(),
   "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.'),
-  "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.')
+  "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.'),
+  "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n')
 })
 export const ListTasksResponse = zod.array(ListTasksResponseItem)
 
@@ -400,7 +403,8 @@ export const UpdateTaskResponse = zod.object({
   "adjustmentType": zod.enum(['step_back', 'push']).nullish(),
   "adjustmentReason": zod.string().nullish(),
   "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.'),
-  "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.')
+  "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.'),
+  "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n')
 })
 
 
@@ -434,7 +438,8 @@ export const GetTaskInboxResponseItem = zod.object({
   "adjustmentType": zod.enum(['step_back', 'push']).nullish(),
   "adjustmentReason": zod.string().nullish(),
   "taskSource": zod.string().nullish().describe('Source module (e.g. \'home\' for ADHD home tasks). Null = regular work task.'),
-  "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.')
+  "sortOrder": zod.number().describe('Position within the parent milestone (\"goal\"). Lowest pending sortOrder is the next step in step-by-step goals.'),
+  "recurringTaskId": zod.number().nullish().describe('Set when this task was materialized from a recurring template.\nNull for ad-hoc tasks. Read-only — created by the server when\nit materializes the daily plan.\n')
 })
 export const GetTaskInboxResponse = zod.array(GetTaskInboxResponseItem)
 
@@ -462,6 +467,116 @@ export const GetTaskSuggestionsResponse = zod.array(GetTaskSuggestionsResponseIt
  * @summary Create a prerequisite task one level simpler and mark original as stepped back
  */
 export const StepBackTaskParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary List all recurring task templates
+ */
+export const listRecurringTasksResponseWeekdaysItemMin = 0;
+export const listRecurringTasksResponseWeekdaysItemMax = 6;
+
+export const listRecurringTasksResponseDayOfMonthMax = 31;
+
+
+
+export const ListRecurringTasksResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "category": zod.enum(['business', 'creative', 'wellness']),
+  "areaId": zod.number().nullish(),
+  "milestoneId": zod.number().nullish(),
+  "frequency": zod.enum(['daily', 'weekly', 'monthly']),
+  "weekdays": zod.array(zod.number().min(listRecurringTasksResponseWeekdaysItemMin).max(listRecurringTasksResponseWeekdaysItemMax)).nullish().describe('Weekdays this template fires on (0=Sun..6=Sat). Required when frequency is \"weekly\".'),
+  "dayOfMonth": zod.number().min(1).max(listRecurringTasksResponseDayOfMonthMax).nullish().describe('Day of month this template fires on. Required when frequency is \"monthly\". Clamped to month length when shorter.'),
+  "startDate": zod.string().describe('YYYY-MM-DD. The cadence does not produce instances before this date.'),
+  "lastMaterializedDate": zod.string().nullish().describe('YYYY-MM-DD. Latest date for which an instance has been considered. Read-only.'),
+  "pausedAt": zod.string().nullish().describe('ISO timestamp. When set, the template is paused — no new instances are materialized.'),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListRecurringTasksResponse = zod.array(ListRecurringTasksResponseItem)
+
+
+/**
+ * @summary Create a recurring task template
+ */
+
+export const createRecurringTaskBodyWeekdaysItemMin = 0;
+export const createRecurringTaskBodyWeekdaysItemMax = 6;
+
+export const createRecurringTaskBodyDayOfMonthMax = 31;
+
+
+
+export const CreateRecurringTaskBody = zod.object({
+  "title": zod.string().min(1),
+  "category": zod.enum(['business', 'creative', 'wellness']).optional(),
+  "areaId": zod.number().nullish(),
+  "milestoneId": zod.number().nullish(),
+  "frequency": zod.enum(['daily', 'weekly', 'monthly']),
+  "weekdays": zod.array(zod.number().min(createRecurringTaskBodyWeekdaysItemMin).max(createRecurringTaskBodyWeekdaysItemMax)).nullish(),
+  "dayOfMonth": zod.number().min(1).max(createRecurringTaskBodyDayOfMonthMax).nullish(),
+  "startDate": zod.string().optional().describe('YYYY-MM-DD. Defaults to today on the server when omitted.')
+})
+
+
+/**
+ * @summary Update a recurring task template
+ */
+export const UpdateRecurringTaskParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+export const updateRecurringTaskBodyWeekdaysItemMin = 0;
+export const updateRecurringTaskBodyWeekdaysItemMax = 6;
+
+export const updateRecurringTaskBodyDayOfMonthMax = 31;
+
+
+
+export const UpdateRecurringTaskBody = zod.object({
+  "title": zod.string().min(1).optional(),
+  "category": zod.enum(['business', 'creative', 'wellness']).optional(),
+  "areaId": zod.number().nullish(),
+  "milestoneId": zod.number().nullish(),
+  "frequency": zod.enum(['daily', 'weekly', 'monthly']).optional(),
+  "weekdays": zod.array(zod.number().min(updateRecurringTaskBodyWeekdaysItemMin).max(updateRecurringTaskBodyWeekdaysItemMax)).nullish(),
+  "dayOfMonth": zod.number().min(1).max(updateRecurringTaskBodyDayOfMonthMax).nullish(),
+  "startDate": zod.string().optional(),
+  "pausedAt": zod.string().nullish().describe('Set to an ISO timestamp to pause; null to resume.')
+})
+
+export const updateRecurringTaskResponseWeekdaysItemMin = 0;
+export const updateRecurringTaskResponseWeekdaysItemMax = 6;
+
+export const updateRecurringTaskResponseDayOfMonthMax = 31;
+
+
+
+export const UpdateRecurringTaskResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "category": zod.enum(['business', 'creative', 'wellness']),
+  "areaId": zod.number().nullish(),
+  "milestoneId": zod.number().nullish(),
+  "frequency": zod.enum(['daily', 'weekly', 'monthly']),
+  "weekdays": zod.array(zod.number().min(updateRecurringTaskResponseWeekdaysItemMin).max(updateRecurringTaskResponseWeekdaysItemMax)).nullish().describe('Weekdays this template fires on (0=Sun..6=Sat). Required when frequency is \"weekly\".'),
+  "dayOfMonth": zod.number().min(1).max(updateRecurringTaskResponseDayOfMonthMax).nullish().describe('Day of month this template fires on. Required when frequency is \"monthly\". Clamped to month length when shorter.'),
+  "startDate": zod.string().describe('YYYY-MM-DD. The cadence does not produce instances before this date.'),
+  "lastMaterializedDate": zod.string().nullish().describe('YYYY-MM-DD. Latest date for which an instance has been considered. Read-only.'),
+  "pausedAt": zod.string().nullish().describe('ISO timestamp. When set, the template is paused — no new instances are materialized.'),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a recurring task template
+ */
+export const DeleteRecurringTaskParams = zod.object({
   "id": zod.coerce.number()
 })
 

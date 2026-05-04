@@ -30,6 +30,11 @@ export const tasksTable = pgTable("tasks", {
   // step-by-step goals one step at a time — lowest pending sortOrder
   // wins. For loose tasks (no milestoneId) this is unused; default 0.
   sortOrder: integer("sort_order").notNull().default(0),
+  // Set when this task was materialized from a recurring template (see
+  // recurring_tasks). Nullable: ad-hoc tasks have no template. ON DELETE
+  // SET NULL is configured in the migration so deleting a template leaves
+  // already-materialized history intact.
+  recurringTaskId: integer("recurring_task_id"),
 }, (t) => ({
   userIdIdx: index("tasks_user_id_idx").on(t.userId),
   userDateIdx: index("tasks_user_date_idx").on(t.userId, t.date),

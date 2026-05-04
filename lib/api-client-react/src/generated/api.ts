@@ -30,6 +30,7 @@ import type {
   CreateDailyPlanBody,
   CreateMilestoneBody,
   CreateMonthlyReviewBody,
+  CreateRecurringTaskBody,
   CreateTaskBody,
   CreateWeeklyPlanBody,
   DailyPlan,
@@ -49,6 +50,7 @@ import type {
   MonthlyReview,
   OutcomeMetrics,
   ProgressLog,
+  RecurringTask,
   ReentryInfo,
   ReflectionDraft,
   ReorderMilestoneStepsBody,
@@ -59,6 +61,7 @@ import type {
   UpdateDailyPlanBody,
   UpdateMilestoneBody,
   UpdateMonthlyReviewBody,
+  UpdateRecurringTaskBody,
   UpdateTaskBody,
   UpdateWeeklyPlanBody,
   WeekSummary,
@@ -1649,6 +1652,296 @@ export const useStepBackTask = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getStepBackTaskMutationOptions(options));
+    }
+
+/**
+ * @summary List all recurring task templates
+ */
+export const getListRecurringTasksUrl = () => {
+
+
+
+
+  return `/api/recurring-tasks`
+}
+
+export const listRecurringTasks = async ( options?: RequestInit): Promise<RecurringTask[]> => {
+
+  return customFetch<RecurringTask[]>(getListRecurringTasksUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRecurringTasksQueryKey = () => {
+    return [
+    `/api/recurring-tasks`
+    ] as const;
+    }
+
+
+export const getListRecurringTasksQueryOptions = <TData = Awaited<ReturnType<typeof listRecurringTasks>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRecurringTasks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRecurringTasksQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRecurringTasks>>> = ({ signal }) => listRecurringTasks({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRecurringTasks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRecurringTasksQueryResult = NonNullable<Awaited<ReturnType<typeof listRecurringTasks>>>
+export type ListRecurringTasksQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all recurring task templates
+ */
+
+export function useListRecurringTasks<TData = Awaited<ReturnType<typeof listRecurringTasks>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRecurringTasks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRecurringTasksQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Create a recurring task template
+ */
+export const getCreateRecurringTaskUrl = () => {
+
+
+
+
+  return `/api/recurring-tasks`
+}
+
+export const createRecurringTask = async (createRecurringTaskBody: CreateRecurringTaskBody, options?: RequestInit): Promise<RecurringTask> => {
+
+  return customFetch<RecurringTask>(getCreateRecurringTaskUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createRecurringTaskBody,)
+  }
+);}
+
+
+
+
+export const getCreateRecurringTaskMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRecurringTask>>, TError,{data: BodyType<CreateRecurringTaskBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createRecurringTask>>, TError,{data: BodyType<CreateRecurringTaskBody>}, TContext> => {
+
+const mutationKey = ['createRecurringTask'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createRecurringTask>>, {data: BodyType<CreateRecurringTaskBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createRecurringTask(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateRecurringTaskMutationResult = NonNullable<Awaited<ReturnType<typeof createRecurringTask>>>
+    export type CreateRecurringTaskMutationBody = BodyType<CreateRecurringTaskBody>
+    export type CreateRecurringTaskMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a recurring task template
+ */
+export const useCreateRecurringTask = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRecurringTask>>, TError,{data: BodyType<CreateRecurringTaskBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createRecurringTask>>,
+        TError,
+        {data: BodyType<CreateRecurringTaskBody>},
+        TContext
+      > => {
+      return useMutation(getCreateRecurringTaskMutationOptions(options));
+    }
+
+/**
+ * @summary Update a recurring task template
+ */
+export const getUpdateRecurringTaskUrl = (id: number,) => {
+
+
+
+
+  return `/api/recurring-tasks/${id}`
+}
+
+export const updateRecurringTask = async (id: number,
+    updateRecurringTaskBody: UpdateRecurringTaskBody, options?: RequestInit): Promise<RecurringTask> => {
+
+  return customFetch<RecurringTask>(getUpdateRecurringTaskUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateRecurringTaskBody,)
+  }
+);}
+
+
+
+
+export const getUpdateRecurringTaskMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRecurringTask>>, TError,{id: number;data: BodyType<UpdateRecurringTaskBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateRecurringTask>>, TError,{id: number;data: BodyType<UpdateRecurringTaskBody>}, TContext> => {
+
+const mutationKey = ['updateRecurringTask'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateRecurringTask>>, {id: number;data: BodyType<UpdateRecurringTaskBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateRecurringTask(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateRecurringTaskMutationResult = NonNullable<Awaited<ReturnType<typeof updateRecurringTask>>>
+    export type UpdateRecurringTaskMutationBody = BodyType<UpdateRecurringTaskBody>
+    export type UpdateRecurringTaskMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a recurring task template
+ */
+export const useUpdateRecurringTask = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRecurringTask>>, TError,{id: number;data: BodyType<UpdateRecurringTaskBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateRecurringTask>>,
+        TError,
+        {id: number;data: BodyType<UpdateRecurringTaskBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateRecurringTaskMutationOptions(options));
+    }
+
+/**
+ * @summary Delete a recurring task template
+ */
+export const getDeleteRecurringTaskUrl = (id: number,) => {
+
+
+
+
+  return `/api/recurring-tasks/${id}`
+}
+
+export const deleteRecurringTask = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteRecurringTaskUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteRecurringTaskMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteRecurringTask>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteRecurringTask>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteRecurringTask'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteRecurringTask>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteRecurringTask(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteRecurringTaskMutationResult = NonNullable<Awaited<ReturnType<typeof deleteRecurringTask>>>
+
+    export type DeleteRecurringTaskMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a recurring task template
+ */
+export const useDeleteRecurringTask = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteRecurringTask>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteRecurringTask>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteRecurringTaskMutationOptions(options));
     }
 
 /**
