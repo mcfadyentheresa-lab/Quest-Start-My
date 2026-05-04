@@ -562,7 +562,7 @@ export default function HistoryPage() {
           <div className="text-center py-16 rounded-2xl bg-card border border-dashed border-border">
             <Activity className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
             <p className="text-sm font-medium text-foreground">No area data yet</p>
-            <p className="text-xs text-muted-foreground mt-1">Add areas in Projects to see their health here</p>
+            <p className="text-xs text-muted-foreground mt-1">Add areas under Areas to see their health here</p>
           </div>
         ) : (
           <div className="space-y-3">

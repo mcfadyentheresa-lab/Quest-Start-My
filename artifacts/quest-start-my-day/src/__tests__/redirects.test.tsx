@@ -27,6 +27,7 @@ function TestRouter() {
       <Route path="/weekly">{() => <Redirect to="/calendar?view=week" />}</Route>
       <Route path="/history">{() => <Redirect to="/calendar?view=history" />}</Route>
       <Route path="/review">{() => <Redirect to="/calendar?view=month" />}</Route>
+      <Route path="/year">{() => <Redirect to="/calendar?view=year" />}</Route>
       <Route path="/pillars">{() => <Redirect to="/areas" />}</Route>
       <Route>{() => <span data-testid="not-found" />}</Route>
     </Switch>
@@ -39,6 +40,7 @@ describe("legacy route redirects", () => {
     { from: "/weekly", to: "/calendar?view=week" },
     { from: "/history", to: "/calendar?view=history" },
     { from: "/review", to: "/calendar?view=month" },
+    { from: "/year", to: "/calendar?view=year" },
     { from: "/pillars", to: "/areas" },
   ];
 

@@ -67,6 +67,9 @@ function Router() {
           <Route path="/weekly">{() => <Redirect to="/calendar?view=week" />}</Route>
           <Route path="/history">{() => <Redirect to="/calendar?view=history" />}</Route>
           <Route path="/review">{() => <Redirect to="/calendar?view=month" />}</Route>
+          {/* /year is the natural URL users type — audit caught a 404. Map
+              it to the existing year sub-view of the calendar page. */}
+          <Route path="/year">{() => <Redirect to="/calendar?view=year" />}</Route>
           {/* Legacy alias: /pillars was the previous name for areas. */}
           <Route path="/pillars">{() => <Redirect to="/areas" />}</Route>
 
