@@ -310,8 +310,8 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
         <div>
-          <h1 className="font-serif text-2xl font-medium text-foreground">Projects</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Your area projects</p>
+          <h1 className="font-serif text-2xl font-medium text-foreground">Areas</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">The big buckets your work lives in.</p>
         </div>
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger asChild>
@@ -385,7 +385,20 @@ export default function SettingsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: gi * 0.05 }}
             >
-              <h2 className="font-serif text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wide">{group.label}</h2>
+              <h2
+                className="font-serif text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wide"
+                title={
+                  group.label === "Active"
+                    ? "Areas you're focused on right now. They get AI attention this week."
+                    : group.label === "Warm"
+                      ? "Areas you care about but aren't actively pushing on. Paused, not abandoned."
+                      : group.label === "Parked"
+                        ? "Areas you've set aside. They stay in the system but don't show up day-to-day."
+                        : undefined
+                }
+              >
+                {group.label}
+              </h2>
               <div className="space-y-3">
                 {group.items.map(area => (
                   <AreaCard
