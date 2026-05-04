@@ -14,6 +14,7 @@ import briefingRouter from "./briefing";
 import recapRouter from "./recap";
 import reflectionsRouter from "./reflections";
 import yearRibbonRouter from "./year-ribbon";
+import recurringTasksRouter from "./recurring-tasks";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(briefingRouter);
 router.use(recapRouter);
 router.use(reflectionsRouter);
 router.use(yearRibbonRouter);
+router.use(recurringTasksRouter);
 
 export default router;

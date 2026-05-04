@@ -414,6 +414,11 @@ export interface Task {
   taskSource?: string | null;
   /** Position within the parent milestone ("goal"). Lowest pending sortOrder is the next step in step-by-step goals. */
   sortOrder: number;
+  /** Set when this task was materialized from a recurring template.
+  Null for ad-hoc tasks. Read-only — created by the server when
+  it materializes the daily plan.
+   */
+  recurringTaskId?: number | null;
 }
 
 export type CreateTaskBodyCategory = typeof CreateTaskBodyCategory[keyof typeof CreateTaskBodyCategory];
@@ -803,6 +808,120 @@ export interface ReflectionDraft {
   source: ReflectionDraftSource;
   /** ISO timestamp the draft was generated at. */
   generatedAt: string;
+}
+
+export type RecurringTaskCategory = typeof RecurringTaskCategory[keyof typeof RecurringTaskCategory];
+
+
+export const RecurringTaskCategory = {
+  business: 'business',
+  creative: 'creative',
+  wellness: 'wellness',
+} as const;
+
+export type RecurringTaskFrequency = typeof RecurringTaskFrequency[keyof typeof RecurringTaskFrequency];
+
+
+export const RecurringTaskFrequency = {
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+} as const;
+
+export interface RecurringTask {
+  id: number;
+  title: string;
+  category: RecurringTaskCategory;
+  areaId?: number | null;
+  milestoneId?: number | null;
+  frequency: RecurringTaskFrequency;
+  /** Weekdays this template fires on (0=Sun..6=Sat). Required when frequency is "weekly". */
+  weekdays?: number[] | null;
+  /**
+     * Day of month this template fires on. Required when frequency is "monthly". Clamped to month length when shorter.
+     * @minimum 1
+     * @maximum 31
+     */
+  dayOfMonth?: number | null;
+  /** YYYY-MM-DD. The cadence does not produce instances before this date. */
+  startDate: string;
+  /** YYYY-MM-DD. Latest date for which an instance has been considered. Read-only. */
+  lastMaterializedDate?: string | null;
+  /** ISO timestamp. When set, the template is paused — no new instances are materialized. */
+  pausedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateRecurringTaskBodyCategory = typeof CreateRecurringTaskBodyCategory[keyof typeof CreateRecurringTaskBodyCategory];
+
+
+export const CreateRecurringTaskBodyCategory = {
+  business: 'business',
+  creative: 'creative',
+  wellness: 'wellness',
+} as const;
+
+export type CreateRecurringTaskBodyFrequency = typeof CreateRecurringTaskBodyFrequency[keyof typeof CreateRecurringTaskBodyFrequency];
+
+
+export const CreateRecurringTaskBodyFrequency = {
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+} as const;
+
+export interface CreateRecurringTaskBody {
+  /** @minLength 1 */
+  title: string;
+  category?: CreateRecurringTaskBodyCategory;
+  areaId?: number | null;
+  milestoneId?: number | null;
+  frequency: CreateRecurringTaskBodyFrequency;
+  weekdays?: number[] | null;
+  /**
+     * @minimum 1
+     * @maximum 31
+     */
+  dayOfMonth?: number | null;
+  /** YYYY-MM-DD. Defaults to today on the server when omitted. */
+  startDate?: string;
+}
+
+export type UpdateRecurringTaskBodyCategory = typeof UpdateRecurringTaskBodyCategory[keyof typeof UpdateRecurringTaskBodyCategory];
+
+
+export const UpdateRecurringTaskBodyCategory = {
+  business: 'business',
+  creative: 'creative',
+  wellness: 'wellness',
+} as const;
+
+export type UpdateRecurringTaskBodyFrequency = typeof UpdateRecurringTaskBodyFrequency[keyof typeof UpdateRecurringTaskBodyFrequency];
+
+
+export const UpdateRecurringTaskBodyFrequency = {
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+} as const;
+
+export interface UpdateRecurringTaskBody {
+  /** @minLength 1 */
+  title?: string;
+  category?: UpdateRecurringTaskBodyCategory;
+  areaId?: number | null;
+  milestoneId?: number | null;
+  frequency?: UpdateRecurringTaskBodyFrequency;
+  weekdays?: number[] | null;
+  /**
+     * @minimum 1
+     * @maximum 31
+     */
+  dayOfMonth?: number | null;
+  startDate?: string;
+  /** Set to an ISO timestamp to pause; null to resume. */
+  pausedAt?: string | null;
 }
 
 export type ListMilestonesParams = {

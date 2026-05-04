@@ -47,6 +47,7 @@ function task(
     stepBackDepth: 0,
     userId: "owner",
     sortOrder: 0,
+    recurringTaskId: null,
     blockerType: null,
     adjustmentType: null,
     adjustmentReason: null,

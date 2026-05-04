@@ -41,6 +41,7 @@ function task(over: Partial<Task>): Task {
     parentTaskId: null,
     stepBackDepth: 0,
     sortOrder: 0,
+    recurringTaskId: null,
     blockerType: null,
     adjustmentType: null,
     adjustmentReason: null,
