@@ -401,6 +401,11 @@ export default function Dashboard() {
   }
 
   const areaMap = new Map(areas?.map((a) => [a.id, a]) ?? []);
+  // Lookup by name powers the briefing-row goal chip's link target —
+  // BriefingItem carries pillarName but not areaId.
+  const areasByName = new Map(
+    areas?.map((a) => [a.name, { id: a.id }]) ?? [],
+  );
   // goalMap powers the goal source-chip on each task card. Built from the
   // user-wide milestones list so any task with a milestoneId can show
   // a clickable chip that jumps to its area page.
@@ -455,6 +460,7 @@ export default function Dashboard() {
                 onMarkBlocked={handleBriefingBlocked}
                 onChooseActiveAreas={() => navigate("/areas")}
                 onAddTask={() => setEmptyAddTaskOpen(true)}
+                areasByName={areasByName}
               />
               {/* AI briefing signoff (e.g. "Keep pushing forward, Theresa!")
                   is intentionally not rendered: it clashes with the

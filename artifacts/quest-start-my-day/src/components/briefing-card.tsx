@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "wouter";
 import { Check, RotateCcw, MoreHorizontal, Timer, AlertTriangle } from "lucide-react";
 import type { BriefingResponse, BriefingItem } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,10 @@ type BriefingCardProps = {
   onMarkBlocked: (item: BriefingItem) => void;
   onChooseActiveAreas?: () => void;
   onAddTask?: () => void;
+  /** Optional lookup from pillar (area) name → area id, used to make the
+   *  goal chip clickable. When absent or unresolved, the chip falls back
+   *  to a non-link span. */
+  areasByName?: Map<string, { id: number }>;
 };
 
 const PROVENANCE_LABEL: Record<BriefingResponse["source"], string> = {
@@ -45,6 +50,7 @@ export function BriefingCard({
   onMarkBlocked,
   onChooseActiveAreas,
   onAddTask,
+  areasByName,
 }: BriefingCardProps) {
   const isEmpty = briefing.briefing.length === 0;
 
@@ -117,6 +123,7 @@ export function BriefingCard({
               key={`${item.taskId ?? "new"}-${idx}`}
               item={item}
               index={idx + 1}
+              areaId={areasByName?.get(item.pillarName)?.id ?? null}
               onStartFocus={() => onStartFocus(item)}
               onMarkDone={() => onMarkDone(item)}
               onPush={() => onPushTask(item)}
@@ -158,6 +165,7 @@ export function BriefingCard({
 function BriefingRow({
   item,
   index,
+  areaId,
   onStartFocus,
   onMarkDone,
   onPush,
@@ -165,17 +173,41 @@ function BriefingRow({
 }: {
   item: BriefingItem;
   index: number;
+  areaId: number | null;
   onStartFocus: () => void;
   onMarkDone: () => void;
   onPush: () => void;
   onBlocked: () => void;
 }) {
+  const chipClass =
+    "inline-flex items-center gap-1.5 px-2.5 py-1 mb-2 rounded-full bg-primary/10 text-primary text-[10px] font-mono uppercase tracking-[0.12em] hover:bg-primary/15 transition-colors";
   return (
     <li className="flex gap-4" data-testid={`briefing-item-${index}`}>
       <div className="flex-shrink-0 mt-0.5 h-7 w-7 rounded-full bg-primary/10 text-primary text-sm font-semibold flex items-center justify-center">
         {index}
       </div>
       <div className="min-w-0 flex-1 space-y-2">
+        {item.goalTitle && (
+          areaId != null && item.goalId != null ? (
+            <Link
+              href={`/areas/${areaId}#goal-${item.goalId}`}
+              className={chipClass}
+              data-testid={`briefing-goal-chip-${index}`}
+              aria-label={`Open goal: ${item.goalTitle}`}
+            >
+              <span aria-hidden="true">↗</span>
+              <span className="truncate max-w-[28ch]">{item.goalTitle}</span>
+            </Link>
+          ) : (
+            <span
+              className={chipClass}
+              data-testid={`briefing-goal-chip-${index}`}
+            >
+              <span aria-hidden="true">↗</span>
+              <span className="truncate max-w-[28ch]">{item.goalTitle}</span>
+            </span>
+          )
+        )}
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <h3 className="font-serif text-lg font-medium text-foreground leading-snug">
             {item.title}
