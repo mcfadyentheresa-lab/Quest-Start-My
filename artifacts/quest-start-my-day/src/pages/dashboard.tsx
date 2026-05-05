@@ -31,6 +31,7 @@ import { FocusNudgeDialog } from "@/components/focus-nudge-dialog";
 import { useFocusTimer, clampDuration, MIN_DURATION_MINUTES, MAX_DURATION_MINUTES } from "@/hooks/use-focus-timer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DataLoadError } from "@/components/data-load-error";
 import { Plus, Sprout, ArrowRight, CalendarDays, Timer, ChevronDown, ChevronRight } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -725,63 +726,77 @@ export default function Dashboard() {
           </div>
         )}
 
-        {!isViewingHistory && !timer.isRunning && !timer.isNudging && pendingTasksToday.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-3 rounded-2xl border border-violet-200 bg-violet-50/60 dark:border-violet-800 dark:bg-violet-900/10 px-4 py-3"
-          >
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2">
-                <Timer className="h-4 w-4 text-violet-600 dark:text-violet-400 flex-shrink-0" />
-                <span className="text-sm font-medium text-foreground">Focus block</span>
-                <span className="text-xs text-muted-foreground hidden sm:inline">on: {focusedTask?.title ?? "first task"}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {FOCUS_DURATIONS.map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => { setSelectedFocusDuration(d); setCustomDurationInput(""); }}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors font-medium ${
-                      selectedFocusDuration === d
-                        ? "bg-violet-100 border-violet-400 text-violet-700 dark:bg-violet-900/40 dark:border-violet-500 dark:text-violet-300"
-                        : "border-border text-muted-foreground hover:border-violet-300 hover:text-violet-600"
-                    }`}
-                    aria-pressed={selectedFocusDuration === d}
-                    aria-label={`Focus for ${d} minutes`}
-                  >
-                    {d}m
-                  </button>
-                ))}
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={MIN_DURATION_MINUTES}
-                  max={MAX_DURATION_MINUTES}
-                  step={1}
-                  value={customDurationInput}
-                  onChange={e => handleCustomDurationChange(e.target.value)}
-                  onBlur={handleCustomDurationCommit}
-                  onKeyDown={e => { if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur(); }}
-                  placeholder={isPresetDuration ? "custom" : `${selectedFocusDuration}m`}
-                  aria-label="Custom focus duration in minutes"
-                  className={`w-16 text-xs px-2 py-1 rounded-full border bg-transparent text-center font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
-                    !isPresetDuration && customDurationInput !== ""
-                      ? "bg-violet-100 border-violet-400 text-violet-700 dark:bg-violet-900/40 dark:border-violet-500 dark:text-violet-300"
-                      : "border-border text-muted-foreground"
-                  }`}
-                />
+        {!isViewingHistory && !timer.isRunning && !timer.isNudging && pendingTasksToday.length > 0 && focusedTask && (
+          <div className="mb-3 flex justify-end">
+            <Popover>
+              <PopoverTrigger asChild>
                 <Button
                   size="sm"
-                  className="rounded-xl bg-violet-600 text-white hover:bg-violet-700 ml-1 text-xs font-medium px-3"
-                  onClick={() => focusedTask && handleStartFocusBlock(focusedTask)}
-                  disabled={!focusedTask}
+                  variant="outline"
+                  className="rounded-full gap-1.5 text-xs font-medium"
+                  data-testid="start-focus-trigger"
                 >
-                  Start
+                  <Timer className="h-3.5 w-3.5" />
+                  Start focus
                 </Button>
-              </div>
-            </div>
-          </motion.div>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64">
+                <div className="space-y-3">
+                  <div>
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
+                      Focus block
+                    </p>
+                    <p className="text-sm font-medium text-foreground line-clamp-2">
+                      {focusedTask.title}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {FOCUS_DURATIONS.map((d) => (
+                      <button
+                        key={d}
+                        onClick={() => { setSelectedFocusDuration(d); setCustomDurationInput(""); }}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-colors font-medium ${
+                          selectedFocusDuration === d
+                            ? "bg-primary/10 border-primary/40 text-primary"
+                            : "border-border text-muted-foreground hover:border-primary/30 hover:text-primary"
+                        }`}
+                        aria-pressed={selectedFocusDuration === d}
+                        aria-label={`Focus for ${d} minutes`}
+                      >
+                        {d}m
+                      </button>
+                    ))}
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={MIN_DURATION_MINUTES}
+                      max={MAX_DURATION_MINUTES}
+                      step={1}
+                      value={customDurationInput}
+                      onChange={e => handleCustomDurationChange(e.target.value)}
+                      onBlur={handleCustomDurationCommit}
+                      onKeyDown={e => { if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur(); }}
+                      placeholder={isPresetDuration ? "custom" : `${selectedFocusDuration}m`}
+                      aria-label="Custom focus duration in minutes"
+                      className={`w-16 text-xs px-2 py-1 rounded-full border bg-transparent text-center font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                        !isPresetDuration && customDurationInput !== ""
+                          ? "bg-primary/10 border-primary/40 text-primary"
+                          : "border-border text-muted-foreground"
+                      }`}
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    className="w-full rounded-xl text-xs font-medium"
+                    onClick={() => handleStartFocusBlock(focusedTask)}
+                    data-testid="start-focus-confirm"
+                  >
+                    Start {selectedFocusDuration}m focus
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         )}
 
         {!isViewingHistory && (timer.isRunning || (!timer.isNudging && timer.remaining > 0)) && (

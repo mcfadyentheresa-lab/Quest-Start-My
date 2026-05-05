@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button";
 
 const STORAGE_KEY = "quest_checklist_state_v1";
 const BRIEFING_VIEWED_KEY = "quest_briefing_viewed_v1";
+// Set once the user has crossed the "mostly set up" threshold (≥2 of 3
+// items complete). Once set, the checklist no longer renders even if a
+// later state somehow drops back below the threshold.
+const AUTO_DISMISSED_KEY = "onboardingChecklistDismissed";
 
 export type ChecklistItemId = "set-up-areas" | "read-briefing" | "add-first-task";
 
@@ -52,6 +56,22 @@ function readBriefingViewed(): boolean {
   }
 }
 
+function readAutoDismissed(): boolean {
+  try {
+    return localStorage.getItem(AUTO_DISMISSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeAutoDismissed() {
+  try {
+    localStorage.setItem(AUTO_DISMISSED_KEY, "1");
+  } catch {
+    // localStorage unavailable — auto-dismiss won't persist
+  }
+}
+
 interface OnboardingChecklistProps {
   hasAreas: boolean;
   hasTasks: boolean;
@@ -60,6 +80,7 @@ interface OnboardingChecklistProps {
 export function OnboardingChecklist({ hasAreas, hasTasks }: OnboardingChecklistProps) {
   const [state, setState] = useState<PersistedState>(() => readState());
   const [briefingViewed, setBriefingViewed] = useState<boolean>(() => readBriefingViewed());
+  const [autoDismissed, setAutoDismissed] = useState<boolean>(() => readAutoDismissed());
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -96,6 +117,7 @@ export function OnboardingChecklist({ hasAreas, hasTasks }: OnboardingChecklistP
   ];
 
   const allDone = items.every(i => i.done);
+  const doneCount = items.filter(i => i.done).length;
 
   // Auto-dismiss when everything is complete (give a brief celebratory moment first).
   useEffect(() => {
@@ -108,7 +130,18 @@ export function OnboardingChecklist({ hasAreas, hasTasks }: OnboardingChecklistP
     return () => clearTimeout(t);
   }, [allDone, state]);
 
-  if (state.dismissed) return null;
+  // Auto-dismiss once the user has completed ≥2 of 3 items. The card
+  // has done its job at that point; keeping it around past that just
+  // adds visual noise to a Today page we're trying to quiet down.
+  useEffect(() => {
+    if (autoDismissed) return;
+    if (doneCount >= 2) {
+      writeAutoDismissed();
+      setAutoDismissed(true);
+    }
+  }, [doneCount, autoDismissed]);
+
+  if (state.dismissed || autoDismissed) return null;
 
   const dismiss = () => {
     const next = { ...state, dismissed: true };
