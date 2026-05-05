@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, SkipForward, Pause, AlertCircle, ChevronDown, ChevronUp,
-  Trash2, Pencil, ChevronsDown, ArrowLeft, Target, Repeat,
+  Trash2, Pencil, ChevronsDown, ArrowLeft, Repeat, ArrowUpRight,
 } from "lucide-react";
 import { useUpdateTask, useDeleteTask, useStepBackTask } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -224,6 +224,21 @@ export function TaskCard({ task, date, areaMap, goalMap, areaPriorities, reasoni
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
+          {goal && goalLinkAreaId !== null && (
+            // Goal chip above the title: primary-toned, mono uppercase,
+            // links to the goal anchor on its area page. Stop propagation
+            // so the chip doesn't also open the task detail sheet.
+            <Link
+              href={`/areas/${goalLinkAreaId}#goal-${goal.id}`}
+              onClick={(e) => e.stopPropagation()}
+              aria-label={`Open goal: ${goal.title}`}
+              data-testid={`task-goal-chip-${task.id}`}
+              className="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-mono uppercase tracking-wider hover:bg-primary/15 transition-colors max-w-full"
+            >
+              <ArrowUpRight className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+              <span className="truncate">{goal.title}</span>
+            </Link>
+          )}
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <CategoryBadge category={task.category} />
             {area && (
@@ -250,21 +265,6 @@ export function TaskCard({ task, date, areaMap, goalMap, areaPriorities, reasoni
                   <span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: area.color }} />
                 )}
                 {area.name}
-              </Link>
-            )}
-            {goal && goalLinkAreaId !== null && (
-              // Goal source chip: which goal under that area drives this
-              // task. Same click-stop pattern as the area chip. Truncates
-              // long titles so the row stays single-height.
-              <Link
-                href={`/areas/${goalLinkAreaId}`}
-                onClick={(e) => e.stopPropagation()}
-                aria-label={`Open goal: ${goal.title}`}
-                data-testid={`task-goal-chip-${task.id}`}
-                className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-border/60 bg-muted/40 text-muted-foreground hover:text-foreground hover:underline decoration-dotted underline-offset-2 max-w-[16rem]"
-              >
-                <Target className="h-2.5 w-2.5 flex-shrink-0" aria-hidden="true" />
-                <span className="truncate">{goal.title}</span>
               </Link>
             )}
             {task.status !== "pending" && (

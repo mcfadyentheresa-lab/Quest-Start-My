@@ -455,6 +455,11 @@ export default function Dashboard() {
                 onMarkBlocked={handleBriefingBlocked}
                 onChooseActiveAreas={() => navigate("/areas")}
                 onAddTask={() => setEmptyAddTaskOpen(true)}
+                goalAreaMap={
+                  new Map(
+                    Array.from(goalMap.values()).map((g) => [g.id, g.areaId]),
+                  )
+                }
               />
               {/* AI briefing signoff (e.g. "Keep pushing forward, Theresa!")
                   is intentionally not rendered: it clashes with the
