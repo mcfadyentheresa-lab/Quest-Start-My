@@ -23,7 +23,6 @@ import {
 import type { BriefingItem } from "@workspace/api-client-react";
 import { isAfterLocalHour } from "@/lib/timezone";
 import { TaskCard } from "@/components/task-card";
-import { ProgressSummary } from "@/components/progress-summary";
 import { PriorityBadge } from "@/components/priority-badge";
 import { AddTaskDialog } from "@/components/add-task-dialog";
 import { SuggestionsCard } from "@/components/suggestions-card";
@@ -91,6 +90,10 @@ export default function Dashboard() {
   const [thisWeekOpen, setThisWeekOpen] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("dashboard.thisWeekOpen") === "1";
+  });
+  const [moreContextOpen, setMoreContextOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("moreContextOpen") === "1";
   });
   const toggleThisWeek = () => {
     setThisWeekOpen((prev) => {
@@ -500,6 +503,64 @@ export default function Dashboard() {
       )}
 
 
+      {/* More context disclosure — collapses Active areas, This week,
+          and Today's progress ribbon into one calm, closed-by-default
+          panel. State persisted via localStorage. */}
+      {(() => {
+        const activeAreaCount = summary?.activeAreas?.length ?? 0;
+        const weekPriorityCount = summary?.weeklyPlan?.priorities.length ?? 0;
+        const doneCount = summary?.doneCount ?? 0;
+        const hasRibbon = !!tasks && tasks.length > 0;
+        const hasAreas = activeAreaCount > 0;
+        const hasWeek = !!summary?.weeklyPlan;
+        if (!hasRibbon && !hasAreas && !hasWeek) return null;
+        return (
+      <details
+        open={moreContextOpen}
+        onToggle={(e) => {
+          const open = (e.target as HTMLDetailsElement).open;
+          setMoreContextOpen(open);
+          try {
+            window.localStorage.setItem("moreContextOpen", open ? "1" : "0");
+          } catch {
+            /* ignore quota / private mode */
+          }
+        }}
+        className="group rounded-2xl border border-card-border bg-card/40"
+      >
+        <summary
+          data-testid="more-context-toggle"
+          className="flex items-center justify-between cursor-pointer px-5 py-3 list-none select-none"
+        >
+          <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            More context
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {activeAreaCount} active areas · {weekPriorityCount} priorities this week
+          </span>
+        </summary>
+        <div className="px-5 pb-5 space-y-5">
+          {hasRibbon && (
+            <section
+              data-testid="today-progress-ribbon"
+              className="flex items-center gap-4 px-5 py-3 rounded-2xl bg-muted/30 border border-card-border"
+            >
+              <div className="font-serif text-2xl">
+                {doneCount}
+                <span className="text-sm text-muted-foreground"> / {tasks!.length}</span>
+              </div>
+              <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                Done today
+              </div>
+              <div className="flex-1 h-1.5 rounded-full bg-card-border overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all"
+                  style={{ width: `${tasks!.length ? (doneCount / tasks!.length) * 100 : 0}%` }}
+                />
+              </div>
+            </section>
+          )}
+
       {/* Active areas (kept) */}
       {summary?.activeAreas && summary.activeAreas.length > 0 && (
         <motion.section
@@ -602,26 +663,10 @@ export default function Dashboard() {
           </motion.section>
         );
       })()}
-
-      {/* Today's progress (kept) */}
-      {tasks && tasks.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <h2 className="font-serif text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-            Today's progress
-          </h2>
-          <ProgressSummary
-            doneCount={summary?.doneCount ?? 0}
-            pushedCount={summary?.pushedCount ?? 0}
-            passedCount={summary?.passedCount ?? 0}
-            blockedCount={summary?.blockedCount ?? 0}
-            totalCount={tasks.length}
-          />
-        </motion.section>
-      )}
+        </div>
+      </details>
+        );
+      })()}
 
       {/* Weekly plan nudge — small banner only when no plan exists */}
       {!summaryLoading &&
