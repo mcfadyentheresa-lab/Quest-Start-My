@@ -7,6 +7,8 @@ export type BriefingItem = {
   title: string;
   pillarName: string;
   pillarColor: string | null;
+  goalId: number | null;
+  goalTitle: string | null;
   priority: BriefingPriority;
   reasoning: string;
   estimatedMinutes: number;

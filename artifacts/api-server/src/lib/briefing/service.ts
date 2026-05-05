@@ -15,6 +15,7 @@ import { logger } from "../logger";
 import { readOpenAiApiKey } from "../openai-key";
 import { shouldServeFromCache } from "./cache";
 import { computeHeldMilestoneIds } from "./holds";
+import { enrichBriefingWithGoals } from "./enrich";
 
 export type BriefingDeps = {
   now?: Date;
@@ -222,6 +223,8 @@ export async function generateBriefing(deps: BriefingDeps = {}): Promise<Briefin
   } else {
     briefing = buildRulesBriefing(input);
   }
+
+  briefing = enrichBriefingWithGoals(briefing, input);
 
   try {
     await persistBriefing(userId, input.date, briefing);

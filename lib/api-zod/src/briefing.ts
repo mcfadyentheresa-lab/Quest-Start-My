@@ -8,6 +8,8 @@ export const BriefingItem = zod.object({
   title: zod.string(),
   pillarName: zod.string(),
   pillarColor: zod.string().nullable(),
+  goalId: zod.number().int().nullable(),
+  goalTitle: zod.string().nullable(),
   priority: BriefingPriority,
   reasoning: zod.string(),
   estimatedMinutes: zod.number().int().positive(),

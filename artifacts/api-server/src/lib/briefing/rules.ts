@@ -105,6 +105,8 @@ function pickItems(input: BriefingInput): BriefingItem[] {
       title: t.title,
       pillarName: pillar?.name ?? "Unassigned",
       pillarColor: pillar?.color ?? null,
+      goalId: null,
+      goalTitle: null,
       priority,
       reasoning,
       estimatedMinutes: focusBlockMinutes,
