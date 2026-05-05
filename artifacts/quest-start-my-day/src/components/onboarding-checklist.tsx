@@ -52,6 +52,13 @@ function readBriefingViewed(): boolean {
   }
 }
 
+// Auto-dismiss threshold: the checklist is "meaningfully onboarded" once at
+// least this many items are complete. Exported for unit tests.
+export const AUTO_DISMISS_AT = 2;
+export function shouldAutoDismiss(doneCount: number): boolean {
+  return doneCount >= AUTO_DISMISS_AT;
+}
+
 interface OnboardingChecklistProps {
   hasAreas: boolean;
   hasTasks: boolean;
@@ -95,18 +102,16 @@ export function OnboardingChecklist({ hasAreas, hasTasks }: OnboardingChecklistP
     },
   ];
 
-  const allDone = items.every(i => i.done);
+  const doneCount = items.filter(i => i.done).length;
+  const allDone = doneCount === items.length;
 
-  // Auto-dismiss when everything is complete (give a brief celebratory moment first).
+  // Auto-dismiss once the user is meaningfully onboarded (≥2 of 3 items complete).
   useEffect(() => {
-    if (!allDone || state.dismissed) return;
-    const t = setTimeout(() => {
-      const next = { ...state, dismissed: true };
-      setState(next);
-      writeState(next);
-    }, 4000);
-    return () => clearTimeout(t);
-  }, [allDone, state]);
+    if (state.dismissed || !shouldAutoDismiss(doneCount)) return;
+    const next = { ...state, dismissed: true };
+    setState(next);
+    writeState(next);
+  }, [doneCount, state]);
 
   if (state.dismissed) return null;
 
