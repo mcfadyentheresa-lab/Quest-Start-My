@@ -23,6 +23,8 @@ const briefing: BriefingResponse = {
       estimatedMinutes: 25,
       suggestedNextStep: null,
       blockedBy: null,
+      goalId: 88,
+      goalTitle: "Ideal client defined",
     },
   ],
   signoff: "I've got the rest of the week on the radar. Tap any item to start.",
@@ -57,6 +59,70 @@ describe("BriefingCard", () => {
     expect(html).toContain("P1");
     expect(html).toContain("Lock in today&#x27;s focus");
     expect(html).toContain("Reshuffle");
+  });
+
+  it("renders a goal chip linking to /areas/{areaId}#goal-{goalId} when areasByName resolves the pillar", () => {
+    const areasByName = new Map([["Aster & Spruce Living", { id: 4 }]]);
+    const html = renderToStaticMarkup(
+      <BriefingCard
+        briefing={briefing}
+        isReshuffling={false}
+        isApproving={false}
+        onApprove={() => {}}
+        onReshuffle={() => {}}
+        onAddOwn={() => {}}
+        onStartFocus={() => {}}
+        onMarkDone={() => {}}
+        onPushTask={() => {}}
+        onMarkBlocked={() => {}}
+        areasByName={areasByName}
+      />,
+    );
+    expect(html).toContain('data-testid="briefing-goal-chip-1"');
+    expect(html).toContain('href="/areas/4#goal-88"');
+    expect(html).toContain("Ideal client defined");
+  });
+
+  it("renders the chip as a non-link span when areasByName cannot resolve the pillar", () => {
+    const html = renderToStaticMarkup(
+      <BriefingCard
+        briefing={briefing}
+        isReshuffling={false}
+        isApproving={false}
+        onApprove={() => {}}
+        onReshuffle={() => {}}
+        onAddOwn={() => {}}
+        onStartFocus={() => {}}
+        onMarkDone={() => {}}
+        onPushTask={() => {}}
+        onMarkBlocked={() => {}}
+      />,
+    );
+    expect(html).toContain('data-testid="briefing-goal-chip-1"');
+    expect(html).not.toContain("href=\"/areas/");
+    expect(html).toContain("Ideal client defined");
+  });
+
+  it("does not render a goal chip when goalTitle is null", () => {
+    const noGoal: BriefingResponse = {
+      ...briefing,
+      briefing: [{ ...briefing.briefing[0], goalId: null, goalTitle: null }],
+    };
+    const html = renderToStaticMarkup(
+      <BriefingCard
+        briefing={noGoal}
+        isReshuffling={false}
+        isApproving={false}
+        onApprove={() => {}}
+        onReshuffle={() => {}}
+        onAddOwn={() => {}}
+        onStartFocus={() => {}}
+        onMarkDone={() => {}}
+        onPushTask={() => {}}
+        onMarkBlocked={() => {}}
+      />,
+    );
+    expect(html).not.toContain('data-testid="briefing-goal-chip-1"');
   });
 
   it("shows the AI-drafted provenance badge when source is ai", () => {
