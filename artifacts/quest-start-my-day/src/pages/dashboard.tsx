@@ -23,7 +23,6 @@ import {
 import type { BriefingItem } from "@workspace/api-client-react";
 import { isAfterLocalHour } from "@/lib/timezone";
 import { TaskCard } from "@/components/task-card";
-import { ProgressSummary } from "@/components/progress-summary";
 import { PriorityBadge } from "@/components/priority-badge";
 import { AddTaskDialog } from "@/components/add-task-dialog";
 import { SuggestionsCard } from "@/components/suggestions-card";
@@ -57,14 +56,6 @@ function formatShortDate(dateStr: string) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function formatDateMono(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00");
-  const weekday = d.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
-  const month = d.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
-  const day = d.getDate();
-  return `${weekday} · ${month} ${day}`;
-}
-
 export default function Dashboard() {
   const today = new Date().toISOString().slice(0, 10);
   const search = useSearch();
@@ -92,19 +83,21 @@ export default function Dashboard() {
   const [energyFilter, setEnergyFilter] = useState<
     "quick" | "medium" | "deep" | null
   >(null);
-  // Phase 3: "This week" focus panel collapses by default. The dashboard
-  // is mostly today — weekly context is one tap away when the user wants
-  // to zoom out. Persisted to localStorage so the user's last choice
-  // sticks across refreshes.
-  const [thisWeekOpen, setThisWeekOpen] = useState<boolean>(() => {
+  // "More context" disclosure: collapses Active areas + This week + the
+  // Today's progress ribbon into a single details panel. Closed by default
+  // so the page leads with the briefing card and the task list. Persisted
+  // to localStorage so the user's last choice sticks across refreshes.
+  // (Renamed from the previous "thisWeekOpen" key — the disclosure now
+  // covers more than just the weekly plan.)
+  const [moreContextOpen, setMoreContextOpen] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("dashboard.thisWeekOpen") === "1";
+    return window.localStorage.getItem("dashboard.moreContextOpen") === "1";
   });
-  const toggleThisWeek = () => {
-    setThisWeekOpen((prev) => {
+  const toggleMoreContext = () => {
+    setMoreContextOpen((prev) => {
       const next = !prev;
       try {
-        window.localStorage.setItem("dashboard.thisWeekOpen", next ? "1" : "0");
+        window.localStorage.setItem("dashboard.moreContextOpen", next ? "1" : "0");
       } catch {
         /* ignore quota / private mode */
       }
@@ -409,12 +402,6 @@ export default function Dashboard() {
   );
   const briefing = briefingQuery.data;
   const recap = recapQuery.data;
-  const headlineFromBriefing = showEveningRecap
-    ? recap?.headline ?? "Day's done."
-    : briefing?.headline ?? "Today, in focus.";
-  const greetingFromBriefing = showEveningRecap
-    ? recap?.greeting ?? ""
-    : briefing?.greeting ?? "";
   const showBriefing = !isViewingHistory && !showEveningRecap;
   const reasoningByTaskId = new Map<number, string>();
   if (briefing?.briefing) {
@@ -472,24 +459,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Demoted header — sits below the plan as flavor, not the headline */}
-      {!isViewingHistory && (
-        <motion.section
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          data-testid="briefing-header"
-        >
-          <p className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
-            {formatDateMono(today)}
-          </p>
-          <p className="font-serif text-base text-muted-foreground mt-1">
-            {greetingFromBriefing || "Welcome back."}{" "}
-            <span className="text-foreground/70">{headlineFromBriefing}</span>
-          </p>
-        </motion.section>
-      )}
-
       {/* Onboarding checklist — auto-hides once complete */}
       {!isViewingHistory && (
         <OnboardingChecklist
@@ -531,51 +500,52 @@ export default function Dashboard() {
       )}
 
 
-      {/* Active areas (kept) */}
-      {summary?.activeAreas && summary.activeAreas.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+      {/* Today's progress ribbon — single inline strip replacing the
+          old four-tile ProgressSummary. Always visible on its own when
+          tasks exist; not gated by the More context disclosure since it's
+          the highest-signal "you've shipped X of Y" line. */}
+      {tasks && tasks.length > 0 && (
+        <section
+          className="flex items-center gap-4 px-5 py-3 rounded-2xl bg-muted/30 border border-card-border"
+          data-testid="today-progress-ribbon"
         >
-          <h2 className="font-serif text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-            Active this week
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {summary.activeAreas.map((area) => (
-              /* Phase 1 UX: dropped the per-area colored dot. With four
-                 active areas each in their own color plus a colored
-                 priority pill, the row had eight competing color signals.
-                 Priority badge alone gives hierarchy without the rainbow.
-                 Phase 2: chip is now a link into the per-area brain-dump
-                 page, so users can jump from "Active this week" straight
-                 into adding/managing tasks for that area. */
-              <Link
-                key={area.id}
-                href={`/areas/${area.id}`}
-                aria-label={`Open ${area.name}`}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-card-border text-sm hover:bg-muted/50 transition-colors"
-              >
-                <span className="font-medium text-foreground">{area.name}</span>
-                <PriorityBadge priority={area.priority} />
-              </Link>
-            ))}
+          <div className="font-serif text-2xl">
+            {summary?.doneCount ?? 0}
+            <span className="text-sm text-muted-foreground"> / {tasks.length}</span>
           </div>
-        </motion.section>
+          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            Done today
+          </div>
+          <div className="flex-1 h-1.5 rounded-full bg-card-border overflow-hidden">
+            <div
+              className="h-full bg-primary rounded-full transition-all"
+              style={{
+                width: `${
+                  tasks.length
+                    ? ((summary?.doneCount ?? 0) / tasks.length) * 100
+                    : 0
+                }%`,
+              }}
+            />
+          </div>
+        </section>
       )}
 
-      {/* This week's focus — collapsible. Default closed; expand on tap.
-          The dashboard is today-first; weekly context is one click away. */}
-      {summary?.weeklyPlan && (() => {
-        const wp = summary.weeklyPlan;
-        const priorityCount = wp.priorities.length;
-        const focusCount =
-          (wp.healthFocus ? 1 : 0) +
-          (wp.businessFocus ? 1 : 0) +
-          (wp.creativeFocus ? 1 : 0);
+      {/* More context — collapses Active areas + This week into one
+          disclosure. Closed by default; preview line summarizes counts. */}
+      {((summary?.activeAreas && summary.activeAreas.length > 0) || summary?.weeklyPlan) && (() => {
+        const activeCount = summary?.activeAreas?.length ?? 0;
+        const wp = summary?.weeklyPlan;
+        const priorityCount = wp?.priorities.length ?? 0;
+        const focusCount = wp
+          ? (wp.healthFocus ? 1 : 0) + (wp.businessFocus ? 1 : 0) + (wp.creativeFocus ? 1 : 0)
+          : 0;
         const previewBits: string[] = [];
+        if (activeCount > 0) {
+          previewBits.push(`${activeCount} active ${activeCount === 1 ? "area" : "areas"}`);
+        }
         if (priorityCount > 0) {
-          previewBits.push(`${priorityCount} ${priorityCount === 1 ? "priority" : "priorities"}`);
+          previewBits.push(`${priorityCount} ${priorityCount === 1 ? "priority" : "priorities"} this week`);
         }
         if (focusCount > 0) {
           previewBits.push(`${focusCount} focus ${focusCount === 1 ? "area" : "areas"}`);
@@ -585,47 +555,75 @@ export default function Dashboard() {
           <motion.section
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
+            transition={{ delay: 0.1 }}
             className="rounded-2xl bg-card border border-card-border"
+            data-testid="more-context"
           >
             <button
               type="button"
-              onClick={toggleThisWeek}
-              aria-expanded={thisWeekOpen}
-              aria-controls="this-week-panel"
+              onClick={toggleMoreContext}
+              aria-expanded={moreContextOpen}
+              aria-controls="more-context-panel"
               className="w-full flex items-center justify-between gap-3 p-4 text-left"
             >
               <div className="flex items-center gap-2 min-w-0">
-                {thisWeekOpen ? (
+                {moreContextOpen ? (
                   <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 ) : (
                   <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 )}
                 <span className="font-serif text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                  This week
+                  More context
                 </span>
               </div>
-              {!thisWeekOpen && (
+              {!moreContextOpen && (
                 <span className="text-xs text-muted-foreground truncate">{preview}</span>
               )}
             </button>
-            {thisWeekOpen && (
-              <div id="this-week-panel" className="px-4 pb-4 pt-1 border-t border-card-border/60">
-                {priorityCount > 0 && (
-                  <ul className="space-y-1.5 mb-2 mt-2">
-                    {wp.priorities.map((p, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
-                        <span className="text-primary font-bold mt-0.5">·</span>
-                        {p}
-                      </li>
-                    ))}
-                  </ul>
+            {moreContextOpen && (
+              <div id="more-context-panel" className="px-4 pb-4 pt-1 border-t border-card-border/60 space-y-4">
+                {summary?.activeAreas && summary.activeAreas.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono mb-2">
+                      Active this week
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {summary.activeAreas.map((area) => (
+                        <Link
+                          key={area.id}
+                          href={`/areas/${area.id}`}
+                          aria-label={`Open ${area.name}`}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-card-border text-sm hover:bg-muted/50 transition-colors"
+                        >
+                          <span className="font-medium text-foreground">{area.name}</span>
+                          <PriorityBadge priority={area.priority} />
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
                 )}
-                {focusCount > 0 && (
-                  <div className="space-y-1.5">
-                    {wp.healthFocus && <FocusLine label="Health" value={wp.healthFocus} />}
-                    {wp.businessFocus && <FocusLine label="Business" value={wp.businessFocus} />}
-                    {wp.creativeFocus && <FocusLine label="Creative" value={wp.creativeFocus} />}
+                {wp && (priorityCount > 0 || focusCount > 0) && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono mb-2">
+                      This week
+                    </p>
+                    {priorityCount > 0 && (
+                      <ul className="space-y-1.5 mb-2">
+                        {wp.priorities.map((p, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
+                            <span className="text-primary font-bold mt-0.5">·</span>
+                            {p}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {focusCount > 0 && (
+                      <div className="space-y-1.5">
+                        {wp.healthFocus && <FocusLine label="Health" value={wp.healthFocus} />}
+                        {wp.businessFocus && <FocusLine label="Business" value={wp.businessFocus} />}
+                        {wp.creativeFocus && <FocusLine label="Creative" value={wp.creativeFocus} />}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -633,26 +631,6 @@ export default function Dashboard() {
           </motion.section>
         );
       })()}
-
-      {/* Today's progress (kept) */}
-      {tasks && tasks.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <h2 className="font-serif text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-            Today's progress
-          </h2>
-          <ProgressSummary
-            doneCount={summary?.doneCount ?? 0}
-            pushedCount={summary?.pushedCount ?? 0}
-            passedCount={summary?.passedCount ?? 0}
-            blockedCount={summary?.blockedCount ?? 0}
-            totalCount={tasks.length}
-          />
-        </motion.section>
-      )}
 
       {/* Weekly plan nudge — small banner only when no plan exists */}
       {!summaryLoading &&
