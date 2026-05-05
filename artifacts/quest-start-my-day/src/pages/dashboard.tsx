@@ -57,14 +57,6 @@ function formatShortDate(dateStr: string) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function formatDateMono(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00");
-  const weekday = d.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
-  const month = d.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
-  const day = d.getDate();
-  return `${weekday} · ${month} ${day}`;
-}
-
 export default function Dashboard() {
   const today = new Date().toISOString().slice(0, 10);
   const search = useSearch();
@@ -414,12 +406,6 @@ export default function Dashboard() {
   );
   const briefing = briefingQuery.data;
   const recap = recapQuery.data;
-  const headlineFromBriefing = showEveningRecap
-    ? recap?.headline ?? "Day's done."
-    : briefing?.headline ?? "Today, in focus.";
-  const greetingFromBriefing = showEveningRecap
-    ? recap?.greeting ?? ""
-    : briefing?.greeting ?? "";
   const showBriefing = !isViewingHistory && !showEveningRecap;
   const reasoningByTaskId = new Map<number, string>();
   if (briefing?.briefing) {
@@ -471,24 +457,6 @@ export default function Dashboard() {
             </>
           )}
         </div>
-      )}
-
-      {/* Demoted header — sits below the plan as flavor, not the headline */}
-      {!isViewingHistory && (
-        <motion.section
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          data-testid="briefing-header"
-        >
-          <p className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
-            {formatDateMono(today)}
-          </p>
-          <p className="font-serif text-base text-muted-foreground mt-1">
-            {greetingFromBriefing || "Welcome back."}{" "}
-            <span className="text-foreground/70">{headlineFromBriefing}</span>
-          </p>
-        </motion.section>
       )}
 
       {/* Onboarding checklist — auto-hides once complete */}
