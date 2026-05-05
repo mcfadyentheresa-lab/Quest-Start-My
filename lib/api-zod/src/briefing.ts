@@ -13,6 +13,8 @@ export const BriefingItem = zod.object({
   estimatedMinutes: zod.number().int().positive(),
   suggestedNextStep: zod.string().nullable(),
   blockedBy: zod.string().nullable(),
+  goalId: zod.number().nullable(),
+  goalTitle: zod.string().nullable(),
 });
 export type BriefingItem = zod.infer<typeof BriefingItem>;
 

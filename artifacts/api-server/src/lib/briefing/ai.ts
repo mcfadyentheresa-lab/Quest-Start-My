@@ -149,6 +149,8 @@ function parseAiResponse(
   const pillarById = new Map(input.pillars.map((p) => [p.id, p]));
   const pillarByName = new Map(input.pillars.map((p) => [p.name.toLowerCase(), p]));
 
+  const milestoneById = new Map(input.milestones.map((m) => [m.id, m]));
+
   const items: BriefingItem[] = [];
   for (const entry of briefingArr.slice(0, 3)) {
     if (!entry || typeof entry !== "object") continue;
@@ -177,6 +179,11 @@ function parseAiResponse(
         ? e.suggestedNextStep.trim()
         : referencedTask?.suggestedNextStep ?? null;
 
+    const milestone =
+      referencedTask?.milestoneId != null
+        ? milestoneById.get(referencedTask.milestoneId) ?? null
+        : null;
+
     items.push({
       taskId,
       title: titleRaw,
@@ -190,6 +197,8 @@ function parseAiResponse(
         referencedTask?.status === "blocked"
           ? (referencedTask.blockerReason ?? "Blocked")
           : null,
+      goalId: milestone?.id ?? null,
+      goalTitle: milestone?.title ?? null,
     });
   }
 

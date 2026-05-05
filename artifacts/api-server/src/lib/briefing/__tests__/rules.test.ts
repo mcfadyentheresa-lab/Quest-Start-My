@@ -205,6 +205,24 @@ describe("buildRulesBriefing", () => {
     expect(stepReason).toMatch(/Earlier steps are done/);
   });
 
+  it("populates goalId/goalTitle when a task lives on a milestone, null otherwise", () => {
+    const goal = milestone(42, "Launch Aster site", 1, "any");
+    const input = makeInput({
+      milestones: [goal],
+      openTasks: [
+        task(501, "Has goal", 1, "pending", null, { milestoneId: 42 }),
+        task(502, "No goal", 1),
+      ],
+    });
+    const out = buildRulesBriefing(input);
+    const withGoal = out.briefing.find((b) => b.taskId === 501);
+    const withoutGoal = out.briefing.find((b) => b.taskId === 502);
+    expect(withGoal?.goalId).toBe(42);
+    expect(withGoal?.goalTitle).toBe("Launch Aster site");
+    expect(withoutGoal?.goalId).toBeNull();
+    expect(withoutGoal?.goalTitle).toBeNull();
+  });
+
   it("flags an active-this-week area that has gone stale (>=5 days)", () => {
     const sixDaysAgo = new Date(baseDate.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString();
     const stalePillar = {

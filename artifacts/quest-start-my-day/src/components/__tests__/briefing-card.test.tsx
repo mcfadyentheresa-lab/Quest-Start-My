@@ -23,6 +23,8 @@ const briefing: BriefingResponse = {
       estimatedMinutes: 25,
       suggestedNextStep: null,
       blockedBy: null,
+      goalId: null,
+      goalTitle: null,
     },
   ],
   signoff: "I've got the rest of the week on the radar. Tap any item to start.",

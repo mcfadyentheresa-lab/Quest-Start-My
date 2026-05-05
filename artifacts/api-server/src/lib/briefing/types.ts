@@ -12,6 +12,11 @@ export type BriefingItem = {
   estimatedMinutes: number;
   suggestedNextStep: string | null;
   blockedBy: string | null;
+  // The goal (milestone) this task lives under, when one exists. Lets the
+  // Today page render a goal chip on each briefing row that links to the
+  // area's goal anchor.
+  goalId: number | null;
+  goalTitle: string | null;
 };
 
 export type BriefingResponse = {
