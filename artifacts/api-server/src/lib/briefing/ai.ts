@@ -182,6 +182,8 @@ function parseAiResponse(
       title: titleRaw,
       pillarName: pillar?.name ?? (pillarNameRaw || "Focus"),
       pillarColor: pillar?.color ?? null,
+      goalId: null,
+      goalTitle: null,
       priority,
       reasoning,
       estimatedMinutes: input.focusBlockMinutes,
