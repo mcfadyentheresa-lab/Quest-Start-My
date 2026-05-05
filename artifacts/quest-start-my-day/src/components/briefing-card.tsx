@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
-import { Check, RotateCcw, MoreHorizontal, Timer, AlertTriangle } from "lucide-react";
+import { Check, RotateCcw, MoreHorizontal, Timer, AlertTriangle, ArrowUpRight } from "lucide-react";
 import type { BriefingResponse, BriefingItem } from "@workspace/api-client-react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { PriorityBadge } from "@/components/priority-badge";
 import {
@@ -24,6 +25,9 @@ type BriefingCardProps = {
   onMarkBlocked: (item: BriefingItem) => void;
   onChooseActiveAreas?: () => void;
   onAddTask?: () => void;
+  /** Maps goal (milestone) id → its area id, used to build the goal-chip
+   *  link target. When absent the chip renders as a plain label. */
+  goalAreaMap?: Map<number, number>;
 };
 
 const PROVENANCE_LABEL: Record<BriefingResponse["source"], string> = {
@@ -45,6 +49,7 @@ export function BriefingCard({
   onMarkBlocked,
   onChooseActiveAreas,
   onAddTask,
+  goalAreaMap,
 }: BriefingCardProps) {
   const isEmpty = briefing.briefing.length === 0;
 
@@ -117,6 +122,7 @@ export function BriefingCard({
               key={`${item.taskId ?? "new"}-${idx}`}
               item={item}
               index={idx + 1}
+              goalAreaId={item.goalId != null ? goalAreaMap?.get(item.goalId) ?? null : null}
               onStartFocus={() => onStartFocus(item)}
               onMarkDone={() => onMarkDone(item)}
               onPush={() => onPushTask(item)}
@@ -158,6 +164,7 @@ export function BriefingCard({
 function BriefingRow({
   item,
   index,
+  goalAreaId,
   onStartFocus,
   onMarkDone,
   onPush,
@@ -165,17 +172,39 @@ function BriefingRow({
 }: {
   item: BriefingItem;
   index: number;
+  goalAreaId: number | null;
   onStartFocus: () => void;
   onMarkDone: () => void;
   onPush: () => void;
   onBlocked: () => void;
 }) {
+  const goalChip = item.goalId != null && item.goalTitle && goalAreaId != null ? (
+    <Link
+      href={`/areas/${goalAreaId}#goal-${item.goalId}`}
+      aria-label={`Open goal: ${item.goalTitle}`}
+      data-testid={`briefing-goal-chip-${index}`}
+      className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-mono uppercase tracking-wider hover:bg-primary/15 transition-colors max-w-full"
+    >
+      <ArrowUpRight className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+      <span className="truncate">{item.goalTitle}</span>
+    </Link>
+  ) : item.goalTitle ? (
+    <span
+      className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-mono uppercase tracking-wider max-w-full"
+      data-testid={`briefing-goal-chip-${index}`}
+    >
+      <ArrowUpRight className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+      <span className="truncate">{item.goalTitle}</span>
+    </span>
+  ) : null;
+
   return (
     <li className="flex gap-4" data-testid={`briefing-item-${index}`}>
       <div className="flex-shrink-0 mt-0.5 h-7 w-7 rounded-full bg-primary/10 text-primary text-sm font-semibold flex items-center justify-center">
         {index}
       </div>
       <div className="min-w-0 flex-1 space-y-2">
+        {goalChip}
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <h3 className="font-serif text-lg font-medium text-foreground leading-snug">
             {item.title}

@@ -110,6 +110,8 @@ function pickItems(input: BriefingInput): BriefingItem[] {
       estimatedMinutes: focusBlockMinutes,
       suggestedNextStep: t.suggestedNextStep ?? null,
       blockedBy: t.status === "blocked" ? t.blockerReason ?? "Blocked" : null,
+      goalId: milestone?.id ?? null,
+      goalTitle: milestone?.title ?? null,
     };
   });
 }

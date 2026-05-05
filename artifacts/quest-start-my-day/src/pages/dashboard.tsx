@@ -23,7 +23,6 @@ import {
 import type { BriefingItem } from "@workspace/api-client-react";
 import { isAfterLocalHour } from "@/lib/timezone";
 import { TaskCard } from "@/components/task-card";
-import { ProgressSummary } from "@/components/progress-summary";
 import { PriorityBadge } from "@/components/priority-badge";
 import { AddTaskDialog } from "@/components/add-task-dialog";
 import { SuggestionsCard } from "@/components/suggestions-card";
@@ -32,6 +31,7 @@ import { FocusNudgeDialog } from "@/components/focus-nudge-dialog";
 import { useFocusTimer, clampDuration, MIN_DURATION_MINUTES, MAX_DURATION_MINUTES } from "@/hooks/use-focus-timer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DataLoadError } from "@/components/data-load-error";
 import { Plus, Sprout, ArrowRight, CalendarDays, Timer, ChevronDown, ChevronRight } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -55,14 +55,6 @@ const FOCUS_DURATIONS = [5, 10, 15, 25] as const;
 function formatShortDate(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function formatDateMono(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00");
-  const weekday = d.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
-  const month = d.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
-  const day = d.getDate();
-  return `${weekday} · ${month} ${day}`;
 }
 
 export default function Dashboard() {
@@ -92,19 +84,21 @@ export default function Dashboard() {
   const [energyFilter, setEnergyFilter] = useState<
     "quick" | "medium" | "deep" | null
   >(null);
-  // Phase 3: "This week" focus panel collapses by default. The dashboard
-  // is mostly today — weekly context is one tap away when the user wants
-  // to zoom out. Persisted to localStorage so the user's last choice
-  // sticks across refreshes.
-  const [thisWeekOpen, setThisWeekOpen] = useState<boolean>(() => {
+  // "More context" disclosure: collapses Active areas + This week + the
+  // Today's progress ribbon into a single details panel. Closed by default
+  // so the page leads with the briefing card and the task list. Persisted
+  // to localStorage so the user's last choice sticks across refreshes.
+  // (Renamed from the previous "thisWeekOpen" key — the disclosure now
+  // covers more than just the weekly plan.)
+  const [moreContextOpen, setMoreContextOpen] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("dashboard.thisWeekOpen") === "1";
+    return window.localStorage.getItem("dashboard.moreContextOpen") === "1";
   });
-  const toggleThisWeek = () => {
-    setThisWeekOpen((prev) => {
+  const toggleMoreContext = () => {
+    setMoreContextOpen((prev) => {
       const next = !prev;
       try {
-        window.localStorage.setItem("dashboard.thisWeekOpen", next ? "1" : "0");
+        window.localStorage.setItem("dashboard.moreContextOpen", next ? "1" : "0");
       } catch {
         /* ignore quota / private mode */
       }
@@ -409,12 +403,6 @@ export default function Dashboard() {
   );
   const briefing = briefingQuery.data;
   const recap = recapQuery.data;
-  const headlineFromBriefing = showEveningRecap
-    ? recap?.headline ?? "Day's done."
-    : briefing?.headline ?? "Today, in focus.";
-  const greetingFromBriefing = showEveningRecap
-    ? recap?.greeting ?? ""
-    : briefing?.greeting ?? "";
   const showBriefing = !isViewingHistory && !showEveningRecap;
   const reasoningByTaskId = new Map<number, string>();
   if (briefing?.briefing) {
@@ -455,6 +443,11 @@ export default function Dashboard() {
                 onMarkBlocked={handleBriefingBlocked}
                 onChooseActiveAreas={() => navigate("/areas")}
                 onAddTask={() => setEmptyAddTaskOpen(true)}
+                goalAreaMap={
+                  new Map(
+                    Array.from(goalMap.values()).map((g) => [g.id, g.areaId]),
+                  )
+                }
               />
               {/* AI briefing signoff (e.g. "Keep pushing forward, Theresa!")
                   is intentionally not rendered: it clashes with the
@@ -465,24 +458,6 @@ export default function Dashboard() {
             </>
           )}
         </div>
-      )}
-
-      {/* Demoted header — sits below the plan as flavor, not the headline */}
-      {!isViewingHistory && (
-        <motion.section
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          data-testid="briefing-header"
-        >
-          <p className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
-            {formatDateMono(today)}
-          </p>
-          <p className="font-serif text-base text-muted-foreground mt-1">
-            {greetingFromBriefing || "Welcome back."}{" "}
-            <span className="text-foreground/70">{headlineFromBriefing}</span>
-          </p>
-        </motion.section>
       )}
 
       {/* Onboarding checklist — auto-hides once complete */}
@@ -526,51 +501,52 @@ export default function Dashboard() {
       )}
 
 
-      {/* Active areas (kept) */}
-      {summary?.activeAreas && summary.activeAreas.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+      {/* Today's progress ribbon — single inline strip replacing the
+          old four-tile ProgressSummary. Always visible on its own when
+          tasks exist; not gated by the More context disclosure since it's
+          the highest-signal "you've shipped X of Y" line. */}
+      {tasks && tasks.length > 0 && (
+        <section
+          className="flex items-center gap-4 px-5 py-3 rounded-2xl bg-muted/30 border border-card-border"
+          data-testid="today-progress-ribbon"
         >
-          <h2 className="font-serif text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-            Active this week
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {summary.activeAreas.map((area) => (
-              /* Phase 1 UX: dropped the per-area colored dot. With four
-                 active areas each in their own color plus a colored
-                 priority pill, the row had eight competing color signals.
-                 Priority badge alone gives hierarchy without the rainbow.
-                 Phase 2: chip is now a link into the per-area brain-dump
-                 page, so users can jump from "Active this week" straight
-                 into adding/managing tasks for that area. */
-              <Link
-                key={area.id}
-                href={`/areas/${area.id}`}
-                aria-label={`Open ${area.name}`}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-card-border text-sm hover:bg-muted/50 transition-colors"
-              >
-                <span className="font-medium text-foreground">{area.name}</span>
-                <PriorityBadge priority={area.priority} />
-              </Link>
-            ))}
+          <div className="font-serif text-2xl">
+            {summary?.doneCount ?? 0}
+            <span className="text-sm text-muted-foreground"> / {tasks.length}</span>
           </div>
-        </motion.section>
+          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            Done today
+          </div>
+          <div className="flex-1 h-1.5 rounded-full bg-card-border overflow-hidden">
+            <div
+              className="h-full bg-primary rounded-full transition-all"
+              style={{
+                width: `${
+                  tasks.length
+                    ? ((summary?.doneCount ?? 0) / tasks.length) * 100
+                    : 0
+                }%`,
+              }}
+            />
+          </div>
+        </section>
       )}
 
-      {/* This week's focus — collapsible. Default closed; expand on tap.
-          The dashboard is today-first; weekly context is one click away. */}
-      {summary?.weeklyPlan && (() => {
-        const wp = summary.weeklyPlan;
-        const priorityCount = wp.priorities.length;
-        const focusCount =
-          (wp.healthFocus ? 1 : 0) +
-          (wp.businessFocus ? 1 : 0) +
-          (wp.creativeFocus ? 1 : 0);
+      {/* More context — collapses Active areas + This week into one
+          disclosure. Closed by default; preview line summarizes counts. */}
+      {((summary?.activeAreas && summary.activeAreas.length > 0) || summary?.weeklyPlan) && (() => {
+        const activeCount = summary?.activeAreas?.length ?? 0;
+        const wp = summary?.weeklyPlan;
+        const priorityCount = wp?.priorities.length ?? 0;
+        const focusCount = wp
+          ? (wp.healthFocus ? 1 : 0) + (wp.businessFocus ? 1 : 0) + (wp.creativeFocus ? 1 : 0)
+          : 0;
         const previewBits: string[] = [];
+        if (activeCount > 0) {
+          previewBits.push(`${activeCount} active ${activeCount === 1 ? "area" : "areas"}`);
+        }
         if (priorityCount > 0) {
-          previewBits.push(`${priorityCount} ${priorityCount === 1 ? "priority" : "priorities"}`);
+          previewBits.push(`${priorityCount} ${priorityCount === 1 ? "priority" : "priorities"} this week`);
         }
         if (focusCount > 0) {
           previewBits.push(`${focusCount} focus ${focusCount === 1 ? "area" : "areas"}`);
@@ -580,47 +556,75 @@ export default function Dashboard() {
           <motion.section
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
+            transition={{ delay: 0.1 }}
             className="rounded-2xl bg-card border border-card-border"
+            data-testid="more-context"
           >
             <button
               type="button"
-              onClick={toggleThisWeek}
-              aria-expanded={thisWeekOpen}
-              aria-controls="this-week-panel"
+              onClick={toggleMoreContext}
+              aria-expanded={moreContextOpen}
+              aria-controls="more-context-panel"
               className="w-full flex items-center justify-between gap-3 p-4 text-left"
             >
               <div className="flex items-center gap-2 min-w-0">
-                {thisWeekOpen ? (
+                {moreContextOpen ? (
                   <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 ) : (
                   <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 )}
                 <span className="font-serif text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                  This week
+                  More context
                 </span>
               </div>
-              {!thisWeekOpen && (
+              {!moreContextOpen && (
                 <span className="text-xs text-muted-foreground truncate">{preview}</span>
               )}
             </button>
-            {thisWeekOpen && (
-              <div id="this-week-panel" className="px-4 pb-4 pt-1 border-t border-card-border/60">
-                {priorityCount > 0 && (
-                  <ul className="space-y-1.5 mb-2 mt-2">
-                    {wp.priorities.map((p, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
-                        <span className="text-primary font-bold mt-0.5">·</span>
-                        {p}
-                      </li>
-                    ))}
-                  </ul>
+            {moreContextOpen && (
+              <div id="more-context-panel" className="px-4 pb-4 pt-1 border-t border-card-border/60 space-y-4">
+                {summary?.activeAreas && summary.activeAreas.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono mb-2">
+                      Active this week
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {summary.activeAreas.map((area) => (
+                        <Link
+                          key={area.id}
+                          href={`/areas/${area.id}`}
+                          aria-label={`Open ${area.name}`}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-card-border text-sm hover:bg-muted/50 transition-colors"
+                        >
+                          <span className="font-medium text-foreground">{area.name}</span>
+                          <PriorityBadge priority={area.priority} />
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
                 )}
-                {focusCount > 0 && (
-                  <div className="space-y-1.5">
-                    {wp.healthFocus && <FocusLine label="Health" value={wp.healthFocus} />}
-                    {wp.businessFocus && <FocusLine label="Business" value={wp.businessFocus} />}
-                    {wp.creativeFocus && <FocusLine label="Creative" value={wp.creativeFocus} />}
+                {wp && (priorityCount > 0 || focusCount > 0) && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono mb-2">
+                      This week
+                    </p>
+                    {priorityCount > 0 && (
+                      <ul className="space-y-1.5 mb-2">
+                        {wp.priorities.map((p, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
+                            <span className="text-primary font-bold mt-0.5">·</span>
+                            {p}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {focusCount > 0 && (
+                      <div className="space-y-1.5">
+                        {wp.healthFocus && <FocusLine label="Health" value={wp.healthFocus} />}
+                        {wp.businessFocus && <FocusLine label="Business" value={wp.businessFocus} />}
+                        {wp.creativeFocus && <FocusLine label="Creative" value={wp.creativeFocus} />}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -628,26 +632,6 @@ export default function Dashboard() {
           </motion.section>
         );
       })()}
-
-      {/* Today's progress (kept) */}
-      {tasks && tasks.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <h2 className="font-serif text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-            Today's progress
-          </h2>
-          <ProgressSummary
-            doneCount={summary?.doneCount ?? 0}
-            pushedCount={summary?.pushedCount ?? 0}
-            passedCount={summary?.passedCount ?? 0}
-            blockedCount={summary?.blockedCount ?? 0}
-            totalCount={tasks.length}
-          />
-        </motion.section>
-      )}
 
       {/* Weekly plan nudge — small banner only when no plan exists */}
       {!summaryLoading &&
@@ -742,63 +726,77 @@ export default function Dashboard() {
           </div>
         )}
 
-        {!isViewingHistory && !timer.isRunning && !timer.isNudging && pendingTasksToday.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-3 rounded-2xl border border-violet-200 bg-violet-50/60 dark:border-violet-800 dark:bg-violet-900/10 px-4 py-3"
-          >
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2">
-                <Timer className="h-4 w-4 text-violet-600 dark:text-violet-400 flex-shrink-0" />
-                <span className="text-sm font-medium text-foreground">Focus block</span>
-                <span className="text-xs text-muted-foreground hidden sm:inline">on: {focusedTask?.title ?? "first task"}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {FOCUS_DURATIONS.map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => { setSelectedFocusDuration(d); setCustomDurationInput(""); }}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors font-medium ${
-                      selectedFocusDuration === d
-                        ? "bg-violet-100 border-violet-400 text-violet-700 dark:bg-violet-900/40 dark:border-violet-500 dark:text-violet-300"
-                        : "border-border text-muted-foreground hover:border-violet-300 hover:text-violet-600"
-                    }`}
-                    aria-pressed={selectedFocusDuration === d}
-                    aria-label={`Focus for ${d} minutes`}
-                  >
-                    {d}m
-                  </button>
-                ))}
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={MIN_DURATION_MINUTES}
-                  max={MAX_DURATION_MINUTES}
-                  step={1}
-                  value={customDurationInput}
-                  onChange={e => handleCustomDurationChange(e.target.value)}
-                  onBlur={handleCustomDurationCommit}
-                  onKeyDown={e => { if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur(); }}
-                  placeholder={isPresetDuration ? "custom" : `${selectedFocusDuration}m`}
-                  aria-label="Custom focus duration in minutes"
-                  className={`w-16 text-xs px-2 py-1 rounded-full border bg-transparent text-center font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
-                    !isPresetDuration && customDurationInput !== ""
-                      ? "bg-violet-100 border-violet-400 text-violet-700 dark:bg-violet-900/40 dark:border-violet-500 dark:text-violet-300"
-                      : "border-border text-muted-foreground"
-                  }`}
-                />
+        {!isViewingHistory && !timer.isRunning && !timer.isNudging && pendingTasksToday.length > 0 && focusedTask && (
+          <div className="mb-3 flex justify-end">
+            <Popover>
+              <PopoverTrigger asChild>
                 <Button
                   size="sm"
-                  className="rounded-xl bg-violet-600 text-white hover:bg-violet-700 ml-1 text-xs font-medium px-3"
-                  onClick={() => focusedTask && handleStartFocusBlock(focusedTask)}
-                  disabled={!focusedTask}
+                  variant="outline"
+                  className="rounded-full gap-1.5 text-xs font-medium"
+                  data-testid="start-focus-trigger"
                 >
-                  Start
+                  <Timer className="h-3.5 w-3.5" />
+                  Start focus
                 </Button>
-              </div>
-            </div>
-          </motion.div>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64">
+                <div className="space-y-3">
+                  <div>
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
+                      Focus block
+                    </p>
+                    <p className="text-sm font-medium text-foreground line-clamp-2">
+                      {focusedTask.title}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {FOCUS_DURATIONS.map((d) => (
+                      <button
+                        key={d}
+                        onClick={() => { setSelectedFocusDuration(d); setCustomDurationInput(""); }}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-colors font-medium ${
+                          selectedFocusDuration === d
+                            ? "bg-primary/10 border-primary/40 text-primary"
+                            : "border-border text-muted-foreground hover:border-primary/30 hover:text-primary"
+                        }`}
+                        aria-pressed={selectedFocusDuration === d}
+                        aria-label={`Focus for ${d} minutes`}
+                      >
+                        {d}m
+                      </button>
+                    ))}
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={MIN_DURATION_MINUTES}
+                      max={MAX_DURATION_MINUTES}
+                      step={1}
+                      value={customDurationInput}
+                      onChange={e => handleCustomDurationChange(e.target.value)}
+                      onBlur={handleCustomDurationCommit}
+                      onKeyDown={e => { if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur(); }}
+                      placeholder={isPresetDuration ? "custom" : `${selectedFocusDuration}m`}
+                      aria-label="Custom focus duration in minutes"
+                      className={`w-16 text-xs px-2 py-1 rounded-full border bg-transparent text-center font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                        !isPresetDuration && customDurationInput !== ""
+                          ? "bg-primary/10 border-primary/40 text-primary"
+                          : "border-border text-muted-foreground"
+                      }`}
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    className="w-full rounded-xl text-xs font-medium"
+                    onClick={() => handleStartFocusBlock(focusedTask)}
+                    data-testid="start-focus-confirm"
+                  >
+                    Start {selectedFocusDuration}m focus
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         )}
 
         {!isViewingHistory && (timer.isRunning || (!timer.isNudging && timer.remaining > 0)) && (

@@ -20,6 +20,8 @@ export type BriefingItem = {
   estimatedMinutes: number;
   suggestedNextStep: string | null;
   blockedBy: string | null;
+  goalId: number | null;
+  goalTitle: string | null;
 };
 
 export type BriefingResponse = {
